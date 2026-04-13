@@ -1,0 +1,45 @@
+# --- Betriebssystem ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# --- IDE / Editor ---
+.idea/
+.vscode/
+*.code-workspace
+
+# --- Geheimnisse ---
+backend/.env
+.env
+
+# --- Backend: Django / Python ---
+backend/db.sqlite3
+backend/db.sqlite3-journal
+backend/media/
+backend/staticfiles/
+backend/**/__pycache__/
+backend/**/*.py[cod]
+backend/**/.pytest_cache/
+backend/**/.mypy_cache/
+backend/**/.ruff_cache/
+backend/**/*.egg-info/
+backend/.coverage
+backend/htmlcov/
+backend/coverage.xml
+
+# Virtuelle Umgebungen (liegen oft unter backend/)
+backend/env/
+backend/.venv/
+backend/venv/
+
+# --- Frontend (Vite/React unter frontend/frontend/) ---
+frontend/frontend/node_modules/
+frontend/frontend/dist/
+frontend/frontend/dist-ssr/
+frontend/frontend/.vite/
+frontend/frontend/coverage/
+frontend/frontend/.turbo/
+
+# --- Logs ---
+*.log
+logs/

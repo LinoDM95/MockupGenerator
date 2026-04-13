@@ -1,1 +1,0 @@
-{"sessionId": "4b6069", "hypothesisId": "H3", "location": "config/settings.py:etsy_env", "message": "settings loaded etsy env", "data": {"backend_dotenv_exists": false, "workspace_dotenv_exists": false, "etsy_client_id_from_os": false}, "timestamp": 1776086929390}
