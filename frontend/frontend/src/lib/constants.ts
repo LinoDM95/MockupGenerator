@@ -1,0 +1,17 @@
+export const FONT_FAMILIES = [
+  "Arial",
+  "Helvetica",
+  "Times New Roman",
+  "Georgia",
+  "Garamond",
+  "Courier New",
+  "Verdana",
+  "Trebuchet MS",
+  "Impact",
+  "Comic Sans MS",
+  "Palatino",
+  "Arial Black",
+  "Tahoma",
+  "Brush Script MT",
+  "Lucida Sans",
+] as const;
