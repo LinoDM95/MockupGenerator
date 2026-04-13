@@ -1,6 +1,6 @@
 import { Archive, Loader2, Package, Trash2 } from "lucide-react";
 
-import type { ArtworkItem, FrameStyle, TemplateSet } from "../../types/mockup";
+import type { ArtworkItem, TemplateSet } from "../../types/mockup";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { Select } from "../ui/Select";
@@ -13,9 +13,7 @@ type Props = {
   artworks: ArtworkItem[];
   templateSets: TemplateSet[];
   globalSetId: string;
-  globalFrameStyle: FrameStyle;
   onGlobalSetId: (id: string) => void;
-  onGlobalFrameStyle: (s: FrameStyle) => void;
   onApplyGlobal: () => void;
   onUpdateArtwork: (id: string, key: keyof ArtworkItem, value: string) => void;
   onRemoveArtwork: (id: string) => void;
@@ -30,9 +28,7 @@ export const BatchQueue = ({
   artworks,
   templateSets,
   globalSetId,
-  globalFrameStyle,
   onGlobalSetId,
-  onGlobalFrameStyle,
   onApplyGlobal,
   onUpdateArtwork,
   onRemoveArtwork,
@@ -65,16 +61,9 @@ export const BatchQueue = ({
                   </option>
                 ))}
               </Select>
-              <Select
-                label="Rahmen für alle"
-                value={globalFrameStyle}
-                onChange={(e) => onGlobalFrameStyle(e.target.value as FrameStyle)}
-              >
-                <option value="none">Ohne Rahmen</option>
-                <option value="black">Schwarz</option>
-                <option value="wood">Holz</option>
-                <option value="white">Weiß</option>
-              </Select>
+              <p className="text-xs text-neutral-600">
+                Rahmen pro Vorlage legst du im Vorlagen-Studio unter „Vorlage bearbeiten“ fest.
+              </p>
               <Button type="button" className="w-full" onClick={onApplyGlobal}>
                 Auf alle {artworks.length} Motive anwenden
               </Button>
@@ -131,16 +120,6 @@ export const BatchQueue = ({
                           {s.name}
                         </option>
                       ))}
-                    </Select>
-                    <Select
-                      value={art.frameStyle}
-                      onChange={(e) => onUpdateArtwork(art.id, "frameStyle", e.target.value)}
-                      className="w-full shrink-0 sm:w-32"
-                    >
-                      <option value="none">Ohne</option>
-                      <option value="black">Schwarz</option>
-                      <option value="wood">Holz</option>
-                      <option value="white">Weiß</option>
                     </Select>
                   </div>
                   <button

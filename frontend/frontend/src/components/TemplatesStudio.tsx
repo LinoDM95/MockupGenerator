@@ -52,7 +52,17 @@ const migrateTemplate = (tpl: Template): Template => {
     shadowOffsetY: el.shadowOffsetY ?? 10,
     textCurve: el.textCurve ?? 0,
   }));
-  return { ...tpl, elements };
+  return {
+    ...tpl,
+    elements,
+    defaultFrameStyle: tpl.defaultFrameStyle ?? "none",
+    frameShadowOuterEnabled: tpl.frameShadowOuterEnabled ?? false,
+    frameShadowInnerEnabled: tpl.frameShadowInnerEnabled ?? false,
+    frameOuterSides: tpl.frameOuterSides ?? 15,
+    frameInnerSides: tpl.frameInnerSides ?? 15,
+    frameShadowDepth: tpl.frameShadowDepth ?? 0.82,
+    artworkSaturation: tpl.artworkSaturation ?? 1,
+  };
 };
 
 export const TemplatesStudio = () => {

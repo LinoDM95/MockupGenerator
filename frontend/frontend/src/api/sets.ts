@@ -1,4 +1,5 @@
 import type { Template, TemplateElement, TemplateSet } from "../types/mockup";
+import { FRAME_SHADOW_ALL, parseSidesMask } from "../lib/frameShadowSides";
 
 import { apiFetch, apiJson } from "./client";
 
@@ -14,17 +15,80 @@ const mediaUrlForBrowser = (url: string): string => {
 };
 
 /** API-Antwort → Frontend-Typen (Elemente gemischt wie im Prototyp). */
-export const normalizeTemplate = (raw: Record<string, unknown>): Template => ({
-  id: String(raw.id),
-  name: String(raw.name ?? ""),
-  width: Number(raw.width),
-  height: Number(raw.height),
-  bgImage: mediaUrlForBrowser(String(raw.bgImage ?? "")),
-  order: raw.order !== undefined ? Number(raw.order) : undefined,
-  elements: Array.isArray(raw.elements)
-    ? (raw.elements as Record<string, unknown>[]).map(normalizeElement)
-    : [],
-});
+const parseFrameStyle = (raw: unknown): Template["defaultFrameStyle"] => {
+  const v = String(raw ?? "none");
+  if (v === "none" || v === "black" || v === "white" || v === "wood") return v;
+  return "none";
+};
+
+const parseFrameDropShadowLegacy = (raw: unknown): boolean => {
+  if (raw === true) return true;
+  if (raw === false || raw == null) return false;
+  const s = String(raw).toLowerCase();
+  return s === "1" || s === "true" || s === "yes";
+};
+
+const parseOptionalBool = (raw: unknown): boolean | null => {
+  if (raw === undefined) return null;
+  if (raw === true) return true;
+  if (raw === false) return false;
+  const s = String(raw).toLowerCase();
+  if (s === "1" || s === "true" || s === "yes") return true;
+  if (s === "0" || s === "false" || s === "no" || s === "") return false;
+  return null;
+};
+
+const parseFrameShadowDepth = (raw: unknown): number => {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return 0.82;
+  return Math.min(1, Math.max(0.15, n));
+};
+
+const parseArtworkSaturation = (raw: unknown): number => {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return 1;
+  return Math.min(1, Math.max(0.15, n));
+};
+
+export const normalizeTemplate = (raw: Record<string, unknown>): Template => {
+  const outerSides = parseSidesMask(raw.frame_outer_sides ?? raw.frameOuterSides, FRAME_SHADOW_ALL);
+  const innerSides = parseSidesMask(raw.frame_inner_sides ?? raw.frameInnerSides, FRAME_SHADOW_ALL);
+  const outerB = parseOptionalBool(raw.frame_shadow_outer_enabled ?? raw.frameShadowOuterEnabled);
+  const innerB = parseOptionalBool(raw.frame_shadow_inner_enabled ?? raw.frameShadowInnerEnabled);
+  let frameShadowOuterEnabled = false;
+  let frameShadowInnerEnabled = false;
+  if (outerB !== null || innerB !== null) {
+    frameShadowOuterEnabled = outerB ?? false;
+    frameShadowInnerEnabled = innerB ?? false;
+  } else {
+    const dir = String(raw.frame_shadow_direction ?? raw.frameShadowDirection ?? "").toLowerCase();
+    if (dir === "outward" || dir === "out" || dir === "external") {
+      frameShadowOuterEnabled = true;
+    } else if (dir === "inward" || dir === "in" || dir === "internal") {
+      frameShadowInnerEnabled = true;
+    } else if (parseFrameDropShadowLegacy(raw.frame_drop_shadow ?? raw.frameDropShadow)) {
+      frameShadowOuterEnabled = true;
+    }
+  }
+  return {
+    id: String(raw.id),
+    name: String(raw.name ?? ""),
+    width: Number(raw.width),
+    height: Number(raw.height),
+    bgImage: mediaUrlForBrowser(String(raw.bgImage ?? "")),
+    order: raw.order !== undefined ? Number(raw.order) : undefined,
+    defaultFrameStyle: parseFrameStyle(raw.default_frame_style ?? raw.defaultFrameStyle),
+    frameShadowOuterEnabled,
+    frameShadowInnerEnabled,
+    frameOuterSides: outerSides,
+    frameInnerSides: innerSides,
+    frameShadowDepth: parseFrameShadowDepth(raw.frame_shadow_depth ?? raw.frameShadowDepth),
+    artworkSaturation: parseArtworkSaturation(raw.artwork_saturation ?? raw.artworkSaturation),
+    elements: Array.isArray(raw.elements)
+      ? (raw.elements as Record<string, unknown>[]).map(normalizeElement)
+      : [],
+  };
+};
 
 const normalizeElement = (raw: Record<string, unknown>): TemplateElement => {
   const { id, type, ...rest } = raw;

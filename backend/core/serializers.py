@@ -65,6 +65,13 @@ class TemplateSerializer(serializers.ModelSerializer):
             "bgImage",
             "elements",
             "order",
+            "default_frame_style",
+            "frame_shadow_outer_enabled",
+            "frame_shadow_inner_enabled",
+            "frame_outer_sides",
+            "frame_inner_sides",
+            "frame_shadow_depth",
+            "artwork_saturation",
             "created_at",
             "updated_at",
         )

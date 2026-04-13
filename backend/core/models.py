@@ -1,7 +1,7 @@
 import uuid
 
 from django.conf import settings
-from django.core.validators import FileExtensionValidator
+from django.core.validators import FileExtensionValidator, MaxValueValidator, MinValueValidator
 from django.db import models
 
 
@@ -28,6 +28,13 @@ class TemplateSet(models.Model):
 class Template(models.Model):
     """Einzelne Vorlage mit Hintergrundbild-Datei (kein Base64 in der DB)."""
 
+    FRAME_STYLES = (
+        ("none", "none"),
+        ("black", "black"),
+        ("white", "white"),
+        ("wood", "wood"),
+    )
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     template_set = models.ForeignKey(
         TemplateSet,
@@ -42,6 +49,40 @@ class Template(models.Model):
         validators=[FileExtensionValidator(allowed_extensions=["jpg", "jpeg", "png", "webp"])],
     )
     order = models.PositiveIntegerField(default=0)
+    default_frame_style = models.CharField(
+        max_length=16,
+        choices=FRAME_STYLES,
+        default="none",
+        help_text="Standard-Rahmen im Generator, wenn „Vorlagen-Standard“ aktiv ist.",
+    )
+    frame_shadow_outer_enabled = models.BooleanField(
+        default=False,
+        help_text="Schatten nach außen am Rahmen (Seiten per Bitmaske).",
+    )
+    frame_shadow_inner_enabled = models.BooleanField(
+        default=False,
+        help_text="Schatten/Tiefe ins Motiv (Seiten per Bitmaske).",
+    )
+    frame_outer_sides = models.PositiveSmallIntegerField(
+        default=15,
+        validators=[MinValueValidator(0), MaxValueValidator(15)],
+        help_text="Außenschatten: Bit 1=oben,2=rechts,4=unten,8=links.",
+    )
+    frame_inner_sides = models.PositiveSmallIntegerField(
+        default=15,
+        validators=[MinValueValidator(0), MaxValueValidator(15)],
+        help_text="Innenschatten: Bit 1=oben,2=rechts,4=unten,8=links.",
+    )
+    frame_shadow_depth = models.FloatField(
+        default=0.82,
+        validators=[MinValueValidator(0.15), MaxValueValidator(1.0)],
+        help_text="Stärke/Tiefe (0.15–1): Innenschatten kräftiger; Außenschatten weicher.",
+    )
+    artwork_saturation = models.FloatField(
+        default=1.0,
+        validators=[MinValueValidator(0.15), MaxValueValidator(1.0)],
+        help_text="Sättigung des Motivs im Export (1.0 = unverändert, niedriger = dezenter zum Hintergrund).",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

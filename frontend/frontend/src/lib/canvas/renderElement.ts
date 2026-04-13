@@ -1,14 +1,41 @@
-import type { FrameStyle } from "../../types/mockup";
-import type { TemplateElement } from "../../types/mockup";
+import type { FrameStyle, TemplateElement } from "../../types/mockup";
+import { FRAME_SHADOW_ALL, parseSidesMask } from "../frameShadowSides";
 
-import { drawRealisticFrame } from "./frame";
+import {
+  drawInnerFrameShadowOnMotif,
+  drawOuterFrameShadowBySides,
+  drawRealisticFrame,
+  getFrameThickness,
+} from "./frame";
+
+export type RenderElementOptions = {
+  frameShadowOuterEnabled?: boolean;
+  frameShadowInnerEnabled?: boolean;
+  frameOuterSides?: number;
+  frameInnerSides?: number;
+  frameShadowDepth?: number;
+  /** 0.15–1.0; nur das Motiv im Platzhalter, 1 = unverändert */
+  artworkSaturation?: number;
+};
 
 export const renderElementToCanvas = (
   ctx: CanvasRenderingContext2D,
   el: TemplateElement,
   artImg: HTMLImageElement,
   artworkFrameStyle: FrameStyle,
+  opts?: RenderElementOptions,
 ): void => {
+  const outerOn = opts?.frameShadowOuterEnabled === true;
+  const innerOn = opts?.frameShadowInnerEnabled === true;
+  const outerMask = parseSidesMask(opts?.frameOuterSides ?? FRAME_SHADOW_ALL, FRAME_SHADOW_ALL);
+  const innerMask = parseSidesMask(opts?.frameInnerSides ?? FRAME_SHADOW_ALL, FRAME_SHADOW_ALL);
+  const depthRaw = opts?.frameShadowDepth;
+  const shadowDepth = Math.min(
+    1,
+    Math.max(0.15, Number.isFinite(depthRaw) ? (depthRaw as number) : 0.82),
+  );
+  const satRaw = opts?.artworkSaturation ?? 1;
+  const artworkSaturation = Math.min(1, Math.max(0.15, Number.isFinite(satRaw) ? satRaw : 1));
   ctx.save();
 
   ctx.translate(el.x + el.w / 2, el.y + el.h / 2);
@@ -38,9 +65,29 @@ export const renderElementToCanvas = (
       sy = (artImg.height - sHeight) / 2;
     }
 
+    if (artworkSaturation < 0.999) {
+      ctx.filter = `saturate(${Math.round(artworkSaturation * 100)}%)`;
+    }
     ctx.drawImage(artImg, sx, sy, sWidth, sHeight, el.x, el.y, el.w, el.h);
+    ctx.filter = "none";
     ctx.shadowColor = "transparent";
+    const tthick = getFrameThickness(el.w, el.h);
+    if (innerOn && innerMask) {
+      drawInnerFrameShadowOnMotif(
+        ctx,
+        el.x,
+        el.y,
+        el.w,
+        el.h,
+        shadowDepth,
+        tthick,
+        innerMask,
+      );
+    }
     drawRealisticFrame(ctx, el.x, el.y, el.w, el.h, artworkFrameStyle);
+    if (outerOn && outerMask) {
+      drawOuterFrameShadowBySides(ctx, el.x, el.y, el.w, el.h, tthick, outerMask, shadowDepth);
+    }
   } else if (el.type === "rect") {
     ctx.fillStyle = el.color ?? "#e5e7eb";
     ctx.fillRect(el.x, el.y, el.w, el.h);

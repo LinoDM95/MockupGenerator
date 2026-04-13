@@ -7,10 +7,17 @@ type Props = {
   isDrawMode: boolean;
   onToggleDrawMode: () => void;
   onAddElement: (t: ElementType) => void;
+  /** z. B. Endansicht-Vorschau: Werkzeuge ausblenden. */
+  disabled?: boolean;
 };
 
-export const Toolbar = ({ isDrawMode, onToggleDrawMode, onAddElement }: Props) => (
-  <div className="mb-4 flex flex-wrap items-center gap-2 overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-100 p-2">
+export const Toolbar = ({ isDrawMode, onToggleDrawMode, onAddElement, disabled = false }: Props) => (
+  <div
+    className={`mb-4 flex flex-wrap items-center gap-2 overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-100 p-2 ${
+      disabled ? "pointer-events-none opacity-45" : ""
+    }`}
+    aria-disabled={disabled || undefined}
+  >
     <span className="mr-1 flex items-center border-r border-neutral-300 px-2 text-xs font-bold uppercase text-neutral-400">
       Hinzufügen
     </span>

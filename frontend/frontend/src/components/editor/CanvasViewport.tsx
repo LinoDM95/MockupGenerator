@@ -1,6 +1,8 @@
 import {
+  Fragment,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -10,8 +12,14 @@ import {
 } from "react";
 
 import { useDragAndDrop } from "../../hooks/useDragAndDrop";
+import {
+  drawInnerFrameShadowOnMotif,
+  drawOuterFrameShadowBySides,
+  drawRealisticFrame,
+  getFrameThickness,
+} from "../../lib/canvas/frame";
 import { newClientElementId } from "../../lib/elementId";
-import type { Template, TemplateElement } from "../../types/mockup";
+import type { FrameStyle, Template, TemplateElement } from "../../types/mockup";
 import { useAppStore } from "../../store/appStore";
 
 type Viewport = { zoom: number; pan: { x: number; y: number } };
@@ -22,6 +30,111 @@ const WHEEL_LINE_PX = 16;
 const WHEEL_SENSITIVITY = 0.00175;
 const PINCH_DAMPING = 0.45;
 const BUTTON_ZOOM_FACTOR = 1.12;
+
+const InnerMotifShadowLayer = ({
+  w,
+  h,
+  depth,
+  sidesMask,
+}: {
+  w: number;
+  h: number;
+  depth: number;
+  sidesMask: number;
+}) => {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useLayoutEffect(() => {
+    const c = ref.current;
+    if (!c) return;
+    const ctx = c.getContext("2d");
+    if (!ctx) return;
+    const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+    c.width = Math.round(w * dpr);
+    c.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    drawInnerFrameShadowOnMotif(ctx, 0, 0, w, h, depth, getFrameThickness(w, h), sidesMask);
+  }, [w, h, depth, sidesMask]);
+  return (
+    <canvas
+      ref={ref}
+      className="pointer-events-none absolute inset-0 z-[2]"
+      style={{ width: "100%", height: "100%" }}
+      aria-hidden
+    />
+  );
+};
+
+const OuterFrameShadowLayer = ({
+  w,
+  h,
+  depth,
+  sidesMask,
+  bleed,
+}: {
+  w: number;
+  h: number;
+  depth: number;
+  sidesMask: number;
+  bleed: number;
+}) => {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const cw = w + 2 * bleed;
+  const ch = h + 2 * bleed;
+  useLayoutEffect(() => {
+    const c = ref.current;
+    if (!c) return;
+    const ctx = c.getContext("2d");
+    if (!ctx) return;
+    const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+    c.width = Math.round(cw * dpr);
+    c.height = Math.round(ch * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cw, ch);
+    drawOuterFrameShadowBySides(ctx, bleed, bleed, w, h, getFrameThickness(w, h), sidesMask, depth);
+  }, [w, h, depth, sidesMask, bleed, cw, ch]);
+  return (
+    <canvas
+      ref={ref}
+      className="pointer-events-none h-full w-full max-w-none"
+      style={{ width: "100%", height: "100%", display: "block" }}
+      aria-hidden
+    />
+  );
+};
+
+const PlaceholderFramePreview = ({
+  w,
+  h,
+  frameStyle,
+}: {
+  w: number;
+  h: number;
+  frameStyle: FrameStyle;
+}) => {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useLayoutEffect(() => {
+    const c = ref.current;
+    if (!c || frameStyle === "none") return;
+    const ctx = c.getContext("2d");
+    if (!ctx) return;
+    const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+    c.width = Math.round(w * dpr);
+    c.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    drawRealisticFrame(ctx, 0, 0, w, h, frameStyle);
+  }, [w, h, frameStyle]);
+  if (frameStyle === "none") return null;
+  return (
+    <canvas
+      ref={ref}
+      className="pointer-events-none absolute inset-0 z-[3]"
+      style={{ width: "100%", height: "100%" }}
+      aria-hidden
+    />
+  );
+};
 
 const normalizeWheelDeltaYPixels = (e: WheelEvent, pageRefHeight: number): number => {
   switch (e.deltaMode) {
@@ -56,6 +169,9 @@ type Point = { x: number; y: number; isSnappedX?: boolean; isSnappedY?: boolean 
 
 type Props = {
   editingTemplate: Template;
+  /** Beispielmotiv in Platzhaltern, um Export-Rahmen und Sättigung zu sehen. */
+  previewEndView: boolean;
+  previewMotifUrl: string;
   isSnapEnabled: boolean;
   setIsSnapEnabled: Dispatch<SetStateAction<boolean>>;
   isGuideSnapEnabled: boolean;
@@ -70,6 +186,8 @@ type Props = {
 
 export const CanvasViewport = ({
   editingTemplate,
+  previewEndView,
+  previewMotifUrl,
   isSnapEnabled,
   setIsSnapEnabled,
   isGuideSnapEnabled,
@@ -93,6 +211,17 @@ export const CanvasViewport = ({
   const selectedElementId = useAppStore((s) => s.selectedElementId);
   const updateEditingTemplate = useAppStore((s) => s.updateEditingTemplate);
 
+  const frameShadowOuterEnabled = editingTemplate.frameShadowOuterEnabled === true;
+  const frameShadowInnerEnabled = editingTemplate.frameShadowInnerEnabled === true;
+  const frameOuterSides = editingTemplate.frameOuterSides ?? 15;
+  const frameInnerSides = editingTemplate.frameInnerSides ?? 15;
+  const frameShadowDepth = editingTemplate.frameShadowDepth ?? 0.82;
+  const artworkSaturation = editingTemplate.artworkSaturation ?? 1;
+  const allowFrameOuterShadowBleed =
+    editingTemplate.elements.some((e) => e.type === "placeholder") &&
+    frameShadowOuterEnabled &&
+    frameOuterSides > 0;
+
   const { snapGuides, onPointerDownElement } = useDragAndDrop({
     editingTemplate,
     updateEditingTemplate,
@@ -103,6 +232,7 @@ export const CanvasViewport = ({
     isSnapEnabled,
     isGuideSnapEnabled,
     isDrawMode,
+    previewEndView,
   });
 
   const centerCanvas = useCallback(() => {
@@ -323,8 +453,16 @@ export const CanvasViewport = ({
       ref={viewportRootRef}
       onPointerMove={handleViewportPointerMove}
       onPointerLeave={handleViewportPointerLeave}
-      className="relative flex h-full min-h-[500px] flex-col overflow-hidden rounded-xl border border-neutral-200 bg-neutral-100 lg:col-span-3"
+      className={`relative flex h-full min-h-[500px] flex-col rounded-xl border border-neutral-200 bg-neutral-100 lg:col-span-3 ${
+        allowFrameOuterShadowBleed ? "overflow-visible" : "overflow-hidden"
+      }`}
     >
+      {previewEndView && (
+        <div className="absolute top-3 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full border border-neutral-200/90 bg-white/95 px-4 py-2 text-xs font-medium text-neutral-600 shadow-md backdrop-blur-sm">
+          <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" aria-hidden />
+          Endansicht – wie exportiertes Foto (Ziehen zum Verschieben)
+        </div>
+      )}
       {isDrawMode && (
         <div className="absolute top-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full border border-blue-700/50 bg-blue-900/95 px-5 py-2.5 text-sm font-medium text-white shadow-lg">
           <span>
@@ -369,20 +507,34 @@ export const CanvasViewport = ({
           <button
             type="button"
             onClick={() => setIsSnapEnabled((v) => !v)}
-            className={`rounded p-1.5 text-xs font-medium transition-colors ${
+            disabled={previewEndView}
+            className={`rounded p-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
               isSnapEnabled ? "bg-blue-100 text-blue-700" : "text-neutral-500 hover:bg-neutral-100"
             }`}
-            title={isSnapEnabled ? "Pixel-Snap an" : "Snap aus"}
+            title={
+              previewEndView
+                ? "In der Endansicht deaktiviert"
+                : isSnapEnabled
+                  ? "Pixel-Snap an"
+                  : "Snap aus"
+            }
           >
             Snap
           </button>
           <button
             type="button"
             onClick={() => setIsGuideSnapEnabled((v) => !v)}
-            className={`rounded p-1.5 text-xs font-medium transition-colors ${
+            disabled={previewEndView}
+            className={`rounded p-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
               isGuideSnapEnabled ? "bg-blue-100 text-blue-700" : "text-neutral-500 hover:bg-neutral-100"
             }`}
-            title={isGuideSnapEnabled ? "Hilfslinien an" : "Hilfslinien aus"}
+            title={
+              previewEndView
+                ? "In der Endansicht deaktiviert"
+                : isGuideSnapEnabled
+                  ? "Hilfslinien an"
+                  : "Hilfslinien aus"
+            }
           >
             Guides
           </button>
@@ -394,9 +546,9 @@ export const CanvasViewport = ({
         role="presentation"
         onMouseDown={handleContainerPointerDown}
         onMouseMove={handleContainerMouseMove}
-        className={`checkerboard-bg relative flex-1 overflow-hidden ${
-          isDrawMode ? "cursor-crosshair" : isPanning ? "cursor-grabbing" : "cursor-grab"
-        }`}
+        className={`checkerboard-bg relative flex-1 ${
+          allowFrameOuterShadowBleed ? "overflow-visible" : "overflow-hidden"
+        } ${isDrawMode ? "cursor-crosshair" : isPanning ? "cursor-grabbing" : "cursor-grab"}`}
       >
         <div
           className="absolute origin-top-left shadow-2xl"
@@ -414,7 +566,7 @@ export const CanvasViewport = ({
             crossOrigin="anonymous"
           />
 
-          {!isDrawMode && snapGuides.length > 0 && (
+          {!isDrawMode && !previewEndView && snapGuides.length > 0 && (
             <svg
               className="pointer-events-none absolute inset-0"
               style={{ width: "100%", height: "100%", overflow: "visible", zIndex: 10 }}
@@ -562,12 +714,59 @@ export const CanvasViewport = ({
 
             let content: ReactNode = null;
             if (el.type === "placeholder") {
+              const satPct = Math.round(artworkSaturation * 100);
+              const outerBleed = Math.max(12, getFrameThickness(el.w, el.h) * 2.8);
               content = (
-                <span
-                  className={`text-lg font-bold drop-shadow-md ${isSelected ? "text-white" : "text-neutral-800"}`}
-                >
-                  {isSelected ? "Aktiv" : ""}
-                </span>
+                <>
+                  {previewEndView && previewMotifUrl ? (
+                    <img
+                      src={previewMotifUrl}
+                      alt=""
+                      className="absolute inset-0 z-[1] h-full w-full object-cover"
+                      style={{ filter: `saturate(${satPct}%)` }}
+                      draggable={false}
+                    />
+                  ) : null}
+                  {frameShadowInnerEnabled && frameInnerSides ? (
+                    <InnerMotifShadowLayer
+                      w={el.w}
+                      h={el.h}
+                      depth={frameShadowDepth}
+                      sidesMask={frameInnerSides}
+                    />
+                  ) : null}
+                  <PlaceholderFramePreview
+                    w={el.w}
+                    h={el.h}
+                    frameStyle={editingTemplate.defaultFrameStyle ?? "none"}
+                  />
+                  {frameShadowOuterEnabled && frameOuterSides ? (
+                    <div
+                      className="pointer-events-none absolute z-[4]"
+                      style={{
+                        left: `${(-outerBleed / el.w) * 100}%`,
+                        top: `${(-outerBleed / el.h) * 100}%`,
+                        width: `${((el.w + 2 * outerBleed) / el.w) * 100}%`,
+                        height: `${((el.h + 2 * outerBleed) / el.h) * 100}%`,
+                      }}
+                    >
+                      <OuterFrameShadowLayer
+                        w={el.w}
+                        h={el.h}
+                        depth={frameShadowDepth}
+                        sidesMask={frameOuterSides}
+                        bleed={outerBleed}
+                      />
+                    </div>
+                  ) : null}
+                  {!previewEndView ? (
+                    <span
+                      className={`relative z-10 text-lg font-bold drop-shadow-md ${isSelected ? "text-white" : "text-neutral-800"}`}
+                    >
+                      {isSelected ? "Aktiv" : ""}
+                    </span>
+                  ) : null}
+                </>
               );
             } else if (el.type === "rect") {
               content = <div style={{ width: "100%", height: "100%", backgroundColor: el.color }} />;
@@ -654,21 +853,49 @@ export const CanvasViewport = ({
               }
             }
 
-            return (
+            const frameStyleSetting = editingTemplate.defaultFrameStyle ?? "none";
+            const frameThicknessPx =
+              el.type === "placeholder" && frameStyleSetting !== "none"
+                ? getFrameThickness(el.w, el.h)
+                : 0;
+            const outerFrameStyle: CSSProperties | undefined =
+              el.type === "placeholder" && frameThicknessPx > 0
+                ? {
+                    left: `${((el.x - frameThicknessPx) / editingTemplate.width) * 100}%`,
+                    top: `${((el.y - frameThicknessPx) / editingTemplate.height) * 100}%`,
+                    width: `${((el.w + 2 * frameThicknessPx) / editingTemplate.width) * 100}%`,
+                    height: `${((el.h + 2 * frameThicknessPx) / editingTemplate.height) * 100}%`,
+                    transform: `rotate(${el.rotation ?? 0}deg)`,
+                    transformOrigin: "center center",
+                  }
+                : undefined;
+
+            const showEditChrome = !previewEndView;
+            const placeholderOverflow =
+              el.type !== "placeholder"
+                ? ""
+                : frameShadowOuterEnabled && frameOuterSides > 0
+                  ? "overflow-visible"
+                  : previewEndView
+                    ? "overflow-hidden"
+                    : "";
+            const innerBox = (
               <div
-                key={el.id}
+                key={el.type === "placeholder" ? `${el.id}-inner` : el.id}
                 onMouseDown={(e) => onPointerDownElement(e, el.id, "move")}
-                className={`absolute cursor-move transition-colors ${
+                className={`absolute transition-colors ${
+                  previewEndView ? "pointer-events-none cursor-default" : "cursor-move"
+                } ${
                   el.type === "placeholder"
-                    ? isSelected
-                      ? "z-20 flex items-center justify-center border-2 border-blue-500 bg-blue-500/30"
-                      : "z-10 flex items-center justify-center border-2 border-white/80 bg-white/40 hover:bg-blue-300/40"
+                    ? previewEndView
+                      ? `z-10 flex items-center justify-center border-0 ring-0 ${placeholderOverflow}`
+                      : `${isSelected ? "z-20 flex items-center justify-center border-2 border-blue-500 bg-blue-500/30" : "z-10 flex items-center justify-center border-2 border-white/80 bg-white/40 hover:bg-blue-300/40"} ${placeholderOverflow}`.trim()
                     : ""
-                } ${isSelected && el.type !== "placeholder" ? "z-20 ring-2 ring-blue-500 ring-offset-1" : "z-10"} `}
+                } ${isSelected && el.type !== "placeholder" && showEditChrome ? "z-20 ring-2 ring-blue-500 ring-offset-1" : "z-10"} `}
                 style={elStyle}
               >
                 {content}
-                {isSelected && (
+                {isSelected && showEditChrome && (
                   <div
                     onMouseDown={(e) => onPointerDownElement(e, el.id, "rotate")}
                     className="absolute -top-10 left-1/2 z-30 flex h-5 w-5 -translate-x-1/2 cursor-grab items-center justify-center rounded-full border-2 border-blue-600 bg-white shadow-md"
@@ -676,7 +903,7 @@ export const CanvasViewport = ({
                     <div className="h-1.5 w-1.5 rounded-full bg-blue-600" />
                   </div>
                 )}
-                {isSelected && (
+                {isSelected && showEditChrome && (
                   <>
                     {(["nw", "ne", "sw", "se", "n", "s", "e", "w"] as const).map((h) => (
                       <div
@@ -705,6 +932,22 @@ export const CanvasViewport = ({
                 )}
               </div>
             );
+
+            if (el.type === "placeholder" && outerFrameStyle && !previewEndView) {
+              return (
+                <Fragment key={el.id}>
+                  <div
+                    className="pointer-events-none absolute z-[8] rounded-sm border-2 border-dashed border-amber-500/85 bg-amber-400/[0.07] shadow-[inset_0_0_0_1px_rgba(245,158,11,0.25)]"
+                    style={outerFrameStyle}
+                    role="img"
+                    aria-label="Außenkante des Mockup-Rahmens; der blaue Bereich darin ist die Motivfläche."
+                  />
+                  {innerBox}
+                </Fragment>
+              );
+            }
+
+            return innerBox;
           })}
         </div>
       </div>

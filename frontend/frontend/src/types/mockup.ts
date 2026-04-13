@@ -41,6 +41,20 @@ export interface Template {
   bgImage: string;
   elements: TemplateElement[];
   order?: number;
+  /** Rahmen für Mockup-Export (Generator/Etsy); nur im Vorlagen-Editor wählbar. */
+  defaultFrameStyle: FrameStyle;
+  /** Außenschatten am Rahmen (kombinierbar mit Innen). */
+  frameShadowOuterEnabled?: boolean;
+  /** Innenschatten / Tiefe ins Motiv. */
+  frameShadowInnerEnabled?: boolean;
+  /** Seiten-Bits Außen: 1 oben, 2 rechts, 4 unten, 8 links (15 = alle). */
+  frameOuterSides?: number;
+  /** Seiten-Bits Innen (15 = alle). */
+  frameInnerSides?: number;
+  /** Stärke/Tiefe 0.15–1 für aktive Schatten. */
+  frameShadowDepth?: number;
+  /** Motiv-Sättigung im Export (1 = Original, niedriger = dezenter zum Hintergrund). */
+  artworkSaturation?: number;
 }
 
 export interface TemplateSet {
@@ -55,5 +69,4 @@ export interface ArtworkItem {
   url: string;
   name: string;
   setId: string;
-  frameStyle: FrameStyle;
 }

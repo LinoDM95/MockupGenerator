@@ -1,5 +1,5 @@
 import { renderElementToCanvas } from "../../lib/canvas/renderElement";
-import type { FrameStyle, Template } from "../../types/mockup";
+import type { Template } from "../../types/mockup";
 
 type LoadImg = (src: string) => Promise<HTMLImageElement>;
 
@@ -7,7 +7,6 @@ type LoadImg = (src: string) => Promise<HTMLImageElement>;
 export const renderTemplateToPngBlob = async (
   tpl: Template,
   artworkUrl: string,
-  frameStyle: FrameStyle,
   loadImage: LoadImg,
 ): Promise<Blob> => {
   const artImg = await loadImage(artworkUrl);
@@ -18,8 +17,17 @@ export const renderTemplateToPngBlob = async (
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Kein Canvas-2D-Kontext.");
   ctx.drawImage(bgImg, 0, 0, tpl.width, tpl.height);
+  const frameStyle = tpl.defaultFrameStyle ?? "none";
+  const renderOpts = {
+    frameShadowOuterEnabled: tpl.frameShadowOuterEnabled === true,
+    frameShadowInnerEnabled: tpl.frameShadowInnerEnabled === true,
+    frameOuterSides: tpl.frameOuterSides ?? 15,
+    frameInnerSides: tpl.frameInnerSides ?? 15,
+    frameShadowDepth: tpl.frameShadowDepth ?? 0.82,
+    artworkSaturation: tpl.artworkSaturation ?? 1,
+  };
   for (const el of tpl.elements) {
-    renderElementToCanvas(ctx, el, artImg, frameStyle);
+    renderElementToCanvas(ctx, el, artImg, frameStyle, renderOpts);
   }
   return new Promise((resolve, reject) => {
     canvas.toBlob(

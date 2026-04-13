@@ -4,7 +4,7 @@ import JSZip from "jszip";
 import { fetchTemplateSets } from "../api/sets";
 import { useCanvasRender } from "../hooks/useCanvasRender";
 import { toast } from "../lib/toast";
-import type { ArtworkItem, FrameStyle } from "../types/mockup";
+import type { ArtworkItem } from "../types/mockup";
 import { useAppStore } from "../store/appStore";
 import { BatchQueue } from "./generator/BatchQueue";
 
@@ -13,9 +13,7 @@ export const GeneratorView = () => {
   const artworks = useAppStore((s) => s.artworks);
   const setArtworks = useAppStore((s) => s.setArtworks);
   const globalSetId = useAppStore((s) => s.globalSetId);
-  const globalFrameStyle = useAppStore((s) => s.globalFrameStyle);
   const setGlobalSetId = useAppStore((s) => s.setGlobalSetId);
-  const setGlobalFrameStyle = useAppStore((s) => s.setGlobalFrameStyle);
   const setTemplateSets = useAppStore((s) => s.setTemplateSets);
 
   useEffect(() => {
@@ -43,13 +41,13 @@ export const GeneratorView = () => {
   const handleArtworkUpload = (files: FileList | null) => {
     if (!files?.length) return;
     const list = Array.from(files);
+    const st = useAppStore.getState();
     const newItems: ArtworkItem[] = list.map((file) => ({
       id: `art_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
       file,
       url: URL.createObjectURL(file),
       name: file.name.replace(/\.[^/.]+$/, ""),
-      setId: globalSetId || templateSets[0]?.id || "",
-      frameStyle: globalFrameStyle,
+      setId: st.globalSetId || templateSets[0]?.id || "",
     }));
     setArtworks((prev) => [...prev, ...newItems]);
   };
@@ -64,14 +62,12 @@ export const GeneratorView = () => {
 
   const updateArtwork = (id: string, key: keyof ArtworkItem, value: string) => {
     setArtworks((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, [key]: value } as ArtworkItem : a)),
+      prev.map((a) => (a.id === id ? ({ ...a, [key]: value } as ArtworkItem) : a)),
     );
   };
 
   const applyGlobalSettings = () => {
-    setArtworks((prev) =>
-      prev.map((a) => ({ ...a, setId: globalSetId, frameStyle: globalFrameStyle })),
-    );
+    setArtworks((prev) => prev.map((a) => ({ ...a, setId: globalSetId })));
   };
 
   const generateBatchAndZIP = async () => {
@@ -104,8 +100,17 @@ export const GeneratorView = () => {
           if (!ctx) continue;
           const bgImg = await loadImage(tpl.bgImage);
           ctx.drawImage(bgImg, 0, 0, tpl.width, tpl.height);
+          const frameStyle = tpl.defaultFrameStyle ?? "none";
+          const renderOpts = {
+            frameShadowOuterEnabled: tpl.frameShadowOuterEnabled === true,
+            frameShadowInnerEnabled: tpl.frameShadowInnerEnabled === true,
+            frameOuterSides: tpl.frameOuterSides ?? 15,
+            frameInnerSides: tpl.frameInnerSides ?? 15,
+            frameShadowDepth: tpl.frameShadowDepth ?? 0.82,
+            artworkSaturation: tpl.artworkSaturation ?? 1,
+          };
           for (const el of tpl.elements) {
-            renderElementToCanvas(ctx, el, artImg, artwork.frameStyle as FrameStyle);
+            renderElementToCanvas(ctx, el, artImg, frameStyle, renderOpts);
           }
           const base64Data = canvas
             .toDataURL("image/jpeg", 0.85)
@@ -146,9 +151,7 @@ export const GeneratorView = () => {
       artworks={artworks}
       templateSets={templateSets}
       globalSetId={globalSetId}
-      globalFrameStyle={globalFrameStyle}
       onGlobalSetId={setGlobalSetId}
-      onGlobalFrameStyle={setGlobalFrameStyle}
       onApplyGlobal={applyGlobalSettings}
       onUpdateArtwork={updateArtwork}
       onRemoveArtwork={removeArtwork}

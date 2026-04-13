@@ -43,6 +43,29 @@ class RegisterView(APIView):
         return Response(status=status.HTTP_201_CREATED)
 
 
+def _parse_boolish(v) -> bool | None:
+    if v is None:
+        return None
+    if v is True:
+        return True
+    if v is False:
+        return False
+    s = str(v).lower()
+    if s in ("1", "true", "yes"):
+        return True
+    if s in ("0", "false", "no", ""):
+        return False
+    return None
+
+
+def _clamp_sides_mask(v) -> int | None:
+    try:
+        i = int(v)
+        return max(0, min(15, i))
+    except (TypeError, ValueError):
+        return None
+
+
 def _same_host_url(request, url: str) -> bool:
     try:
         p = urlparse(url)
@@ -114,6 +137,13 @@ class TemplateSetViewSet(viewsets.ModelViewSet):
             height=height,
             background_image=upload,
             order=max_order + 1,
+            default_frame_style="none",
+            frame_shadow_outer_enabled=False,
+            frame_shadow_inner_enabled=False,
+            frame_outer_sides=15,
+            frame_inner_sides=15,
+            frame_shadow_depth=0.82,
+            artwork_saturation=1.0,
         )
         if elements_raw:
             replace_template_elements(tpl, elements_raw, regenerate_element_ids=True)
@@ -180,6 +210,58 @@ class TemplateSetViewSet(viewsets.ModelViewSet):
                 )
             tpl_name = str(t_raw.get("name") or f"Vorlage {idx + 1}")[:255]
             cf = ContentFile(r.content, name=f"import_{uuid.uuid4().hex[:10]}.{ext}")
+            dfs = t_raw.get("default_frame_style") or t_raw.get("defaultFrameStyle") or "none"
+            if str(dfs) not in ("none", "black", "white", "wood"):
+                dfs = "none"
+            outer_b = _parse_boolish(
+                t_raw.get("frame_shadow_outer_enabled", t_raw.get("frameShadowOuterEnabled"))
+            )
+            inner_b = _parse_boolish(
+                t_raw.get("frame_shadow_inner_enabled", t_raw.get("frameShadowInnerEnabled"))
+            )
+            outer_on = False if outer_b is None else outer_b
+            inner_on = False if inner_b is None else inner_b
+            if not outer_on and not inner_on:
+                raw_dir = t_raw.get("frame_shadow_direction", t_raw.get("frameShadowDirection"))
+                d = str(raw_dir or "").lower()
+                if d in ("outward", "out", "external"):
+                    outer_on = True
+                elif d in ("inward", "in", "internal"):
+                    inner_on = True
+                else:
+                    raw_fshadow = t_raw.get("frame_drop_shadow", t_raw.get("frameDropShadow"))
+                    if raw_fshadow is not None and (
+                        raw_fshadow is True or str(raw_fshadow).lower() in ("1", "true", "yes")
+                    ):
+                        outer_on = True
+            outer_sides = _clamp_sides_mask(
+                t_raw.get("frame_outer_sides", t_raw.get("frameOuterSides")),
+            )
+            inner_sides = _clamp_sides_mask(
+                t_raw.get("frame_inner_sides", t_raw.get("frameInnerSides")),
+            )
+            frame_shadow_outer_enabled = outer_on
+            frame_shadow_inner_enabled = inner_on
+            frame_outer_sides = outer_sides if outer_sides is not None else 15
+            frame_inner_sides = inner_sides if inner_sides is not None else 15
+            raw_depth = t_raw.get("frame_shadow_depth", t_raw.get("frameShadowDepth"))
+            if raw_depth is None:
+                frame_shadow_depth = 0.82
+            else:
+                try:
+                    frame_shadow_depth = float(raw_depth)
+                except (TypeError, ValueError):
+                    frame_shadow_depth = 0.82
+                frame_shadow_depth = max(0.15, min(1.0, frame_shadow_depth))
+            raw_sat = t_raw.get("artwork_saturation", t_raw.get("artworkSaturation"))
+            if raw_sat is None:
+                artwork_saturation = 1.0
+            else:
+                try:
+                    artwork_saturation = float(raw_sat)
+                except (TypeError, ValueError):
+                    artwork_saturation = 1.0
+                artwork_saturation = max(0.15, min(1.0, artwork_saturation))
             tpl = Template.objects.create(
                 template_set=new_set,
                 name=tpl_name,
@@ -187,6 +269,13 @@ class TemplateSetViewSet(viewsets.ModelViewSet):
                 height=height,
                 background_image=cf,
                 order=idx,
+                default_frame_style=str(dfs),
+                frame_shadow_outer_enabled=frame_shadow_outer_enabled,
+                frame_shadow_inner_enabled=frame_shadow_inner_enabled,
+                frame_outer_sides=frame_outer_sides,
+                frame_inner_sides=frame_inner_sides,
+                frame_shadow_depth=frame_shadow_depth,
+                artwork_saturation=artwork_saturation,
             )
             els = t_raw.get("elements")
             if isinstance(els, list) and els:
@@ -230,6 +319,71 @@ class TemplateViewSet(viewsets.ModelViewSet):
                 tpl.height = int(data["height"])
             if "order" in data:
                 tpl.order = int(data["order"])
+            raw_dfs = data.get("default_frame_style", data.get("defaultFrameStyle"))
+            if raw_dfs is not None:
+                v = str(raw_dfs)
+                if v in ("none", "black", "white", "wood"):
+                    tpl.default_frame_style = v
+            had_new_outer = any(
+                k in data for k in ("frame_shadow_outer_enabled", "frameShadowOuterEnabled")
+            )
+            had_new_inner = any(
+                k in data for k in ("frame_shadow_inner_enabled", "frameShadowInnerEnabled")
+            )
+            raw_o = _parse_boolish(
+                data.get("frame_shadow_outer_enabled", data.get("frameShadowOuterEnabled"))
+            )
+            if raw_o is not None:
+                tpl.frame_shadow_outer_enabled = raw_o
+            raw_i = _parse_boolish(
+                data.get("frame_shadow_inner_enabled", data.get("frameShadowInnerEnabled"))
+            )
+            if raw_i is not None:
+                tpl.frame_shadow_inner_enabled = raw_i
+            raw_os = _clamp_sides_mask(data.get("frame_outer_sides", data.get("frameOuterSides")))
+            if raw_os is not None:
+                tpl.frame_outer_sides = raw_os
+            raw_is = _clamp_sides_mask(data.get("frame_inner_sides", data.get("frameInnerSides")))
+            if raw_is is not None:
+                tpl.frame_inner_sides = raw_is
+            raw_dir = data.get("frame_shadow_direction", data.get("frameShadowDirection"))
+            raw_legacy = data.get("frame_drop_shadow", data.get("frameDropShadow"))
+            if (
+                not had_new_outer
+                and not had_new_inner
+                and (raw_dir is not None or raw_legacy is not None)
+            ):
+                d = str(raw_dir or "none").lower()
+                if d in ("outward", "out", "external"):
+                    tpl.frame_shadow_outer_enabled = True
+                    tpl.frame_shadow_inner_enabled = False
+                elif d in ("inward", "in", "internal"):
+                    tpl.frame_shadow_outer_enabled = False
+                    tpl.frame_shadow_inner_enabled = True
+                elif raw_legacy is not None and raw_dir is None:
+                    tpl.frame_shadow_outer_enabled = raw_legacy is True or str(raw_legacy).lower() in (
+                        "1",
+                        "true",
+                        "yes",
+                    )
+                    tpl.frame_shadow_inner_enabled = False
+                elif d == "none":
+                    tpl.frame_shadow_outer_enabled = False
+                    tpl.frame_shadow_inner_enabled = False
+            raw_depth = data.get("frame_shadow_depth", data.get("frameShadowDepth"))
+            if raw_depth is not None:
+                try:
+                    v = float(raw_depth)
+                    tpl.frame_shadow_depth = max(0.15, min(1.0, v))
+                except (TypeError, ValueError):
+                    pass
+            raw_sat = data.get("artwork_saturation", data.get("artworkSaturation"))
+            if raw_sat is not None:
+                try:
+                    v = float(raw_sat)
+                    tpl.artwork_saturation = max(0.15, min(1.0, v))
+                except (TypeError, ValueError):
+                    pass
             tpl.save()
         tpl.refresh_from_db()
         return Response(TemplateSerializer(tpl, context={"request": request}).data)

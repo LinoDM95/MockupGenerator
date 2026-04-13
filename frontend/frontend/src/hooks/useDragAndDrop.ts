@@ -28,6 +28,8 @@ type Params = {
   isSnapEnabled: boolean;
   isGuideSnapEnabled: boolean;
   isDrawMode: boolean;
+  /** Im Endansicht-Modus keine Element-Interaktion. */
+  previewEndView: boolean;
 };
 
 export const useDragAndDrop = ({
@@ -40,6 +42,7 @@ export const useDragAndDrop = ({
   isSnapEnabled,
   isGuideSnapEnabled,
   isDrawMode,
+  previewEndView,
 }: Params) => {
   const [dragAction, setDragAction] = useState<DragAction | null>(null);
   const [snapGuides, setSnapGuides] = useState<Guide[]>([]);
@@ -51,7 +54,7 @@ export const useDragAndDrop = ({
       actionType: DragAction["actionType"],
       handle: string | null = null,
     ) => {
-      if (e.button === 1 || isDrawMode || !editingTemplate) return;
+      if (e.button === 1 || isDrawMode || previewEndView || !editingTemplate) return;
       e.preventDefault();
       e.stopPropagation();
       setSelectedElementId(elId);
@@ -71,7 +74,7 @@ export const useDragAndDrop = ({
         scaleFactor: 1 / zoom,
       });
     },
-    [editingTemplate, isDrawMode, setSelectedElementId, zoom],
+    [editingTemplate, isDrawMode, previewEndView, setSelectedElementId, zoom],
   );
 
   useEffect(() => {

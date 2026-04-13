@@ -33,7 +33,7 @@ import {
 import { useCanvasRender } from "../../hooks/useCanvasRender";
 import { toast } from "../../lib/toast";
 import { useAppStore } from "../../store/appStore";
-import type { FrameStyle, Template } from "../../types/mockup";
+import type { Template } from "../../types/mockup";
 import { renderTemplateToPngBlob } from "./mockupExport";
 
 type NewSlot = { key: string; assetId: string };
@@ -88,7 +88,6 @@ export const EtsyWorkspace = () => {
   const templateSets = useAppStore((s) => s.templateSets);
   const setTemplateSets = useAppStore((s) => s.setTemplateSets);
   const artworks = useAppStore((s) => s.artworks);
-  const globalFrameStyle = useAppStore((s) => s.globalFrameStyle);
 
   const [listings, setListings] = useState<EtsyListing[]>([]);
   const [listingsLoading, setListingsLoading] = useState(false);
@@ -207,12 +206,7 @@ export const EtsyWorkspace = () => {
     }
     setBusy(true);
     try {
-      const blob = await renderTemplateToPngBlob(
-        activeTemplate,
-        activeArtwork.url,
-        globalFrameStyle as FrameStyle,
-        loadImage,
-      );
+      const blob = await renderTemplateToPngBlob(activeTemplate, activeArtwork.url, loadImage);
       const { id } = await etsyUploadBulkAsset(blob, `${activeArtwork.name || "mockup"}.png`);
       setNewSlots((s) => [...s, { key: `n_${Date.now()}`, assetId: id }]);
       toast.success("Mockup hochgeladen.");

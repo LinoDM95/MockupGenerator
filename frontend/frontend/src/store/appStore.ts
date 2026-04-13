@@ -1,7 +1,6 @@
 import { create } from "zustand";
 
 import type { ArtworkItem, Template, TemplateSet } from "../types/mockup";
-import type { FrameStyle } from "../types/mockup";
 
 export type AppTab = "generator" | "templates" | "etsy";
 
@@ -42,9 +41,7 @@ interface AppState {
   setArtworks: (a: ArtworkItem[] | ((prev: ArtworkItem[]) => ArtworkItem[])) => void;
 
   globalSetId: string;
-  globalFrameStyle: FrameStyle;
   setGlobalSetId: (id: string) => void;
-  setGlobalFrameStyle: (s: FrameStyle) => void;
 
   dialog: DialogState;
   openPrompt: (title: string, defaultValue?: string) => Promise<string | null>;
@@ -111,9 +108,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((s) => ({ artworks: typeof a === "function" ? a(s.artworks) : a })),
 
   globalSetId: "",
-  globalFrameStyle: "none",
   setGlobalSetId: (id) => set({ globalSetId: id }),
-  setGlobalFrameStyle: (style) => set({ globalFrameStyle: style }),
 
   dialog: emptyDialog(),
   openPrompt: (title, defaultValue = "") =>
