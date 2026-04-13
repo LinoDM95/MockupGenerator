@@ -34,7 +34,20 @@
   }
 }
 
+@keyframes studio-linear-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
+}
+
 @layer utilities {
+  .studio-linear-bar-fill {
+    animation: studio-linear-indeterminate 1.25s ease-in-out infinite;
+  }
+
   .checkerboard-bg {
     background-color: #222;
     background-image: repeating-linear-gradient(

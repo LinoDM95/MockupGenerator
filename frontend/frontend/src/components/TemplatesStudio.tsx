@@ -30,9 +30,10 @@ import { newClientElementId } from "../lib/elementId";
 import { toast } from "../lib/toast";
 import type { Template, TemplateElement } from "../types/mockup";
 import { useAppStore } from "../store/appStore";
+import { TemplateEditor } from "./editor/TemplateEditor";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
-import { TemplateEditor } from "./editor/TemplateEditor";
+import { LinearLoadingBar } from "./ui/LinearLoadingBar";
 
 const migrateTemplate = (tpl: Template): Template => {
   let elements = tpl.elements;
@@ -66,23 +67,27 @@ export const TemplatesStudio = () => {
   const openConfirm = useAppStore((s) => s.openConfirm);
   const setGlobalSetId = useAppStore((s) => s.setGlobalSetId);
 
-  const [loading, setLoading] = useState(false);
+  const [progressMessage, setProgressMessage] = useState<string | null>(null);
+
+  const fetchSetsCore = useCallback(async () => {
+    const data = await fetchTemplateSets();
+    setTemplateSets(data);
+    if (data.length && !useAppStore.getState().globalSetId) {
+      setGlobalSetId(data[0].id);
+    }
+  }, [setGlobalSetId, setTemplateSets]);
 
   const reloadSets = useCallback(async () => {
-    setLoading(true);
+    setProgressMessage("Vorlagen werden geladen…");
     try {
-      const data = await fetchTemplateSets();
-      setTemplateSets(data);
-      if (data.length && !useAppStore.getState().globalSetId) {
-        setGlobalSetId(data[0].id);
-      }
+      await fetchSetsCore();
     } catch (e) {
       console.error(e);
       toast.error(`Sets konnten nicht geladen werden: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
-      setLoading(false);
+      setProgressMessage(null);
     }
-  }, [setGlobalSetId, setTemplateSets]);
+  }, [fetchSetsCore]);
 
   useEffect(() => {
     void reloadSets();
@@ -139,11 +144,21 @@ export const TemplatesStudio = () => {
 
   const handleImportSet = async (file: File | null) => {
     if (!file) return;
-    const text = await file.text();
+    setProgressMessage("Import-Datei wird gelesen…");
+    let text: string;
     try {
+      text = await file.text();
+    } catch {
+      setProgressMessage(null);
+      toast.error("Import-Datei konnte nicht gelesen werden.");
+      return;
+    }
+    try {
+      setProgressMessage("Set wird importiert…");
       const body = JSON.parse(text) as unknown;
       await importSetJson(body);
-      await reloadSets();
+      setProgressMessage("Vorlagen werden aktualisiert…");
+      await fetchSetsCore();
       toast.success("Set importiert.");
     } catch (e) {
       let msg = "Import fehlgeschlagen.";
@@ -160,6 +175,8 @@ export const TemplatesStudio = () => {
         }
       }
       toast.error(msg);
+    } finally {
+      setProgressMessage(null);
     }
   };
 
@@ -168,36 +185,44 @@ export const TemplatesStudio = () => {
     e.target.value = "";
     if (!file || !editingSetId) return;
     const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        const dataUrl = await compressImage(reader.result as string);
-        const img = await loadImage(dataUrl);
-        const initialElement: TemplateElement = {
-          id: newClientElementId(),
-          type: "placeholder",
-          name: "Motiv Platzhalter",
-          x: Math.round(img.width * 0.25),
-          y: Math.round(img.height * 0.2),
-          w: Math.round(img.width * 0.5),
-          h: Math.round(img.height * 0.6),
-          rotation: 0,
-          shadowEnabled: false,
-          shadowColor: "rgba(0,0,0,0.5)",
-          shadowBlur: 20,
-          shadowOffsetX: 10,
-          shadowOffsetY: 10,
-          textCurve: 0,
-        };
-        const blob = await dataUrlToBlob(dataUrl);
-        await createTemplateWithUpload(editingSetId, blob, file.name || "template.jpg", {
-          name: "Neue Vorlage",
-          elements: [initialElement],
-        });
-        await reloadSets();
-      } catch (err) {
-        console.error(err);
-        toast.error("Vorlage konnte nicht angelegt werden.");
-      }
+    reader.onload = () => {
+      void (async () => {
+        setProgressMessage("Bild wird gelesen und optimiert…");
+        try {
+          const dataUrl = await compressImage(reader.result as string);
+          setProgressMessage("Vorschau wird erstellt…");
+          const img = await loadImage(dataUrl);
+          const initialElement: TemplateElement = {
+            id: newClientElementId(),
+            type: "placeholder",
+            name: "Motiv Platzhalter",
+            x: Math.round(img.width * 0.25),
+            y: Math.round(img.height * 0.2),
+            w: Math.round(img.width * 0.5),
+            h: Math.round(img.height * 0.6),
+            rotation: 0,
+            shadowEnabled: false,
+            shadowColor: "rgba(0,0,0,0.5)",
+            shadowBlur: 20,
+            shadowOffsetX: 10,
+            shadowOffsetY: 10,
+            textCurve: 0,
+          };
+          const blob = await dataUrlToBlob(dataUrl);
+          setProgressMessage("Vorlage wird hochgeladen…");
+          await createTemplateWithUpload(editingSetId, blob, file.name || "template.jpg", {
+            name: "Neue Vorlage",
+            elements: [initialElement],
+          });
+          setProgressMessage("Vorlagen werden aktualisiert…");
+          await fetchSetsCore();
+        } catch (err) {
+          console.error(err);
+          toast.error("Vorlage konnte nicht angelegt werden.");
+        } finally {
+          setProgressMessage(null);
+        }
+      })();
     };
     reader.readAsDataURL(file);
   };
@@ -245,6 +270,7 @@ export const TemplatesStudio = () => {
     const currentSet = templateSets.find((s) => s.id === editingSetId);
     return (
       <Card>
+        {progressMessage ? <LinearLoadingBar message={progressMessage} /> : null}
         <div className="mb-6 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
           <div className="flex items-center gap-3">
             <button
@@ -271,7 +297,6 @@ export const TemplatesStudio = () => {
             <input type="file" className="hidden" accept="image/*" onChange={startNewTemplate} />
           </label>
         </div>
-        {loading && <p className="text-sm text-neutral-500">Lade…</p>}
         {!currentSet || currentSet.templates.length === 0 ? (
           <div className="rounded-xl border-2 border-dashed border-neutral-200 bg-neutral-50 py-12 text-center">
             <LayoutTemplate className="mx-auto mb-3 text-neutral-300" size={48} />
@@ -359,6 +384,7 @@ export const TemplatesStudio = () => {
 
   return (
     <Card>
+      {progressMessage ? <LinearLoadingBar message={progressMessage} /> : null}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-bold">Deine Vorlagen-Sets</h2>
         <div className="flex flex-wrap gap-3">
@@ -376,7 +402,6 @@ export const TemplatesStudio = () => {
           </Button>
         </div>
       </div>
-      {loading ? <p className="text-sm text-neutral-500">Lade…</p> : null}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         {templateSets.map((set) => (
           <div
@@ -424,10 +449,15 @@ export const TemplatesStudio = () => {
                     void (async () => {
                       const name = await openPrompt("Name der Kopie:", `${set.name} (Kopie)`);
                       if (!name?.trim()) return;
+                      setProgressMessage("Set wird für die Kopie exportiert…");
                       try {
                         const exported = await exportSetJson(set.id);
+                        setProgressMessage("Neues Set wird angelegt…");
                         const created = await createTemplateSet(name.trim());
-                        for (const t of exported.templates) {
+                        const total = exported.templates.length;
+                        for (let i = 0; i < total; i++) {
+                          const t = exported.templates[i];
+                          setProgressMessage(`Dupliziere Vorlage ${i + 1} von ${total}…`);
                           const res = await fetch(t.bgImage);
                           if (!res.ok) throw new Error(`Bild ${t.name}`);
                           const blob = await res.blob();
@@ -436,7 +466,8 @@ export const TemplatesStudio = () => {
                             elements: t.elements,
                           });
                         }
-                        await reloadSets();
+                        setProgressMessage("Vorlagen werden aktualisiert…");
+                        await fetchSetsCore();
                         toast.success(`Set „${name.trim()}“ dupliziert.`);
                       } catch (err) {
                         const msg =
@@ -453,6 +484,8 @@ export const TemplatesStudio = () => {
                               ? err.message
                               : "Unbekannter Fehler";
                         toast.error(`Duplizieren fehlgeschlagen: ${msg}`);
+                      } finally {
+                        setProgressMessage(null);
                       }
                     })();
                   }}

@@ -110,8 +110,10 @@ export const GeneratorView = () => {
           const base64Data = canvas
             .toDataURL("image/jpeg", 0.85)
             .replace(/^data:image\/(png|jpg|jpeg);base64,/, "");
-          const cleanTplName = tpl.name.replace(/[^a-zA-Z0-9_-]/g, "_");
-          folder.file(`${cleanTplName}.jpg`, base64Data, { base64: true });
+          const cleanTplName = tpl.name.replace(/[^a-zA-Z0-9_-]/g, "_") || "vorlage";
+          const shortId = tpl.id.replace(/-/g, "").slice(0, 8);
+          const fileName = `${String(t + 1).padStart(2, "0")}_${shortId}_${cleanTplName}.jpg`;
+          folder.file(fileName, base64Data, { base64: true });
           await new Promise((r) => setTimeout(r, 10));
         }
       }

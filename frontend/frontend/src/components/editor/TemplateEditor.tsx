@@ -1,12 +1,14 @@
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, ImageUp, Save } from "lucide-react";
 import { useState } from "react";
 
 import { patchTemplate, replaceTemplateElements } from "../../api/sets";
+import { compressImage, dataUrlToBlob, loadImage } from "../../lib/canvas/image";
 import { newClientElementId } from "../../lib/elementId";
 import { toast } from "../../lib/toast";
 import type { ElementType, TemplateElement } from "../../types/mockup";
 import { useAppStore } from "../../store/appStore";
 import { Button } from "../ui/Button";
+import { LinearLoadingBar } from "../ui/LinearLoadingBar";
 import { CanvasViewport } from "./CanvasViewport";
 import { LayerManager } from "./LayerManager";
 import { PropertiesPanel } from "./PropertiesPanel";
@@ -15,6 +17,42 @@ import { Toolbar } from "./Toolbar";
 type Props = {
   onClose: () => void;
   onSaved: () => void | Promise<void>;
+};
+
+/** Elemente proportional auf neue Hintergrund-Abmessungen skalieren. */
+const scaleElementsForCanvas = (
+  elements: TemplateElement[],
+  oldW: number,
+  oldH: number,
+  newW: number,
+  newH: number,
+): TemplateElement[] => {
+  if (oldW <= 0 || oldH <= 0) return elements;
+  const sx = newW / oldW;
+  const sy = newH / oldH;
+  const sFont = Math.min(sx, sy);
+  return elements.map((el) => {
+    const scaled: TemplateElement = {
+      ...el,
+      x: Math.round(el.x * sx),
+      y: Math.round(el.y * sy),
+      w: Math.round(el.w * sx),
+      h: Math.round(el.h * sy),
+    };
+    if (el.type === "text" && el.fontSize != null) {
+      scaled.fontSize = Math.max(8, Math.round(el.fontSize * sFont));
+    }
+    if (el.shadowBlur != null) {
+      scaled.shadowBlur = Math.max(0, Math.round(el.shadowBlur * sFont));
+    }
+    if (el.shadowOffsetX != null) {
+      scaled.shadowOffsetX = Math.round(el.shadowOffsetX * sx);
+    }
+    if (el.shadowOffsetY != null) {
+      scaled.shadowOffsetY = Math.round(el.shadowOffsetY * sy);
+    }
+    return scaled;
+  });
 };
 
 export const TemplateEditor = ({ onClose, onSaved }: Props) => {
@@ -36,6 +74,7 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
     isSnappedY?: boolean;
   } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [replacingBg, setReplacingBg] = useState(false);
 
   if (!editingTemplate) return null;
 
@@ -171,8 +210,57 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
     setSelectedElementId(null);
   };
 
+  const handleBackgroundReplace = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !editingTemplate) return;
+    setReplacingBg(true);
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error("Datei konnte nicht gelesen werden."));
+        reader.readAsDataURL(file);
+      });
+      const compressed = await compressImage(dataUrl);
+      const img = await loadImage(compressed);
+      const newW = img.width;
+      const newH = img.height;
+      const prev = editingTemplate;
+      const fd = new FormData();
+      fd.append(
+        "background_image",
+        await dataUrlToBlob(compressed),
+        file.name.replace(/\.[^/.]+$/, "") + ".jpg",
+      );
+      fd.append("width", String(newW));
+      fd.append("height", String(newH));
+      await patchTemplate(prev.id, fd);
+      const scaledElements = scaleElementsForCanvas(
+        prev.elements,
+        prev.width,
+        prev.height,
+        newW,
+        newH,
+      );
+      const merged = await replaceTemplateElements(prev.id, scaledElements);
+      setEditingTemplate(merged);
+      await onSaved();
+      toast.success("Hintergrundbild wurde ersetzt.");
+    } catch (err) {
+      console.error(err);
+      toast.error(
+        `Hintergrund konnte nicht gewechselt werden: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    } finally {
+      setReplacingBg(false);
+    }
+  };
+
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm md:p-6">
+      {saving ? <LinearLoadingBar message="Vorlage wird gespeichert…" /> : null}
+      {replacingBg ? <LinearLoadingBar message="Hintergrundbild wird gewechselt…" /> : null}
       <div className="mb-4 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
         <div className="flex w-full items-center gap-3 md:w-auto">
           <button
@@ -193,9 +281,32 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
             title="Vorlage umbenennen"
           />
         </div>
-        <Button type="button" onClick={handleSave} disabled={saving} className="gap-2 px-6 py-2 font-bold">
-          <Save size={18} /> {saving ? "Speichern…" : "Speichern"}
-        </Button>
+        <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:justify-end">
+          <label
+            className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm font-medium text-neutral-700 shadow-sm hover:bg-neutral-50 ${
+              saving || replacingBg ? "pointer-events-none opacity-50" : ""
+            }`}
+            title="Neues JPG/PNG/Webp als Vorlagen-Hintergrund"
+          >
+            <ImageUp size={18} aria-hidden />
+            Hintergrund ersetzen
+            <input
+              type="file"
+              className="hidden"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={(ev) => void handleBackgroundReplace(ev)}
+              disabled={saving || replacingBg}
+            />
+          </label>
+          <Button
+            type="button"
+            onClick={handleSave}
+            disabled={saving || replacingBg}
+            className="gap-2 px-6 py-2 font-bold"
+          >
+            <Save size={18} /> {saving ? "Speichern…" : "Speichern"}
+          </Button>
+        </div>
       </div>
 
       <Toolbar
