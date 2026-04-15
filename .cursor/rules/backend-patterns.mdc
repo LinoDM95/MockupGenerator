@@ -1,0 +1,109 @@
+---
+description: Backend Django/DRF/Celery Patterns und Datenbank-Konventionen
+globs: backend/**/*.py
+alwaysApply: false
+---
+
+# Backend-Patterns
+
+## Django Models
+
+- UUIDs als Primary Keys (`models.UUIDField(primary_key=True, default=uuid.uuid4)`)
+- Immer `created_at` (auto_now_add) + `updated_at` (auto_now) auf Models
+- `related_name` explizit setzen – nie Django-Default verwenden
+- Validators auf Model-Ebene (`MinValueValidator`, `MaxValueValidator`, `FileExtensionValidator`)
+- `Meta.ordering` definieren für konsistente Abfrageergebnisse
+- Jedes Model braucht `__str__` für Admin-Lesbarkeit
+
+```python
+# ✅ Korrekt
+class MyModel(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="my_models")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+# ❌ Falsch – kein UUID, kein related_name
+class MyModel(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+```
+
+## Wiederverwendung & Auslagerung (Backend)
+
+### Geschäftslogik: Auslagern aus Views
+
+- Views sollen DÜNN sein – nur Request/Response-Handling
+- Geschäftslogik gehört in **Model-Methoden**, **Service-Funktionen** oder **Serializer-Validierung**
+- Wenn eine View >50 Zeilen hat → Logik in Hilfsfunktion extrahieren
+
+```python
+# ✅ Korrekt – Logik in wiederverwendbarer Funktion
+# serializers.py
+def replace_template_elements(template, elements_data, regenerate_ids=False):
+    """Von add_template UND replace_elements View genutzt."""
+    template.element_rows.all().delete()
+    TemplateElement.objects.bulk_create([...])
+
+# ❌ Falsch – Gleiche Logik in zwei Views kopiert
+class View1(APIView):
+    def post(self, request):
+        template.element_rows.all().delete()  # Duplikat!
+        TemplateElement.objects.bulk_create([...])
+```
+
+### Service-Layer für externe APIs
+
+- Pro externer Integration ein `services/`-Paket (z.B. `etsy/services/`)
+- Getrennte Module: API-Client (`etsy_client.py`), Token-Management (`tokens.py`), Rate-Limiting (`rate_limit.py`)
+- Service-Funktionen von Views UND Tasks nutzbar – nie API-Logik direkt in Views
+
+### Validierungs-Hilfsfunktionen
+
+- Gemeinsame Validierungen als Standalone-Funktionen im Serializer-Modul
+- Beispiel: `validate_asset_belongs_user()` – von mehreren Serializers aufrufbar
+- NIEMALS Copy-Paste von Validierungslogik zwischen Serializers
+
+## DRF Serializers
+
+- Read-Serializer (verschachtelt, Ausgabe) und Write-Serializer (flach, Eingabe) trennen
+- Normalisierung DB-Schema ↔ API-Format in `to_representation` / Custom-Feldern
+- Validierung in Serializer, NICHT in Views – Geschäftslogik in Models oder Service-Funktionen
+- Nested Creates/Updates über dedizierte Hilfsfunktionen (wie `replace_template_elements`)
+
+## DRF Views
+
+- ViewSets für CRUD-Ressourcen, APIView für spezielle Endpoints
+- `perform_create` für automatisches `user=request.user` statt im Serializer
+- Queryset IMMER auf `request.user` filtern – kein Zugriff auf fremde Daten
+- Custom Actions über `@action` mit explizitem `methods` und `detail=True/False`
+- Fehler: Spezifische HTTP-Status (400 Validierung, 403 Berechtigung, 404 nicht gefunden, 503 Service nicht verfügbar)
+
+```python
+# ✅ Korrekt – User-Scoping
+def get_queryset(self):
+    return TemplateSet.objects.filter(user=self.request.user).prefetch_related("templates")
+
+# ❌ Falsch – alle User sehen alles
+def get_queryset(self):
+    return TemplateSet.objects.all()
+```
+
+## Celery Tasks
+
+- Tasks in `tasks.py` der jeweiligen App
+- Immer `time_limit` und sinnvolle Fehlerbehandlung
+- Status-Updates in DB speichern (pending → running → success/partial/failed)
+- Task-Ergebnisse als JSON in `result`/`error_log` Feldern – nicht nur Celery-Backend
+- Idempotent schreiben wo möglich (Re-Run sicher)
+
+## Datenbank
+
+- `select_related` für FK-Joins, `prefetch_related` für Reverse-FK/M2M
+- Keine Raw-SQL-Queries – ORM verwenden
+- Indizes auf häufig abgefragte Felder (`db_index=True`)
+- Migrationen: nach JEDER Model-Änderung `makemigrations` + Review + `migrate`
+
+## URL-Routing
+
+- RESTful: `/api/sets/`, `/api/templates/`, `/api/etsy/oauth/start/`
+- Verschachtelte Routen für Beziehungen: `/api/sets/{id}/templates/`
+- Alle Endpoints unter `/api/` – kein HTML-Serving durch Django (außer Admin)

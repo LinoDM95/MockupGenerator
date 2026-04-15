@@ -1,4 +1,4 @@
-import { apiFetch, apiJson } from "./client";
+import { apiJson } from "./client";
 
 export type EtsyOAuthStartResponse = { authorization_url: string; state?: string };
 
@@ -49,8 +49,7 @@ export const etsyOAuthCallback = (body: { code: string; state: string }) =>
   );
 
 export const etsyDisconnect = async () => {
-  const res = await apiFetch("/api/etsy/oauth/disconnect/", { method: "DELETE" });
-  if (!res.ok) throw new Error(await res.text());
+  await apiJson("/api/etsy/oauth/disconnect/", { method: "DELETE" });
 };
 
 export const etsyFetchListings = (params?: { limit?: number; offset?: number }) => {
@@ -64,10 +63,7 @@ export const etsyFetchListings = (params?: { limit?: number; offset?: number }) 
 export const etsyUploadBulkAsset = async (blob: Blob, filename = "mockup.png") => {
   const fd = new FormData();
   fd.append("image", blob, filename);
-  const res = await apiFetch("/api/etsy/bulk-assets/", { method: "POST", body: fd });
-  const text = await res.text();
-  if (!res.ok) throw new Error(text || `HTTP ${res.status}`);
-  return JSON.parse(text) as { id: string };
+  return apiJson<{ id: string }>("/api/etsy/bulk-assets/", { method: "POST", body: fd });
 };
 
 export const etsyCreateBulkJob = (body: unknown) =>

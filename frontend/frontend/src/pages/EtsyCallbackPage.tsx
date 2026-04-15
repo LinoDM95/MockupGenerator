@@ -1,3 +1,4 @@
+import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
@@ -45,10 +46,11 @@ export const EtsyCallbackPage = () => {
   }, [navigate, params]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-neutral-100 p-6 font-sans text-neutral-800">
-      <div className="max-w-md rounded-2xl border border-neutral-200 bg-white p-8 text-center shadow-sm">
-        <h1 className="mb-2 text-lg font-semibold text-neutral-900">Etsy OAuth</h1>
-        <p className="text-sm text-neutral-600">{message}</p>
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
+      <div className="max-w-md rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+        <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-indigo-600" strokeWidth={1.75} />
+        <h1 className="mb-2 text-lg font-semibold text-slate-900">Etsy OAuth</h1>
+        <p className="text-sm text-slate-600">{message}</p>
       </div>
     </div>
   );

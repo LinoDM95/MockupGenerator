@@ -20,47 +20,39 @@ TOKEN_URL = "https://api.etsy.com/v3/public/oauth/token"
 OPENAPI_PREFIX = "https://openapi.etsy.com/v3/application"
 
 
+def _post_token_request(data: dict[str, str]) -> dict[str, Any]:
+    payload = {"client_id": settings.ETSY_CLIENT_ID, **data}
+    if settings.ETSY_CLIENT_SECRET:
+        payload["client_secret"] = settings.ETSY_CLIENT_SECRET
+    with httpx.Client(timeout=60.0) as client:
+        r = client.post(
+            TOKEN_URL,
+            data=payload,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        r.raise_for_status()
+        return r.json()
+
+
 def exchange_authorization_code(
     *,
     code: str,
     redirect_uri: str,
     code_verifier: str,
 ) -> dict[str, Any]:
-    data = {
+    return _post_token_request({
         "grant_type": "authorization_code",
-        "client_id": settings.ETSY_CLIENT_ID,
         "redirect_uri": redirect_uri,
         "code": code,
         "code_verifier": code_verifier,
-    }
-    if settings.ETSY_CLIENT_SECRET:
-        data["client_secret"] = settings.ETSY_CLIENT_SECRET
-    with httpx.Client(timeout=60.0) as client:
-        r = client.post(
-            TOKEN_URL,
-            data=data,
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-        )
-        r.raise_for_status()
-        return r.json()
+    })
 
 
 def refresh_access_token(*, refresh_token: str) -> dict[str, Any]:
-    data = {
+    return _post_token_request({
         "grant_type": "refresh_token",
-        "client_id": settings.ETSY_CLIENT_ID,
         "refresh_token": refresh_token,
-    }
-    if settings.ETSY_CLIENT_SECRET:
-        data["client_secret"] = settings.ETSY_CLIENT_SECRET
-    with httpx.Client(timeout=60.0) as client:
-        r = client.post(
-            TOKEN_URL,
-            data=data,
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-        )
-        r.raise_for_status()
-        return r.json()
+    })
 
 
 class EtsyOpenApiClient:

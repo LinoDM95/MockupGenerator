@@ -22,6 +22,10 @@ from django.urls import include, path
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", include("core.urls")),
+    path("api/gelato/", include("gelato_integration.urls")),
+    path("api/ai/", include("ai_integration.urls")),
+    path("api/upscaler/", include("upscaler.urls")),
+    path("api/automation/", include("automation.urls")),
 ]
 
 if settings.DEBUG:

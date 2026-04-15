@@ -1,0 +1,110 @@
+---
+description: Frontend React/TypeScript/Tailwind Patterns und Canvas-Pipeline
+globs: frontend/**/*.{ts,tsx,css}
+alwaysApply: false
+---
+
+# Frontend-Patterns
+
+## Wiederverwendung & Auslagerung (Frontend)
+
+### Komponenten: Erweitern statt Duplizieren
+
+- **VOR** dem Erstellen einer neuen Komponente: `src/components/ui/` und `src/components/` durchsuchen
+- Bestehende Komponente per `variant`-Prop oder `children`-Slot erweitern statt neue zu bauen
+- Generische Namen verwenden (`FileUploadCard` statt `ArtworkUploadCard`) damit sie wiederverwendbar bleiben
+
+```tsx
+// ✅ Korrekt – Bestehenden Button erweitern
+<Button variant="danger" onClick={handleDelete}>Löschen</Button>
+
+// ❌ Falsch – Neuen DeleteButton bauen der dasselbe tut
+const DeleteButton = ({ onClick }) => (
+  <button className="bg-red-600 text-white ..." onClick={onClick}>Löschen</button>
+);
+```
+
+### Logik: In Hooks und Lib-Module auslagern
+
+- Logik die in >1 Komponente vorkommt → Custom Hook in `src/hooks/`
+- Reine Funktionen ohne React-Abhängigkeit → `src/lib/` (thematisch gruppiert)
+- Canvas-Operationen → `src/lib/canvas/` – EINE Pipeline für alle Export-Pfade
+- NIEMALS dieselbe Berechnung/Transformation in zwei Komponenten inline schreiben
+
+```tsx
+// ✅ Korrekt – Shared Hook
+const { loadImage, renderElementToCanvas } = useCanvasRender();
+
+// ❌ Falsch – Canvas-Logik direkt in Komponente duplizieren
+const canvas = document.createElement("canvas");
+const ctx = canvas.getContext("2d");
+// ... 50 Zeilen die schon in renderElementToCanvas existieren
+```
+
+### API-Aufrufe: Zentralisiert in `src/api/`
+
+- Jede Domäne hat EIN API-Modul (`sets.ts`, `etsy.ts`, `auth.ts`)
+- Daten-Normalisierung (API-Format ↔ Frontend-Typen) NUR im API-Modul, nie in Komponenten
+- Neuer Endpoint → im bestehenden API-Modul ergänzen, kein neues Modul ohne neuen Domänenbereich
+
+## Komponenten-Architektur
+
+- Funktionale Komponenten als `const` mit explizitem Props-Type
+- Early Returns für Ladezustände, Fehlerfälle und Auth-Gates
+- Komplexe Logik in Custom Hooks extrahieren (`src/hooks/`)
+- UI-Primitives in `src/components/ui/` – variantenbasiert (z.B. `<Button variant="outline" />`)
+
+```tsx
+// ✅ Korrekt
+type Props = { title: string; onSave: () => void };
+const MyComponent = ({ title, onSave }: Props) => {
+  const { data } = useAppStore();
+  if (!data) return null;
+  return <div>...</div>;
+};
+
+// ❌ Falsch – keine function-Deklaration, keine fehlenden Typen
+function MyComponent(props: any) { ... }
+```
+
+## State Management (Zustand)
+
+- **Ein Store** in `src/store/appStore.ts` für globalen App-State (Auth, Templates, Artworks, Dialoge)
+- **Lokaler State** für UI-only Dinge (Form-Inputs, Toggles, Zoom)
+- Store-Selektoren granular halten: `useAppStore(s => s.templateSets)` statt gesamten Store
+- Neue State-Slices als Interface in `AppState` tippen, nicht als `any`
+
+## API-Client (`src/api/`)
+
+- Alle API-Aufrufe über `apiFetch` / `apiJson` aus `src/api/client.ts`
+- Automatischer JWT-Refresh bei 401 ist eingebaut – NIEMALS manuell Token-Handling in Komponenten
+- Normalisierung API ↔ Frontend-Typen in den jeweiligen API-Modulen (`sets.ts`, `etsy.ts`)
+- Fehler als `ApiError` werfen mit `status` und `body` – in Komponenten mit try/catch + Toast
+
+## Canvas-Rendering-Pipeline (`src/lib/canvas/`)
+
+- `renderElementToCanvas` ist die zentrale Export-Funktion – Änderungen wirken auf Generator UND Etsy
+- `frame.ts`: Rahmen-Zeichnung mit Noise-Caching – Pattern-Cache bei Änderungen invalidieren
+- `image.ts`: Bilder IMMER mit `crossOrigin: "anonymous"` laden (`loadImage`)
+- Offscreen-Canvas für Export: keine DOM-Manipulation, reines Canvas-2D
+- Maximale Bildgröße 2400px (`compressImage`) um Memory-Probleme zu vermeiden
+
+## Tailwind CSS 4
+
+- Tailwind über `@import "tailwindcss"` in `index.css` + Vite-Plugin (keine `tailwind.config`)
+- Gemeinsame Utilities in `@layer utilities` in `index.css` definieren
+- Keine inline-`style`-Attribute außer für dynamische Canvas-/Element-Positionen (x, y, w, h)
+- `cn()` aus `src/lib/cn.ts` für bedingte Klassen-Zusammenführung
+
+## TypeScript
+
+- Zentrale Domain-Typen in `src/types/mockup.ts` – bei Änderungen Backend-Models synchron halten
+- `type` statt `interface` für Props und einfache Objekte; `interface` für erweiterbare Contracts
+- Kein `any` – bei unbekannten API-Responses `unknown` + Type-Guard
+- Strict-Mode aktiv (`tsconfig.app.json`) – keine Workarounds mit `@ts-ignore`
+
+## Accessibility
+
+- Alle interaktiven Elemente: `tabIndex`, `aria-label`, Keyboard-Handler
+- `focus-visible`-Outline auf Buttons/Links (bereits in `Button.tsx` implementiert)
+- Bilder mit `alt`-Text, dekorative Bilder mit `alt=""`

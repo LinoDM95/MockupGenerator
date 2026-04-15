@@ -2,7 +2,14 @@ import { create } from "zustand";
 
 import type { ArtworkItem, Template, TemplateSet } from "../types/mockup";
 
-export type AppTab = "generator" | "templates" | "etsy";
+export type AppTab =
+  | "generator"
+  | "templates"
+  | "etsy"
+  | "gelato"
+  | "ai"
+  | "upscaler"
+  | "automation";
 
 interface DialogState {
   isOpen: boolean;

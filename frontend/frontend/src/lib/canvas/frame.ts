@@ -118,6 +118,8 @@ const clipFrameRing = (
 };
 
 let cornerPatchCanvas: HTMLCanvasElement | null = null;
+/** Wiederverwendung für einheitlichen Innenschatten (volle Fläche, keine Kanten/Ecken-Naht). */
+let innerShadowScratch: HTMLCanvasElement | null = null;
 
 /**
  * Eckfläche: Deckkraft = max beider Kanten-Verläufe (wie zwei orthogonale Linear-Gradienten,
@@ -294,98 +296,73 @@ export const drawInnerFrameShadowOnMotif = (
   sidesMask: number,
 ): void => {
   if (!sidesMask) return;
+  if (typeof document === "undefined") return;
   const d = Math.min(1, Math.max(0.15, depth));
   const spreadF = Math.max(4, thickness * (0.62 + 0.58 * d));
-  /** Ganzzahl: gleiche Breite wie Kanten-Gradienten → keine Subpixel-Naht zur Eck-Bitmap. */
   const s = Math.max(4, Math.round(spreadF));
   const alpha = 0.2 + 0.48 * d;
+  const invS = 1 / s;
 
   const hasTop = (sidesMask & FRAME_SHADOW_TOP) !== 0;
   const hasBottom = (sidesMask & FRAME_SHADOW_BOTTOM) !== 0;
   const hasLeft = (sidesMask & FRAME_SHADOW_LEFT) !== 0;
   const hasRight = (sidesMask & FRAME_SHADOW_RIGHT) !== 0;
 
+  const w0 = Math.max(1, Math.ceil(w - 1e-9));
+  const h0 = Math.max(1, Math.ceil(h - 1e-9));
+
   ctx.save();
   ctx.beginPath();
   ctx.rect(x, y, w, h);
   ctx.clip();
 
-  const fillBand = (
-    gx0: number,
-    gy0: number,
-    gx1: number,
-    gy1: number,
-    rx: number,
-    ry: number,
-    rw: number,
-    rh: number,
-  ) => {
-    if (rw <= 0 || rh <= 0) return;
-    const g = ctx.createLinearGradient(gx0, gy0, gx1, gy1);
-    g.addColorStop(0, `rgba(0,0,0,${alpha})`);
-    g.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = g;
-    const px = Math.round(rx);
-    const py = Math.round(ry);
-    const pw = Math.max(1, Math.round(rw));
-    const ph = Math.max(1, Math.round(rh));
-    ctx.fillRect(px, py, pw, ph);
-  };
-
-  /** Kanten ohne Eck-Quadrate → keine doppelte Deckkraft in den Ecken. */
-  if (hasTop) {
-    let rx = x;
-    let rw = w;
-    if (hasLeft) {
-      rx += s;
-      rw -= s;
-    }
-    if (hasRight) rw -= s;
-    fillBand(x, y, x, y + s, rx, y, rw, s);
+  if (!innerShadowScratch || innerShadowScratch.width < w0 || innerShadowScratch.height < h0) {
+    innerShadowScratch = document.createElement("canvas");
+    innerShadowScratch.width = w0;
+    innerShadowScratch.height = h0;
   }
-  if (hasBottom) {
-    let rx = x;
-    let rw = w;
-    if (hasLeft) {
-      rx += s;
-      rw -= s;
-    }
-    if (hasRight) rw -= s;
-    fillBand(x, y + h, x, y + h - s, rx, y + h - s, rw, s);
-  }
-  if (hasLeft) {
-    let ry = y;
-    let rh = h;
-    if (hasTop) {
-      ry += s;
-      rh -= s;
-    }
-    if (hasBottom) rh -= s;
-    fillBand(x, y, x + s, y, x, ry, s, rh);
-  }
-  if (hasRight) {
-    let ry = y;
-    let rh = h;
-    if (hasTop) {
-      ry += s;
-      rh -= s;
-    }
-    if (hasBottom) rh -= s;
-    fillBand(x + w, y, x + w - s, y, x + w - s, ry, s, rh);
+  const patch = innerShadowScratch;
+  const pctx = patch.getContext("2d", { willReadFrequently: true });
+  if (!pctx) {
+    ctx.restore();
+    return;
   }
 
-  if (hasTop && hasLeft) {
-    blitMaxCornerBlack(ctx, x, y, s, (u, v) => Math.max(alpha * (1 - v), alpha * (1 - u)));
+  const img = pctx.createImageData(w0, h0);
+  const data = img.data;
+  for (let j = 0; j < h0; j++) {
+    const fromTop = hasTop && j < s ? alpha * (1 - (j + 0.5) * invS) : 0;
+    const db = h0 - 1 - j;
+    const fromBottom = hasBottom && db < s ? alpha * (1 - (db + 0.5) * invS) : 0;
+    let o = j * w0 * 4;
+    for (let i = 0; i < w0; i++) {
+      let m = fromTop;
+      if (fromBottom > m) m = fromBottom;
+      if (hasLeft && i < s) {
+        const t = alpha * (1 - (i + 0.5) * invS);
+        if (t > m) m = t;
+      }
+      if (hasRight) {
+        const dr = w0 - 1 - i;
+        if (dr < s) {
+          const t = alpha * (1 - (dr + 0.5) * invS);
+          if (t > m) m = t;
+        }
+      }
+      if (m > 0.0005) {
+        data[o + 3] = Math.round(255 * Math.min(1, m));
+      }
+      o += 4;
+    }
   }
-  if (hasTop && hasRight) {
-    blitMaxCornerBlack(ctx, x + w - s, y, s, (u, v) => Math.max(alpha * (1 - v), alpha * u));
-  }
-  if (hasBottom && hasLeft) {
-    blitMaxCornerBlack(ctx, x, y + h - s, s, (u, v) => Math.max(alpha * (1 - u), alpha * v));
-  }
-  if (hasBottom && hasRight) {
-    blitMaxCornerBlack(ctx, x + w - s, y + h - s, s, (u, v) => Math.max(alpha * u, alpha * v));
-  }
+
+  pctx.putImageData(img, 0, 0);
+  const dx = Math.round(x);
+  const dy = Math.round(y);
+  const prevSmooth = ctx.imageSmoothingEnabled;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(patch, 0, 0, w0, h0, dx, dy, w0, h0);
+  ctx.imageSmoothingEnabled = prevSmooth;
 
   ctx.restore();
 };

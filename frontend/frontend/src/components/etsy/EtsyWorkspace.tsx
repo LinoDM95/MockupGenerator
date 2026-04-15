@@ -15,11 +15,11 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Loader2, LogOut, RefreshCw, Send, Store } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { GripVertical, Loader2, LogOut, RefreshCw, Send, Store } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { ApiError } from "../../api/client";
-import { fetchTemplateSets } from "../../api/sets";
+import { useLoadTemplateSets } from "../../hooks/useLoadTemplateSets";
 import {
   etsyCreateBulkJob,
   etsyDisconnect,
@@ -31,9 +31,13 @@ import {
   type EtsyListingImage,
 } from "../../api/etsy";
 import { useCanvasRender } from "../../hooks/useCanvasRender";
+import { getErrorMessage } from "../../lib/error";
 import { toast } from "../../lib/toast";
 import { useAppStore } from "../../store/appStore";
 import type { Template } from "../../types/mockup";
+import { Button } from "../ui/Button";
+import { Card } from "../ui/Card";
+import { Select } from "../ui/Select";
 import { renderTemplateToPngBlob } from "./mockupExport";
 
 type NewSlot = { key: string; assetId: string };
@@ -57,37 +61,48 @@ const SortableSlotRow = ({
     transition,
   };
   return (
-    <div
+    <motion.div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-white px-3 py-2 shadow-sm"
+      layout
+      initial={false}
+      exit={{
+        opacity: 0,
+        height: 0,
+        marginTop: 0,
+        marginBottom: 0,
+        paddingTop: 0,
+        paddingBottom: 0,
+      }}
+      transition={{ duration: 0.2, layout: { duration: 0.2, ease: "easeOut" } }}
+      className="flex items-center gap-3 overflow-hidden rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm"
     >
       <button
         type="button"
-        className="touch-manipulation rounded-md px-2 py-1 text-neutral-400 hover:bg-neutral-100"
+        className="touch-manipulation rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
         aria-label="Reihenfolge ändern"
         {...attributes}
         {...listeners}
       >
-        ::
+        <GripVertical size={16} strokeWidth={1.75} />
       </button>
-      <span className="min-w-0 flex-1 truncate text-sm text-neutral-700">{label}</span>
+      <span className="min-w-0 flex-1 truncate text-sm text-slate-700">{label}</span>
       <button
         type="button"
         onClick={onRemove}
-        className="text-sm text-red-600 hover:underline"
+        className="text-sm text-red-500 transition-colors hover:text-red-700"
       >
         Entfernen
       </button>
-    </div>
+    </motion.div>
   );
 };
 
 export const EtsyWorkspace = () => {
   const { loadImage } = useCanvasRender();
   const templateSets = useAppStore((s) => s.templateSets);
-  const setTemplateSets = useAppStore((s) => s.setTemplateSets);
   const artworks = useAppStore((s) => s.artworks);
+  useLoadTemplateSets({ silent: true });
 
   const [listings, setListings] = useState<EtsyListing[]>([]);
   const [listingsLoading, setListingsLoading] = useState(false);
@@ -138,19 +153,11 @@ export const EtsyWorkspace = () => {
   }, []);
 
   useEffect(() => {
-    void (async () => {
-      try {
-        const sets = await fetchTemplateSets();
-        setTemplateSets(sets);
-        if (sets.length && !templateId) {
-          const first = sets[0].templates[0];
-          if (first) setTemplateId(first.id);
-        }
-      } catch {
-        /* Studio kann leer sein */
-      }
-    })();
-  }, [setTemplateSets, templateId]);
+    if (templateSets.length && !templateId) {
+      const first = templateSets[0].templates[0];
+      if (first) setTemplateId(first.id);
+    }
+  }, [templateSets, templateId]);
 
   useEffect(() => {
     void loadListings();
@@ -175,16 +182,7 @@ export const EtsyWorkspace = () => {
       const { authorization_url: url } = await etsyOAuthStart();
       window.location.href = url;
     } catch (e) {
-      if (e instanceof ApiError) {
-        try {
-          const j = JSON.parse(e.body) as { detail?: string };
-          toast.error(j.detail || `OAuth-Start fehlgeschlagen (HTTP ${e.status}).`);
-        } catch {
-          toast.error(e.message);
-        }
-      } else {
-        toast.error("OAuth-Start fehlgeschlagen (Konfiguration prüfen).");
-      }
+      toast.error(`OAuth-Start fehlgeschlagen: ${getErrorMessage(e)}`);
     }
   };
 
@@ -299,58 +297,57 @@ export const EtsyWorkspace = () => {
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <Store className="text-amber-600" size={28} />
+        <div className="flex items-center gap-3">
+          <div className="rounded-lg bg-indigo-50 p-2.5">
+            <Store className="text-indigo-600" size={22} strokeWidth={1.75} />
+          </div>
           <div>
-            <h2 className="text-xl font-semibold text-neutral-900">Etsy</h2>
-            <p className="text-sm text-neutral-500">
+            <h2 className="text-xl font-semibold text-slate-900">Etsy</h2>
+            <p className="text-sm text-slate-500">
               Verknüpfen, Listings laden, Bilder löschen und neue Mockups hochladen.
             </p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button
+          <Button
+            variant="outline"
             type="button"
             onClick={() => void loadListings()}
             disabled={listingsLoading}
-            className="inline-flex items-center gap-2 rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
           >
-            {listingsLoading ? <Loader2 className="animate-spin" size={16} /> : <RefreshCw size={16} />}
+            {listingsLoading ? <Loader2 className="animate-spin" size={16} /> : <RefreshCw size={16} strokeWidth={1.75} />}
             Aktualisieren
-          </button>
-          <button
-            type="button"
-            onClick={handleConnect}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-          >
+          </Button>
+          <Button type="button" onClick={handleConnect}>
             Etsy verknüpfen
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleDisconnect()}
-            className="inline-flex items-center gap-2 rounded-lg border border-neutral-300 px-4 py-2 text-sm text-neutral-600 hover:bg-white"
-          >
-            <LogOut size={16} /> Trennen
-          </button>
+          </Button>
+          <Button variant="ghost" type="button" onClick={() => void handleDisconnect()}>
+            <LogOut size={16} strokeWidth={1.75} /> Trennen
+          </Button>
         </div>
       </div>
 
       {jobId && (
-        <div className="rounded-xl border border-neutral-200 bg-white p-4 text-sm text-neutral-700 shadow-sm">
+        <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900 shadow-sm">
           <span className="font-medium">Letzter Job:</span> {jobId.slice(0, 8)}… —{" "}
-          <span className="text-neutral-500">{jobStatus}</span>
+          <span className="font-medium text-indigo-700">{jobStatus}</span>
         </div>
       )}
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-3 font-medium text-neutral-900">Listings</h3>
+        <Card>
+          <h3 className="mb-3 text-sm font-semibold text-slate-900">Listings</h3>
           {listingsLoading && !listings.length ? (
-            <p className="text-sm text-neutral-500">Lade…</p>
+            <div className="flex items-center gap-2 py-8 text-sm text-slate-500">
+              <Loader2 className="animate-spin" size={16} /> Listings werden geladen…
+            </div>
           ) : listings.length === 0 ? (
-            <p className="text-sm text-neutral-500">
-              Keine Listings. Zuerst „Etsy verknüpfen“ und Scopes prüfen.
-            </p>
+            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 py-8 text-center">
+              <Store className="mx-auto mb-2 text-slate-300" size={32} strokeWidth={1} />
+              <p className="text-sm text-slate-500">
+                Keine Listings. Zuerst „Etsy verknüpfen" und Scopes prüfen.
+              </p>
+            </div>
           ) : (
             <ul className="max-h-80 space-y-1 overflow-y-auto text-sm">
               {listings.map((l) => {
@@ -361,7 +358,9 @@ export const EtsyWorkspace = () => {
                       type="button"
                       onClick={() => setSelectedListingId(id)}
                       className={`w-full rounded-lg px-3 py-2 text-left transition-colors ${
-                        selectedListingId === id ? "bg-blue-50 text-blue-900" : "hover:bg-neutral-50"
+                        selectedListingId === id
+                          ? "bg-indigo-50 font-medium text-indigo-900"
+                          : "text-slate-700 hover:bg-slate-50"
                       }`}
                     >
                       {l.title || `Listing ${id}`}
@@ -371,46 +370,43 @@ export const EtsyWorkspace = () => {
               })}
             </ul>
           )}
-        </section>
+        </Card>
 
-        <section className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-3 font-medium text-neutral-900">Listing-Editor</h3>
+        <Card>
+          <h3 className="mb-3 text-sm font-semibold text-slate-900">Listing-Editor</h3>
           {!selectedListing ? (
-            <p className="text-sm text-neutral-500">Bitte ein Listing auswählen.</p>
+            <p className="py-8 text-center text-sm text-slate-500">
+              Bitte ein Listing auswählen.
+            </p>
           ) : (
-            <div className="space-y-4">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-neutral-500">Vorlage</label>
-                <select
-                  value={templateId}
-                  onChange={(e) => setTemplateId(e.target.value)}
-                  className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
-                >
-                  {templatesFlat.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-neutral-500">Artwork (Generator)</label>
-                <select
-                  value={artworkId}
-                  onChange={(e) => setArtworkId(e.target.value)}
-                  className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
-                >
-                  <option value="">— wählen —</option>
-                  {artworks.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <div className="space-y-5">
+              <Select
+                label="Vorlage"
+                value={templateId}
+                onChange={(e) => setTemplateId(e.target.value)}
+              >
+                {templatesFlat.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </Select>
 
-              <div>
-                <p className="mb-2 text-xs font-medium text-neutral-500">Etsy-Bilder löschen</p>
+              <Select
+                label="Artwork (Generator)"
+                value={artworkId}
+                onChange={(e) => setArtworkId(e.target.value)}
+              >
+                <option value="">— wählen —</option>
+                {artworks.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </Select>
+
+              <div className="border-t border-slate-200 pt-4">
+                <p className="mb-2 text-sm font-medium text-slate-700">Etsy-Bilder löschen</p>
                 <div className="flex max-h-40 flex-wrap gap-2 overflow-y-auto">
                   {etsyImages.map((im) => {
                     const id = imageId(im);
@@ -419,14 +415,16 @@ export const EtsyWorkspace = () => {
                     return (
                       <label
                         key={id}
-                        className={`flex cursor-pointer flex-col items-center gap-1 rounded-lg border p-2 text-xs ${
-                          deleteIds.has(id) ? "border-red-400 bg-red-50" : "border-neutral-200"
+                        className={`flex cursor-pointer flex-col items-center gap-1 rounded-lg border p-2 text-xs transition-colors ${
+                          deleteIds.has(id)
+                            ? "border-red-400 bg-red-50 text-red-700"
+                            : "border-slate-200 text-slate-600 hover:border-slate-300"
                         }`}
                       >
                         {thumb ? (
                           <img src={thumb} alt="" className="h-14 w-14 rounded object-cover" />
                         ) : (
-                          <span className="flex h-14 w-14 items-center justify-center bg-neutral-100">{id}</span>
+                          <span className="flex h-14 w-14 items-center justify-center rounded bg-slate-100 text-xs text-slate-400">{id}</span>
                         )}
                         <input
                           type="checkbox"
@@ -439,21 +437,24 @@ export const EtsyWorkspace = () => {
                     );
                   })}
                   {!etsyImages.length && (
-                    <span className="text-sm text-neutral-400">Keine Bilder geladen.</span>
+                    <span className="text-sm text-slate-400">Keine Bilder geladen.</span>
                   )}
                 </div>
               </div>
 
-              <div>
-                <p className="mb-2 text-xs font-medium text-neutral-500">Neue Mockups (Reihenfolge = Rank nach vorhandenen)</p>
-                <button
+              <div className="border-t border-slate-200 pt-4">
+                <p className="mb-2 text-sm font-medium text-slate-700">
+                  Neue Mockups (Reihenfolge = Rank nach vorhandenen)
+                </p>
+                <Button
+                  variant="outline"
                   type="button"
                   onClick={() => void handleAddMockup()}
                   disabled={busy}
-                  className="mb-3 rounded-lg border border-neutral-300 px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50"
+                  className="mb-3"
                 >
                   Mockup erzeugen &amp; hochladen
-                </button>
+                </Button>
                 <DndContext
                   sensors={sensors}
                   collisionDetection={closestCenter}
@@ -464,33 +465,35 @@ export const EtsyWorkspace = () => {
                     strategy={verticalListSortingStrategy}
                   >
                     <div className="space-y-2">
-                      {newSlots.map((s, i) => (
-                        <SortableSlotRow
-                          key={s.key}
-                          id={s.key}
-                          label={`#${i + 1} — ${s.assetId.slice(0, 8)}…`}
-                          onRemove={() =>
-                            setNewSlots((prev) => prev.filter((x) => x.key !== s.key))
-                          }
-                        />
-                      ))}
+                      <AnimatePresence initial={false} mode="popLayout">
+                        {newSlots.map((s, i) => (
+                          <SortableSlotRow
+                            key={s.key}
+                            id={s.key}
+                            label={`#${i + 1} — ${s.assetId.slice(0, 8)}…`}
+                            onRemove={() =>
+                              setNewSlots((prev) => prev.filter((x) => x.key !== s.key))
+                            }
+                          />
+                        ))}
+                      </AnimatePresence>
                     </div>
                   </SortableContext>
                 </DndContext>
               </div>
 
-              <button
+              <Button
                 type="button"
                 onClick={() => void handleSubmitJob()}
                 disabled={busy}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                className="w-full gap-2 py-3"
               >
-                {busy ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
+                {busy ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} strokeWidth={1.75} />}
                 Bulk-Job starten
-              </button>
+              </Button>
             </div>
           )}
-        </section>
+        </Card>
       </div>
     </div>
   );

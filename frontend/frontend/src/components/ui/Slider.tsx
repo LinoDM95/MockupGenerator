@@ -12,21 +12,21 @@ export const Slider = ({ label, hintRight, className, id, ...rest }: Props) => {
   return (
     <div className="w-full">
       {(label || hintRight) && (
-        <div className="mb-1 flex items-center justify-between text-xs font-bold uppercase text-neutral-500">
+        <div className="mb-1.5 flex items-center justify-between text-sm">
           {label ? (
-            <label htmlFor={iid} className="cursor-pointer tracking-wide">
+            <label htmlFor={iid} className="cursor-pointer font-medium text-slate-700">
               {label}
             </label>
           ) : (
             <span />
           )}
-          {hintRight ? <span className="normal-case text-neutral-700">{hintRight}</span> : null}
+          {hintRight ? <span className="text-xs font-medium text-slate-500">{hintRight}</span> : null}
         </div>
       )}
       <input
         id={iid}
         type="range"
-        className={cn("w-full cursor-ew-resize accent-blue-600 disabled:cursor-not-allowed", className)}
+        className={cn("w-full cursor-ew-resize accent-indigo-600 disabled:cursor-not-allowed", className)}
         {...rest}
       />
     </div>

@@ -17,19 +17,11 @@ from django.utils import timezone
 
 from .models import EtsyBulkAsset, EtsyBulkJob, EtsyConnection
 from .services.etsy_client import EtsyOpenApiClient
+from .services.normalize import get_image_id, get_image_rank, get_results
 from .services.rate_limit import EtsyRateLimiter
 from .services.tokens import ensure_fresh_access_token
 
 logger = logging.getLogger(__name__)
-
-
-def _image_rank(img: dict) -> int:
-    return int(img.get("rank") or img.get("rank_order") or 0)
-
-
-def _image_id(img: dict) -> int | None:
-    raw = img.get("listing_image_id") or img.get("listingImageId")
-    return int(raw) if raw is not None else None
 
 
 @shared_task(bind=True, ignore_result=True)
@@ -90,12 +82,12 @@ def process_etsy_bulk_job(self, job_id: str) -> None:
                 )
                 continue
 
-            current = imgs_json.get("results") or []
+            current = get_results(imgs_json)
             id_to_rank = {}
             for im in current:
-                iid = _image_id(im)
+                iid = get_image_id(im)
                 if iid is not None:
-                    id_to_rank[iid] = _image_rank(im)
+                    id_to_rank[iid] = get_image_rank(im)
 
             delete_ids = [int(x) for x in (item.get("deletes") or [])]
 

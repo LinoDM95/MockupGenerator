@@ -129,8 +129,7 @@ export const patchTemplateSet = async (id: string, name: string): Promise<Templa
 };
 
 export const deleteTemplateSet = async (id: string): Promise<void> => {
-  const res = await apiFetch(`/api/sets/${id}/`, { method: "DELETE" });
-  if (!res.ok) throw new Error(await res.text());
+  await apiJson(`/api/sets/${id}/`, { method: "DELETE" });
 };
 
 export const createTemplateWithUpload = async (
@@ -180,8 +179,7 @@ export const replaceTemplateElements = async (
 };
 
 export const deleteTemplate = async (id: string): Promise<void> => {
-  const res = await apiFetch(`/api/templates/${id}/`, { method: "DELETE" });
-  if (!res.ok) throw new Error(await res.text());
+  await apiJson(`/api/templates/${id}/`, { method: "DELETE" });
 };
 
 export const exportSetJson = async (setId: string): Promise<TemplateSet> => {

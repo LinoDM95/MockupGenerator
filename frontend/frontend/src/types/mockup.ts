@@ -66,7 +66,10 @@ export interface TemplateSet {
 export interface ArtworkItem {
   id: string;
   file: File;
+  /** Volle Auflösung (Blob-URL) – Export / Canvas. */
   url: string;
+  /** Optional: kleines JPEG/Blob-URL nur für UI-Thumbnails (Liste), um Dekodierung zu schonen. */
+  previewUrl?: string;
   name: string;
   setId: string;
 }

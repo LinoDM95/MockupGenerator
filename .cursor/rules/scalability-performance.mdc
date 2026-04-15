@@ -1,0 +1,75 @@
+---
+description: Skalierbarkeit und Performance-Richtlinien für den Mockup Generator
+alwaysApply: true
+---
+
+# Skalierbarkeit & Performance
+
+## Datenbank-Skalierung
+
+- **Dev:** SQLite ist OK für lokale Entwicklung
+- **Produktion:** PostgreSQL verwenden – `dj-database-url` für konfigurierbare DB-URL per ENV
+- Migrations immer vorwärtskompatibel schreiben (kein Datenverlust)
+- Bei neuen Queries: `django-debug-toolbar` oder `EXPLAIN` prüfen – keine N+1-Probleme
+- `select_related` / `prefetch_related` bei JEDEM Queryset mit FK-Zugriff in Serializer
+
+```python
+# ✅ Skalierbar
+TemplateSet.objects.filter(user=user).prefetch_related("templates__element_rows")
+
+# ❌ N+1 Problem
+for ts in TemplateSet.objects.filter(user=user):
+    for t in ts.templates.all():  # Query pro Set
+        for e in t.element_rows.all():  # Query pro Template
+```
+
+## Backend-Performance
+
+- **Caching:** Für READ-heavy Endpoints (Template-Listen) Django Cache Framework mit Redis nutzen
+- **Pagination:** Bei Listen-Endpoints IMMER paginate (DRF `PageNumberPagination` oder `LimitOffsetPagination`)
+- **Async Tasks:** I/O-bound oder lang laufende Operationen über Celery (z.B. Etsy Bulk-Jobs)
+- **File Storage:** Für Produktion S3/Cloud-Storage statt lokales Dateisystem (`django-storages`)
+- **Upload-Optimierung:** Bilder serverseitig komprimieren/resizen bei Bedarf (Pillow)
+
+## Frontend-Performance
+
+- **Lazy Loading:** Große Komponenten mit `React.lazy()` + `Suspense` laden (z.B. `TemplateEditor`, `EtsyWorkspace`)
+- **Code Splitting:** Vite macht automatisches Chunk-Splitting – keine manuellen Tricks nötig
+- **Canvas-Memory:** Offscreen-Canvas nach Gebrauch auf `0x0` setzen und Referenz freigeben
+- **Bilder:** `compressImage` (max 2400px) für Uploads, `createArtworkPreviewObjectUrl` für UI-Thumbnails
+- **Memoization:** `useMemo` / `useCallback` nur bei bewiesenen Re-Render-Problemen – nicht prophylaktisch
+- **Store-Selektoren:** Granular selektieren um unnötige Re-Renders zu vermeiden
+
+```tsx
+// ✅ Nur was gebraucht wird
+const sets = useAppStore(s => s.templateSets);
+
+// ❌ Ganzer Store → Re-Render bei jedem State-Change
+const store = useAppStore();
+```
+
+## API & Netzwerk
+
+- **Batch-Requests:** Wo möglich Bulk-Endpoints nutzen (z.B. `replace_elements` statt einzeln)
+- **Optimistic UI:** Für schnelle UX bei Umbenennungen/Sortierungen – Rollback bei API-Fehler
+- **Debouncing:** Für Echtzeit-Saves (z.B. Properties-Panel) Debounce von 300–500ms
+- **Retry-Logik:** Token-Refresh bei 401 ist eingebaut; für Etsy-API: 429 mit Backoff
+
+## Skalierungs-Checkliste (Produktion)
+
+1. `DEBUG = False`, eigener `SECRET_KEY`, `ALLOWED_HOSTS` explizit
+2. PostgreSQL statt SQLite (`DATABASE_URL`)
+3. Redis für Celery Broker UND Django Cache
+4. S3/CloudStorage für Media-Dateien (`DEFAULT_FILE_STORAGE`)
+5. Gunicorn/Uvicorn statt `runserver`
+6. NGINX als Reverse-Proxy (Static + Media + SSL)
+7. CI/CD Pipeline: Lint + Type-Check + Tests + Security-Audit
+8. Monitoring: Sentry für Error-Tracking (Frontend + Backend)
+
+## Architektur-Prinzipien für Wachstum
+
+- **Feature-basierte Ordnerstruktur** beibehalten (editor/, generator/, etsy/)
+- **Neue Integrationen** als eigene Django-App (wie `etsy/`) mit eigenem `models.py`, `views.py`, `urls.py`
+- **Shared Kernel:** Domain-Typen (`types/mockup.ts`, `core/models.py`) sind Single Source of Truth
+- **API-Versionierung:** Bei Breaking Changes `/api/v2/` Prefix einführen, v1 parallel halten
+- **Feature Flags:** Für schrittweises Rollout neuer Features (z.B. neue Integrationen)

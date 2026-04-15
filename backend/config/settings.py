@@ -54,8 +54,13 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "corsheaders",
+    "storages",
     "core",
     "etsy",
+    "gelato_integration",
+    "ai_integration",
+    "upscaler",
+    "automation",
 ]
 
 MIDDLEWARE = [
@@ -151,8 +156,32 @@ CORS_ALLOWED_ORIGINS = [
 ]
 CORS_ALLOW_CREDENTIALS = True
 
-# Optional: S3 über django-storages — hier nur Platzhalter-Kommentar für spätere Umschaltung per ENV:
-# if os.environ.get("USE_S3"): DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+# Cloudflare R2 (S3-kompatibel) via django-storages.
+# NICHT als globaler Default – nur per-Field für TemporaryDesignUpload (gelato_integration).
+# Template-Hintergrundbilder und andere Uploads bleiben lokal in /media/.
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "r2": {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        "OPTIONS": {
+            "access_key": os.environ.get("AWS_ACCESS_KEY_ID", ""),
+            "secret_key": os.environ.get("AWS_SECRET_ACCESS_KEY", ""),
+            "bucket_name": os.environ.get("AWS_STORAGE_BUCKET_NAME", ""),
+            "endpoint_url": os.environ.get("AWS_S3_ENDPOINT_URL", ""),
+            "custom_domain": os.environ.get("AWS_S3_CUSTOM_DOMAIN", ""),
+            "default_acl": None,
+            "querystring_auth": False,
+            "object_parameters": {"CacheControl": "max-age=86400"},
+        },
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
+AWS_S3_CUSTOM_DOMAIN = os.environ.get("AWS_S3_CUSTOM_DOMAIN", "")
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -167,9 +196,10 @@ SIMPLE_JWT = {
     "ROTATE_REFRESH_TOKENS": True,
 }
 
-# Maximale Upload-Größe (Vorlagen-Hintergründe)
-DATA_UPLOAD_MAX_MEMORY_SIZE = 25 * 1024 * 1024
-FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
+# Ingress-Limit: Original-Artworks für POD können 100+ MB sein (PNG).
+# Die serverseitige Optimierung in gelato_integration komprimiert vor dem R2-Upload.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 200 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 200 * 1024 * 1024
 
 # Celery / Redis
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://127.0.0.1:6379/0")
@@ -179,6 +209,7 @@ CELERY_TASK_TIME_LIMIT = 60 * 60
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
+CELERY_TASK_ALWAYS_EAGER = os.environ.get("CELERY_TASK_ALWAYS_EAGER", "false").lower() in ("1", "true", "yes")
 
 # Etsy API v3 (OAuth + OpenAPI)
 ETSY_CLIENT_ID = (os.environ.get("ETSY_CLIENT_ID", "") or "").strip()
@@ -192,4 +223,18 @@ ETSY_SCOPES = os.environ.get(
 ).replace(",", " ")
 # Fernet-Schlüssel (urlsafe base64, 32 Bytes); fallback: aus SECRET_KEY abgeleitet (nur Dev)
 ETSY_TOKEN_ENCRYPTION_KEY = os.environ.get("ETSY_TOKEN_ENCRYPTION_KEY", "")
+
+# Gelato API
+GELATO_API_BASE_URL = os.environ.get(
+    "GELATO_API_BASE_URL", "https://ecommerce.gelatoapis.com/v1"
+).rstrip("/")
+
+# Shared Fernet key used by core.crypto (Gelato + future integrations).
+# Falls nicht gesetzt, wird ETSY_TOKEN_ENCRYPTION_KEY als Fallback verwendet;
+# letztlich wird SECRET_KEY herangezogen (nur Dev).
+TOKEN_ENCRYPTION_KEY = (
+    os.environ.get("TOKEN_ENCRYPTION_KEY", "") or ETSY_TOKEN_ENCRYPTION_KEY
+)
 ETSY_API_RPS = float(os.environ.get("ETSY_API_RPS", "10"))
+
+# AI Integration (per-user keys stored in DB, no global API key needed)

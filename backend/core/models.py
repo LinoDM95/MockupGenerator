@@ -26,6 +26,7 @@ class TemplateSet(models.Model):
 
 
 class Template(models.Model):
+
     """Einzelne Vorlage mit Hintergrundbild-Datei (kein Base64 in der DB)."""
 
     FRAME_STYLES = (

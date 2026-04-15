@@ -1,3 +1,4 @@
+import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "framer-motion";
 import { X } from "lucide-react";
 
 import { cn } from "../../lib/cn";
@@ -7,14 +8,13 @@ const variantStyles: Record<ToastVariant, string> = {
   success:
     "border-emerald-200 bg-white text-emerald-950 shadow-emerald-100/80 ring-1 ring-emerald-100/90",
   error: "border-red-200 bg-white text-red-950 shadow-red-100/80 ring-1 ring-red-100/90",
-  info: "border-neutral-200 bg-white text-neutral-900 shadow-md ring-1 ring-neutral-100/90",
+  info: "border-slate-200 bg-white text-slate-900 shadow-md ring-1 ring-slate-100/90",
 };
 
 export const Toaster = () => {
   const toasts = useToastStore((s) => s.toasts);
   const remove = useToastStore((s) => s.remove);
-
-  if (toasts.length === 0) return null;
+  const reduceMotion = useReducedMotion();
 
   return (
     <div
@@ -22,26 +22,48 @@ export const Toaster = () => {
       aria-live="polite"
       aria-relevant="additions text"
     >
-      {toasts.map((t) => (
-        <div
-          key={t.id}
-          role="status"
-          className={cn(
-            "pointer-events-auto flex translate-y-0 items-start gap-3 rounded-xl border px-3.5 py-3 opacity-100 shadow-lg backdrop-blur-sm transition-[opacity,transform] duration-200 ease-out",
-            variantStyles[t.variant],
-          )}
-        >
-          <p className="min-w-0 flex-1 text-sm leading-snug">{t.message}</p>
-          <button
-            type="button"
-            onClick={() => remove(t.id)}
-            className="shrink-0 rounded-md p-1 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700"
-            aria-label="Meldung schließen"
-          >
-            <X size={16} />
-          </button>
-        </div>
-      ))}
+      <LayoutGroup>
+        <AnimatePresence initial={false} mode="popLayout">
+          {toasts.map((t) => (
+            <motion.div
+              key={t.id}
+              layout
+              role="status"
+              initial={
+                reduceMotion
+                  ? { opacity: 0 }
+                  : { opacity: 0, y: 8, scale: 0.98 }
+              }
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={
+                reduceMotion
+                  ? { opacity: 0 }
+                  : { opacity: 0, y: 6, scale: 0.98 }
+              }
+              transition={{
+                layout: { duration: 0.2, ease: "easeOut" },
+                opacity: { duration: reduceMotion ? 0.12 : 0.18 },
+                y: { duration: 0.2, ease: "easeOut" },
+                scale: { duration: 0.2, ease: "easeOut" },
+              }}
+              className={cn(
+                "pointer-events-auto flex items-start gap-3 rounded-lg border px-3.5 py-3 shadow-lg backdrop-blur-sm",
+                variantStyles[t.variant],
+              )}
+            >
+              <p className="min-w-0 flex-1 text-sm leading-snug">{t.message}</p>
+              <button
+                type="button"
+                onClick={() => remove(t.id)}
+                className="shrink-0 rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Meldung schließen"
+              >
+                <X size={16} />
+              </button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </LayoutGroup>
     </div>
   );
 };

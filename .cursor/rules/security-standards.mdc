@@ -1,0 +1,68 @@
+---
+description: Security-Standards basierend auf OWASP Top 10 für den Mockup Generator
+alwaysApply: true
+---
+
+# Security-Standards
+
+## Authentifizierung & Autorisierung (OWASP A01, A07)
+
+- JWT mit `djangorestframework-simplejwt` – Access 60min, Refresh 7d, Token-Rotation aktiv
+- JEDER Endpoint (außer Login/Register) erfordert `IsAuthenticated` (global in DRF-Settings)
+- Owner-Check in JEDEM Queryset: `filter(user=request.user)` – nie `objects.all()` in Views
+- Frontend: Tokens in `localStorage` – bei Migration auf HttpOnly-Cookies umstellen
+- Keine Token-Logik in Komponenten – nur über `src/api/client.ts` (`apiFetch`)
+
+```python
+# ✅ IMMER – Owner-Scoping
+queryset = Model.objects.filter(user=self.request.user)
+
+# ❌ NIEMALS – IDOR-Risiko
+queryset = Model.objects.filter(id=self.kwargs["pk"])
+```
+
+## Injection Prevention (OWASP A03)
+
+- KEIN Raw SQL – ausschließlich Django ORM
+- User-Input IMMER über DRF Serializer validieren – nie `request.data` direkt verwenden
+- File-Uploads: Extension-Whitelist (`FileExtensionValidator`), Größenlimits (`DATA_UPLOAD_MAX_MEMORY_SIZE`)
+- JSON-Payloads in `JSONField`: Schema validieren, keine willkürlichen Keys akzeptieren
+
+## SSRF-Schutz (OWASP A10)
+
+- Beim Import von Template-Sets: URLs nur von gleicher Host-Origin akzeptieren (bereits implementiert)
+- Externe URLs NIE ungefiltert an `httpx.get()` übergeben – immer Allowlist
+- Private IPs (127.x, 10.x, 192.168.x) für externe Requests blockieren
+
+## Token-/Secret-Verschlüsselung
+
+- Etsy-Tokens: Fernet-verschlüsselt in DB (`crypto.py`) – nie Klartext
+- `SECRET_KEY`, API-Keys, Encryption-Keys IMMER aus `.env` – nie im Code
+- `.env` ist in `.gitignore` – NIEMALS committen
+- Für Produktion: eigener `ETSY_TOKEN_ENCRYPTION_KEY` (nicht aus SECRET_KEY abgeleitet)
+
+## CORS & CSRF (OWASP A05)
+
+- CORS-Origins explizit in `DJANGO_CORS_ALLOWED_ORIGINS` – kein Wildcard `*`
+- CSRF-Middleware aktiv (Standard) – bei reiner JWT-API korrekt konfiguriert
+- `CORS_ALLOW_CREDENTIALS = True` nur mit expliziter Origin-Liste
+
+## XSS-Prävention (OWASP A03)
+
+- React escaped standardmäßig – NIEMALS `dangerouslySetInnerHTML` ohne DOMPurify
+- User-generierte Inhalte (Template-Namen, Text-Elemente) in Canvas gerendert, nicht als HTML
+- API-Responses: keine HTML-Inhalte, nur JSON
+
+## Produktion-Hardening
+
+- `DEBUG = False` in Produktion (über `DJANGO_DEBUG` env)
+- `SECURE_SSL_REDIRECT = True`, `SECURE_HSTS_SECONDS`, `SESSION_COOKIE_SECURE` setzen
+- `ALLOWED_HOSTS` explizit auf Domain beschränken
+- Django Security-Middleware aktiv halten (`SecurityMiddleware`, `XFrameOptionsMiddleware`)
+- Regelmäßig `pip-audit` und `npm audit` ausführen
+
+## Dependency-Sicherheit
+
+- Version-Ranges in `requirements.txt` (z.B. `>=6.0,<7`) – regelmäßig aktualisieren
+- Vor jedem Deploy: `pip-audit` + `npm audit` – keine bekannten CVEs
+- Keine ungepinnten Dependencies in Produktion

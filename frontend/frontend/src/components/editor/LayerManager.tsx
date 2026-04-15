@@ -1,3 +1,4 @@
+import { AnimatePresence, motion } from "framer-motion";
 import { ArrowDown, ArrowUp, Copy, Image as ImageIcon, Square, Trash2, Type } from "lucide-react";
 
 import type { Template, TemplateElement } from "../../types/mockup";
@@ -12,9 +13,9 @@ type Props = {
 };
 
 const iconFor = (el: TemplateElement) => {
-  if (el.type === "placeholder") return <ImageIcon size={14} className="shrink-0 text-blue-500" />;
-  if (el.type === "text") return <Type size={14} className="shrink-0 text-purple-500" />;
-  return <Square size={14} className="shrink-0 text-orange-500" />;
+  if (el.type === "placeholder") return <ImageIcon size={14} className="shrink-0 text-indigo-500" strokeWidth={1.75} />;
+  if (el.type === "text") return <Type size={14} className="shrink-0 text-purple-500" strokeWidth={1.75} />;
+  return <Square size={14} className="shrink-0 text-amber-500" strokeWidth={1.75} />;
 };
 
 export const LayerManager = ({
@@ -25,78 +26,96 @@ export const LayerManager = ({
   onDuplicate,
   onDelete,
 }: Props) => (
-  <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
-    <h3 className="mb-2 px-1 text-sm font-bold text-neutral-800">
+  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+    <h3 className="mb-2 px-1 text-sm font-semibold text-slate-800">
       Ebenen ({editingTemplate.elements.length})
     </h3>
-    <div className="max-h-40 space-y-1 overflow-y-auto">
-      {[...editingTemplate.elements].reverse().map((el) => (
-        <div
-          key={el.id}
-          role="button"
-          tabIndex={0}
-          onClick={() => onSelect(el.id)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") onSelect(el.id);
-          }}
-          className={`flex cursor-pointer items-center justify-between rounded-lg border p-2 text-xs ${
-            selectedElementId === el.id
-              ? "border-blue-300 bg-blue-50 font-bold"
-              : "border-neutral-200 bg-white hover:bg-neutral-100"
-          }`}
-        >
-          <div className="flex min-w-0 items-center gap-2 truncate">
-            {iconFor(el)}
-            <span className="truncate">{el.name || el.type}</span>
-          </div>
-          <div className="flex gap-1 opacity-60">
-            <button
-              type="button"
-              aria-label="Ebene nach oben"
-              onClick={(e) => {
-                e.stopPropagation();
-                onMove(el.id, "up");
+    <div className="max-h-40 space-y-1 overflow-y-auto overflow-x-hidden">
+      <AnimatePresence initial={false} mode="popLayout">
+        {[...editingTemplate.elements].reverse().map((el) => (
+          <motion.div
+            key={el.id}
+            layout
+            initial={{ opacity: 0, y: 2 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{
+              opacity: 0,
+              height: 0,
+              marginTop: 0,
+              marginBottom: 0,
+              paddingTop: 0,
+              paddingBottom: 0,
+            }}
+            transition={{ duration: 0.2, layout: { duration: 0.2, ease: "easeOut" } }}
+            className="overflow-hidden"
+          >
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => onSelect(el.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") onSelect(el.id);
               }}
-              className="hover:text-blue-600"
+              className={`group flex cursor-pointer items-center justify-between rounded-lg border p-2 text-xs transition-colors ${
+                selectedElementId === el.id
+                  ? "border-indigo-300 bg-indigo-50 font-semibold text-indigo-900"
+                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+              }`}
             >
-              <ArrowUp size={14} />
-            </button>
-            <button
-              type="button"
-              aria-label="Ebene nach unten"
-              onClick={(e) => {
-                e.stopPropagation();
-                onMove(el.id, "down");
-              }}
-              className="hover:text-blue-600"
-            >
-              <ArrowDown size={14} />
-            </button>
-            <button
-              type="button"
-              aria-label="Duplizieren"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDuplicate(el.id);
-              }}
-              className="ml-1 hover:text-green-600"
-            >
-              <Copy size={14} />
-            </button>
-            <button
-              type="button"
-              aria-label="Löschen"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(el.id);
-              }}
-              className="hover:text-red-600"
-            >
-              <Trash2 size={14} />
-            </button>
-          </div>
-        </div>
-      ))}
+              <div className="flex min-w-0 items-center gap-2 truncate">
+                {iconFor(el)}
+                <span className="truncate">{el.name || el.type}</span>
+              </div>
+              <div className="flex gap-1 opacity-60 transition-opacity group-hover:opacity-100">
+                <button
+                  type="button"
+                  aria-label="Ebene nach oben"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onMove(el.id, "up");
+                  }}
+                  className="rounded p-0.5 transition-colors hover:text-indigo-600"
+                >
+                  <ArrowUp size={14} strokeWidth={1.75} />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Ebene nach unten"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onMove(el.id, "down");
+                  }}
+                  className="rounded p-0.5 transition-colors hover:text-indigo-600"
+                >
+                  <ArrowDown size={14} strokeWidth={1.75} />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Duplizieren"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDuplicate(el.id);
+                  }}
+                  className="ml-1 rounded p-0.5 transition-colors hover:text-emerald-600"
+                >
+                  <Copy size={14} strokeWidth={1.75} />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Löschen"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(el.id);
+                  }}
+                  className="rounded p-0.5 transition-colors hover:text-red-500"
+                >
+                  <Trash2 size={14} strokeWidth={1.75} />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </AnimatePresence>
     </div>
   </div>
 );

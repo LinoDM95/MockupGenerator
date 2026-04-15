@@ -1,6 +1,14 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
 @layer base {
+  body {
+    @apply bg-slate-50 text-slate-800 antialiased;
+  }
+
   a[href]:not([href=""]) {
     cursor: pointer;
   }
@@ -32,6 +40,23 @@
   label:has(input[type="radio"]:not(:disabled)) {
     cursor: pointer;
   }
+
+  button,
+  [role="button"],
+  a,
+  select,
+  input {
+    @apply transition-all duration-200 ease-in-out;
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
 }
 
 @keyframes studio-linear-indeterminate {
@@ -46,6 +71,10 @@
 @layer utilities {
   .studio-linear-bar-fill {
     animation: studio-linear-indeterminate 1.25s ease-in-out infinite;
+  }
+
+  .animate-marquee {
+    animation: marquee 30s linear infinite;
   }
 
   .checkerboard-bg {

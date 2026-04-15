@@ -48,6 +48,17 @@ export class ApiError extends Error {
     this.status = status;
     this.body = body;
   }
+
+  getDetail(): string {
+    try {
+      const j = JSON.parse(this.body) as Record<string, unknown>;
+      if (typeof j.detail === "string") return j.detail;
+      if (Array.isArray(j.detail)) return j.detail.join(", ");
+    } catch {
+      /* body is not JSON */
+    }
+    return this.message;
+  }
 }
 
 const apiFetchOnce = async (path: string, init: RequestInit): Promise<Response> => {

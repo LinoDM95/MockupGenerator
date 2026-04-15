@@ -7,49 +7,48 @@ type Props = {
   isDrawMode: boolean;
   onToggleDrawMode: () => void;
   onAddElement: (t: ElementType) => void;
-  /** z. B. Endansicht-Vorschau: Werkzeuge ausblenden. */
   disabled?: boolean;
 };
 
 export const Toolbar = ({ isDrawMode, onToggleDrawMode, onAddElement, disabled = false }: Props) => (
   <div
-    className={`mb-4 flex flex-wrap items-center gap-2 overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-100 p-2 ${
+    className={`mb-4 flex flex-wrap items-center gap-2 overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-2 ${
       disabled ? "pointer-events-none opacity-45" : ""
     }`}
     aria-disabled={disabled || undefined}
   >
-    <span className="mr-1 flex items-center border-r border-neutral-300 px-2 text-xs font-bold uppercase text-neutral-400">
+    <span className="mr-1 flex items-center border-r border-slate-300 px-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
       Hinzufügen
     </span>
     <Button variant="outline" className="text-sm" type="button" onClick={() => onAddElement("placeholder")}>
-      <ImageIcon size={16} /> Motiv Box
+      <ImageIcon size={15} strokeWidth={1.75} /> Motiv Box
     </Button>
     <Button
       variant={isDrawMode ? "primary" : "outline"}
-      className={`text-sm ${isDrawMode ? "" : "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"}`}
+      className={`text-sm ${isDrawMode ? "" : "border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"}`}
       type="button"
       onClick={onToggleDrawMode}
     >
-      <Crosshair size={16} /> {isDrawMode ? "Zeichnen abbrechen" : "Motiv zeichnen (4-Klick)"}
+      <Crosshair size={15} strokeWidth={1.75} /> {isDrawMode ? "Zeichnen abbrechen" : "Motiv zeichnen (4-Klick)"}
     </Button>
-    <div className="mx-1 h-5 w-px bg-neutral-300" />
+    <div className="mx-1 h-5 w-px bg-slate-200" />
     <Button variant="outline" className="text-sm" type="button" onClick={() => onAddElement("text")}>
-      <Type size={16} /> Text
+      <Type size={15} strokeWidth={1.75} /> Text
     </Button>
     <Button variant="outline" className="text-sm" type="button" onClick={() => onAddElement("rect")}>
-      <Square size={16} /> Rechteck
+      <Square size={15} strokeWidth={1.75} /> Rechteck
     </Button>
     <Button variant="outline" className="text-sm" type="button" onClick={() => onAddElement("circle")}>
-      <Circle size={16} /> Kreis
+      <Circle size={15} strokeWidth={1.75} /> Kreis
     </Button>
     <Button variant="outline" className="text-sm" type="button" onClick={() => onAddElement("triangle")}>
-      <Triangle size={16} /> Dreieck
+      <Triangle size={15} strokeWidth={1.75} /> Dreieck
     </Button>
     <Button variant="outline" className="text-sm" type="button" onClick={() => onAddElement("star")}>
-      <Star size={16} /> Stern
+      <Star size={15} strokeWidth={1.75} /> Stern
     </Button>
     <Button variant="outline" className="text-sm" type="button" onClick={() => onAddElement("hexagon")}>
-      <Hexagon size={16} /> Hexagon
+      <Hexagon size={15} strokeWidth={1.75} /> Hexagon
     </Button>
   </div>
 );

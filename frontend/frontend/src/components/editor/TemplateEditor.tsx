@@ -39,7 +39,6 @@ const FRAME_SHADOW_SIDE_LABEL: Record<FrameShadowSideId, string> = {
   left: "Links",
 };
 
-/** Elemente proportional auf neue Hintergrund-Abmessungen skalieren. */
 const scaleElementsForCanvas = (
   elements: TemplateElement[],
   oldW: number,
@@ -361,18 +360,18 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
   };
 
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm md:p-6">
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
       {saving ? <LinearLoadingBar message="Vorlage wird gespeichert…" /> : null}
       {replacingBg ? <LinearLoadingBar message="Hintergrundbild wird gewechselt…" /> : null}
-      <div className="mb-4 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
+      <div className="mb-4 flex flex-col items-start justify-between gap-4 border-b border-slate-200 pb-4 md:flex-row md:items-center">
         <div className="flex w-full items-center gap-3 md:w-auto">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-2 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-800"
+            className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-800"
             aria-label="Zurück"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={20} strokeWidth={1.75} />
           </button>
           <input
             type="text"
@@ -380,18 +379,18 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
             onChange={(e) =>
               updateEditingTemplate((prev) => (prev ? { ...prev, name: e.target.value } : prev))
             }
-            className="flex-1 cursor-text border-b border-dashed border-transparent bg-transparent pb-1 text-2xl font-bold outline-none hover:border-neutral-300 focus:border-blue-500"
+            className="flex-1 cursor-text border-b border-dashed border-transparent bg-transparent pb-1 text-xl font-semibold text-slate-900 outline-none transition-colors hover:border-slate-300 focus:border-indigo-500"
             title="Vorlage umbenennen"
           />
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:justify-end">
           <label
-            className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm font-medium text-neutral-700 shadow-sm hover:bg-neutral-50 ${
+            className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 ${
               saving || replacingBg ? "pointer-events-none opacity-50" : ""
             }`}
             title="Neues JPG/PNG/Webp als Vorlagen-Hintergrund"
           >
-            <ImageUp size={18} aria-hidden />
+            <ImageUp size={18} strokeWidth={1.75} aria-hidden />
             Hintergrund ersetzen
             <input
               type="file"
@@ -405,9 +404,9 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
             type="button"
             onClick={handleSave}
             disabled={saving || replacingBg}
-            className="gap-2 px-6 py-2 font-bold"
+            className="gap-2 px-6"
           >
-            <Save size={18} /> {saving ? "Speichern…" : "Speichern"}
+            <Save size={18} strokeWidth={1.75} /> {saving ? "Speichern…" : "Speichern"}
           </Button>
         </div>
       </div>
@@ -437,14 +436,14 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
         />
 
         <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1 lg:col-span-1">
-          <section className="shrink-0 rounded-xl border border-neutral-200 bg-gradient-to-b from-neutral-50/95 to-white p-4 shadow-sm">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+          <section className="shrink-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <h3 className="text-sm font-semibold text-slate-900">
               Mockup & Export
             </h3>
-            <p className="mt-1 text-xs text-neutral-500">
+            <p className="mt-1 text-xs text-slate-500">
               Gilt für Generator und Etsy. Reihenfolge: Rahmen → Schatten → Farbe → Vorschau.
             </p>
-            <div className="mt-3 space-y-4">
+            <div className="mt-4 space-y-4">
               <Select
                 label="Rahmen"
                 value={editingTemplate.defaultFrameStyle ?? "none"}
@@ -460,22 +459,22 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                 <option value="white">Weiß</option>
               </Select>
               <div className="space-y-3">
-                <span className="text-xs font-medium text-neutral-600">Rahmen-Schatten</span>
+                <span className="text-sm font-medium text-slate-700">Rahmen-Schatten</span>
                 <div className="flex flex-wrap gap-x-4 gap-y-2">
-                  <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-800">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-800">
                     <input
                       type="checkbox"
-                      className="h-4 w-4 rounded border-neutral-300 accent-blue-600"
+                      className="h-4 w-4 rounded border-slate-300 accent-indigo-600"
                       checked={frameShadowOuterOn}
                       onChange={handleToggleFrameShadowOuter}
                       aria-label="Außenschatten aktivieren"
                     />
                     Außen
                   </label>
-                  <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-800">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-800">
                     <input
                       type="checkbox"
-                      className="h-4 w-4 rounded border-neutral-300 accent-blue-600"
+                      className="h-4 w-4 rounded border-slate-300 accent-indigo-600"
                       checked={frameShadowInnerOn}
                       onChange={handleToggleFrameShadowInner}
                       aria-label="Innenschatten aktivieren"
@@ -484,14 +483,14 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                   </label>
                 </div>
                 {frameShadowOuterOn ? (
-                  <fieldset className="space-y-2 rounded-lg border border-neutral-200/80 bg-white/60 p-3">
-                    <legend className="px-1 text-xs font-medium text-neutral-600">
+                  <fieldset className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <legend className="px-1 text-xs font-medium text-slate-600">
                       Außen – Seiten
                     </legend>
-                    <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-800">
+                    <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-800">
                       <input
                         type="checkbox"
-                        className="h-4 w-4 rounded border-neutral-300 accent-blue-600"
+                        className="h-4 w-4 rounded border-slate-300 accent-indigo-600"
                         checked={outerSidesMask === FRAME_SHADOW_ALL}
                         onChange={handleOuterSidesAll}
                         aria-label="Alle Außenseiten"
@@ -507,12 +506,12 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                           <label
                             key={side}
                             htmlFor={id}
-                            className="flex cursor-pointer items-center gap-2 text-sm text-neutral-800"
+                            className="flex cursor-pointer items-center gap-2 text-sm text-slate-800"
                           >
                             <input
                               id={id}
                               type="checkbox"
-                              className="h-4 w-4 rounded border-neutral-300 accent-blue-600"
+                              className="h-4 w-4 rounded border-slate-300 accent-indigo-600"
                               checked={checked}
                               onChange={() => handleToggleOuterSide(side)}
                             />
@@ -524,14 +523,14 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                   </fieldset>
                 ) : null}
                 {frameShadowInnerOn ? (
-                  <fieldset className="space-y-2 rounded-lg border border-neutral-200/80 bg-white/60 p-3">
-                    <legend className="px-1 text-xs font-medium text-neutral-600">
+                  <fieldset className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <legend className="px-1 text-xs font-medium text-slate-600">
                       Innen – Seiten
                     </legend>
-                    <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-800">
+                    <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-800">
                       <input
                         type="checkbox"
-                        className="h-4 w-4 rounded border-neutral-300 accent-blue-600"
+                        className="h-4 w-4 rounded border-slate-300 accent-indigo-600"
                         checked={innerSidesMask === FRAME_SHADOW_ALL}
                         onChange={handleInnerSidesAll}
                         aria-label="Alle Innenseiten"
@@ -547,12 +546,12 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                           <label
                             key={side}
                             htmlFor={id}
-                            className="flex cursor-pointer items-center gap-2 text-sm text-neutral-800"
+                            className="flex cursor-pointer items-center gap-2 text-sm text-slate-800"
                           >
                             <input
                               id={id}
                               type="checkbox"
-                              className="h-4 w-4 rounded border-neutral-300 accent-blue-600"
+                              className="h-4 w-4 rounded border-slate-300 accent-indigo-600"
                               checked={checked}
                               onChange={() => handleToggleInnerSide(side)}
                             />
@@ -566,7 +565,7 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
               </div>
               {anyFrameShadowOn ? (
                 <div>
-                  <label className="text-xs font-medium text-neutral-600" htmlFor="frame-shadow-depth">
+                  <label className="text-sm font-medium text-slate-700" htmlFor="frame-shadow-depth">
                     Stärke / Tiefe ({Math.round((editingTemplate.frameShadowDepth ?? 0.82) * 100)}&nbsp;%)
                   </label>
                   <input
@@ -582,15 +581,15 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                         prev ? { ...prev, frameShadowDepth: Math.min(1, Math.max(0.15, v / 100)) } : prev,
                       );
                     }}
-                    className="mt-2 w-full accent-blue-600"
+                    className="mt-2 w-full accent-indigo-600"
                   />
-                  <p className="mt-1 text-xs text-neutral-500">
+                  <p className="mt-1 text-xs text-slate-500">
                     Ein Regler für Außen- und Innenschatten: weicher/größer bzw. kräftigere Motiv-Tiefe.
                   </p>
                 </div>
               ) : null}
               <div>
-                <label className="text-xs font-medium text-neutral-600" htmlFor="artwork-saturation">
+                <label className="text-sm font-medium text-slate-700" htmlFor="artwork-saturation">
                   Motiv-Sättigung ({Math.round((editingTemplate.artworkSaturation ?? 1) * 100)}&nbsp;%)
                 </label>
                 <input
@@ -606,24 +605,24 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                       prev ? { ...prev, artworkSaturation: Math.min(1, Math.max(0.15, v / 100)) } : prev,
                     );
                   }}
-                  className="mt-2 w-full accent-blue-600"
+                  className="mt-2 w-full accent-indigo-600"
                 />
-                <p className="mt-1 text-xs text-neutral-500">
+                <p className="mt-1 text-xs text-slate-500">
                   Niedrigere Werte wirken dezenter auf dem Hintergrund.
                 </p>
               </div>
             </div>
-            <div className="mt-4 border-t border-neutral-200/90 pt-4">
-              <label className="flex cursor-pointer items-start gap-2.5 text-sm text-neutral-800">
+            <div className="mt-4 border-t border-slate-200 pt-4">
+              <label className="flex cursor-pointer items-start gap-2.5 text-sm text-slate-800">
                 <input
                   type="checkbox"
                   checked={previewEndView}
                   onChange={(e) => setPreviewEndView(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-neutral-300 text-blue-600 focus:ring-blue-500"
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-indigo-600 accent-indigo-600 focus:ring-indigo-500"
                 />
                 <span>
                   <span className="font-medium">Endansicht-Vorschau</span>
-                  <span className="mt-0.5 block text-xs font-normal text-neutral-500">
+                  <span className="mt-0.5 block text-xs font-normal text-slate-500">
                     Wie das fertige Motiv im Export – ohne Hilfslinien und Rahmen-Markierung.
                   </span>
                 </span>
@@ -631,7 +630,7 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
               <div
                 className={`mt-3 transition-opacity ${previewEndView ? "opacity-100" : "pointer-events-none opacity-40"}`}
               >
-                <p className="mb-2 text-xs font-medium text-neutral-600">Beispielmotiv</p>
+                <p className="mb-2 text-xs font-medium text-slate-600">Beispielmotiv</p>
                 <div className="grid grid-cols-5 gap-2" role="list">
                   {Array.from({ length: PREVIEW_MOTIF_VARIANT_COUNT }, (_, i) => (
                     <button
@@ -640,10 +639,10 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                       role="listitem"
                       disabled={!previewEndView}
                       onClick={() => setPreviewMotifVariant(i)}
-                      className={`relative aspect-square rounded-lg border-2 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 ${
+                      className={`relative aspect-square rounded-lg border-2 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 ${
                         previewMotifVariant === i
-                          ? "border-blue-600 shadow-md ring-2 ring-blue-400/40"
-                          : "border-neutral-200 hover:border-neutral-300"
+                          ? "border-indigo-600 shadow-md ring-2 ring-indigo-400/40"
+                          : "border-slate-200 hover:border-slate-300"
                       }`}
                       style={{ background: previewVariantSwatchStyle(i) }}
                       title={`Motiv ${i + 1}`}
@@ -659,7 +658,7 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
           </section>
 
           {previewEndView ? (
-            <p className="shrink-0 rounded-lg border border-dashed border-amber-200/80 bg-amber-50/90 px-3 py-2 text-center text-xs text-neutral-700">
+            <p className="shrink-0 rounded-lg border border-dashed border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-slate-700">
               Ebenen und Eigenschaften sind in der Vorschau pausiert – Endansicht ausschalten zum Bearbeiten.
             </p>
           ) : null}

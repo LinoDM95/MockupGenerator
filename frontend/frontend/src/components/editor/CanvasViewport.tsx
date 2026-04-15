@@ -453,63 +453,63 @@ export const CanvasViewport = ({
       ref={viewportRootRef}
       onPointerMove={handleViewportPointerMove}
       onPointerLeave={handleViewportPointerLeave}
-      className={`relative flex h-full min-h-[500px] flex-col rounded-xl border border-neutral-200 bg-neutral-100 lg:col-span-3 ${
+      className={`relative flex h-full min-h-[500px] flex-col rounded-xl border border-slate-200 bg-slate-100 lg:col-span-3 ${
         allowFrameOuterShadowBleed ? "overflow-visible" : "overflow-hidden"
       }`}
     >
       {previewEndView && (
-        <div className="absolute top-3 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full border border-neutral-200/90 bg-white/95 px-4 py-2 text-xs font-medium text-neutral-600 shadow-md backdrop-blur-sm">
+        <div className="absolute top-3 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full border border-slate-200/90 bg-white/95 px-4 py-2 text-xs font-medium text-slate-600 shadow-md backdrop-blur-sm">
           <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" aria-hidden />
           Endansicht – wie exportiertes Foto (Ziehen zum Verschieben)
         </div>
       )}
       {isDrawMode && (
-        <div className="absolute top-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full border border-blue-700/50 bg-blue-900/95 px-5 py-2.5 text-sm font-medium text-white shadow-lg">
+        <div className="absolute top-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full border border-indigo-700/50 bg-indigo-900/95 px-5 py-2.5 text-sm font-medium text-white shadow-lg">
           <span>
             {drawPoints.length === 0 && "Klicke die 1. Ecke (z.B. Oben Links)"}
             {drawPoints.length === 1 && "Klicke die 2. Ecke (horizontal daneben)"}
             {drawPoints.length === 2 && "Klicke die 3. Ecke (vertikal darunter)"}
             {drawPoints.length === 3 && "Klicke die 4. Ecke zum Abschließen"}
           </span>
-          <span className="ml-3 border-l border-blue-700/50 pl-3 text-xs text-blue-300">ESC = Abbruch</span>
+          <span className="ml-3 border-l border-indigo-700/50 pl-3 text-xs text-indigo-300">ESC = Abbruch</span>
         </div>
       )}
 
-      <div className="pointer-events-none absolute bottom-4 left-4 z-30 flex items-center justify-between rounded-lg border border-neutral-200 bg-white/90 p-1.5 shadow-md backdrop-blur">
+      <div className="pointer-events-none absolute bottom-4 left-4 z-30 flex items-center justify-between rounded-lg border border-slate-200 bg-white/90 p-1.5 shadow-md backdrop-blur">
         <div className="pointer-events-auto flex items-center gap-1">
           <button
             type="button"
             onClick={() => zoomByFactor(-1)}
-            className="rounded p-1.5 text-neutral-600 hover:bg-neutral-100"
+            className="rounded p-1.5 text-slate-600 hover:bg-slate-100"
             title="Verkleinern"
           >
             −
           </button>
-          <div className="w-10 text-center text-xs font-medium text-neutral-500">{Math.round(zoom * 100)}%</div>
+          <div className="w-10 text-center text-xs font-medium text-slate-500">{Math.round(zoom * 100)}%</div>
           <button
             type="button"
             onClick={() => zoomByFactor(1)}
-            className="rounded p-1.5 text-neutral-600 hover:bg-neutral-100"
+            className="rounded p-1.5 text-slate-600 hover:bg-slate-100"
             title="Vergrößern"
           >
             +
           </button>
-          <div className="mx-1 h-4 w-px bg-neutral-300" />
+          <div className="mx-1 h-4 w-px bg-slate-300" />
           <button
             type="button"
             onClick={centerCanvas}
-            className="rounded p-1.5 text-neutral-600 hover:bg-neutral-100"
+            className="rounded p-1.5 text-slate-600 hover:bg-slate-100"
             title="Einpassen"
           >
             ⧉
           </button>
-          <div className="mx-1 h-4 w-px bg-neutral-300" />
+          <div className="mx-1 h-4 w-px bg-slate-300" />
           <button
             type="button"
             onClick={() => setIsSnapEnabled((v) => !v)}
             disabled={previewEndView}
             className={`rounded p-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-              isSnapEnabled ? "bg-blue-100 text-blue-700" : "text-neutral-500 hover:bg-neutral-100"
+              isSnapEnabled ? "bg-indigo-100 text-indigo-700" : "text-slate-500 hover:bg-slate-100"
             }`}
             title={
               previewEndView
@@ -526,7 +526,7 @@ export const CanvasViewport = ({
             onClick={() => setIsGuideSnapEnabled((v) => !v)}
             disabled={previewEndView}
             className={`rounded p-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-              isGuideSnapEnabled ? "bg-blue-100 text-blue-700" : "text-neutral-500 hover:bg-neutral-100"
+              isGuideSnapEnabled ? "bg-indigo-100 text-indigo-700" : "text-slate-500 hover:bg-slate-100"
             }`}
             title={
               previewEndView
@@ -761,7 +761,7 @@ export const CanvasViewport = ({
                   ) : null}
                   {!previewEndView ? (
                     <span
-                      className={`relative z-10 text-lg font-bold drop-shadow-md ${isSelected ? "text-white" : "text-neutral-800"}`}
+                      className={`relative z-10 text-lg font-bold drop-shadow-md ${isSelected ? "text-white" : "text-slate-800"}`}
                     >
                       {isSelected ? "Aktiv" : ""}
                     </span>
@@ -889,18 +889,18 @@ export const CanvasViewport = ({
                   el.type === "placeholder"
                     ? previewEndView
                       ? `z-10 flex items-center justify-center border-0 ring-0 ${placeholderOverflow}`
-                      : `${isSelected ? "z-20 flex items-center justify-center border-2 border-blue-500 bg-blue-500/30" : "z-10 flex items-center justify-center border-2 border-white/80 bg-white/40 hover:bg-blue-300/40"} ${placeholderOverflow}`.trim()
+                      : `${isSelected ? "z-20 flex items-center justify-center border-2 border-indigo-500 bg-indigo-500/30" : "z-10 flex items-center justify-center border-2 border-white/80 bg-white/40 hover:bg-indigo-300/40"} ${placeholderOverflow}`.trim()
                     : ""
-                } ${isSelected && el.type !== "placeholder" && showEditChrome ? "z-20 ring-2 ring-blue-500 ring-offset-1" : "z-10"} `}
+                } ${isSelected && el.type !== "placeholder" && showEditChrome ? "z-20 ring-2 ring-indigo-500 ring-offset-1" : "z-10"} `}
                 style={elStyle}
               >
                 {content}
                 {isSelected && showEditChrome && (
                   <div
                     onMouseDown={(e) => onPointerDownElement(e, el.id, "rotate")}
-                    className="absolute -top-10 left-1/2 z-30 flex h-5 w-5 -translate-x-1/2 cursor-grab items-center justify-center rounded-full border-2 border-blue-600 bg-white shadow-md"
+                    className="absolute -top-10 left-1/2 z-30 flex h-5 w-5 -translate-x-1/2 cursor-grab items-center justify-center rounded-full border-2 border-indigo-600 bg-white shadow-md"
                   >
-                    <div className="h-1.5 w-1.5 rounded-full bg-blue-600" />
+                    <div className="h-1.5 w-1.5 rounded-full bg-indigo-600" />
                   </div>
                 )}
                 {isSelected && showEditChrome && (

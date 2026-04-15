@@ -1,0 +1,93 @@
+---
+description: Projekt-Architektur, Konventionen und Workflow für den Mockup Generator
+alwaysApply: true
+---
+
+# Projekt-Konventionen – Mockup Generator
+
+## Architektur
+
+Monorepo mit getrenntem Frontend und Backend:
+
+```
+backend/          → Django 6 + DRF (API-only, kein Template-Rendering)
+  config/         → Projekt-Settings, URLs, Celery, ASGI/WSGI
+  core/           → Haupt-App: TemplateSet → Template → TemplateElement
+  etsy/           → Etsy-Integration: OAuth, Listings, Bulk-Jobs (Celery)
+    services/     → API-Client, Rate-Limiter, Token-Management
+frontend/frontend/ → React 19 + Vite 8 + TypeScript 6 + Tailwind 4 SPA
+  src/api/        → API-Client mit JWT-Refresh-Logik
+  src/components/ → Feature-basierte Ordnerstruktur (editor/, generator/, etsy/, ui/)
+  src/hooks/      → Wiederverwendbare Custom Hooks
+  src/lib/        → Utilities, Canvas-Rendering-Pipeline, Konstanten
+  src/store/      → Zustand State Management
+  src/types/      → Zentrale TypeScript-Definitionen
+```
+
+## Datenmodell-Hierarchie
+
+`User → TemplateSet → Template (mit ImageField) → TemplateElement (type + JSON payload)`
+
+Etsy: `User → EtsyConnection (1:1, verschlüsselte Tokens) → EtsyBulkJob (Celery)`
+
+## Wiederverwendbarkeit – DRY als oberstes Prinzip
+
+**NIEMALS** gleiche oder ähnliche Logik an zwei Stellen implementieren. Immer auslagern, zentralisieren, erweitern.
+
+### Pflicht-Prüfung vor jeder Implementierung
+
+1. **Existiert bereits eine Funktion/Klasse/Hook/Utility die das Gleiche oder Ähnliches tut?** → Durchsuche `src/lib/`, `src/hooks/`, `src/components/ui/`, `src/api/`, `backend/core/`, `backend/etsy/services/`
+2. **Wenn ja:** Bestehenden Baustein erweitern (Parameter/Variante hinzufügen), NICHT kopieren und abwandeln
+3. **Wenn nein:** Neuen Baustein an der richtigen Stelle anlegen (siehe Auslagerungs-Regeln unten)
+4. **Nach der Implementierung:** Prüfe ob durch den neuen Code bestehende Duplikate ersetzt werden können
+
+### Auslagerungs-Regeln
+
+| Was | Wohin | Beispiel |
+|-----|-------|----------|
+| Gemeinsame UI-Bausteine | `src/components/ui/` | `Button`, `Modal`, `Select` – mit `variant`-Prop erweiterbar |
+| Geteilte Logik zwischen Komponenten | `src/hooks/` als Custom Hook | `useCanvasRender` wird von Generator UND Etsy genutzt |
+| Reine Hilfsfunktionen (kein React) | `src/lib/` in thematischen Modulen | `canvas/frame.ts`, `canvas/image.ts`, `toast.ts` |
+| API-Aufrufe | `src/api/` pro Domäne | `sets.ts`, `etsy.ts` – nie `fetch` direkt in Komponenten |
+| Zentrale Typen | `src/types/mockup.ts` | EINE Datei für alle Domain-Typen |
+| Backend-Geschäftslogik | Service-Funktionen oder Model-Methoden | `replace_template_elements()`, `ensure_fresh_access_token()` |
+| Backend externe API-Logik | `app/services/` Modul | `etsy/services/etsy_client.py`, `etsy/services/tokens.py` |
+
+### Warnsignale für Duplikation
+
+- Zwei Dateien mit ähnlichem `fetch`/`apiFetch`-Aufruf → in `src/api/` zentralisieren
+- Gleicher Canvas-Code in Generator und Etsy → in `src/lib/canvas/` auslagern
+- Copy-Paste von Validierungslogik zwischen Serializers → in Hilfsfunktion extrahieren
+- Ähnliche UI-Patterns (Card mit Icon + Text + Action) → generische Komponente in `ui/`
+- Gleiche Berechnung in View und Task → in Model-Methode oder Service-Funktion verschieben
+
+### Bestehende Wiederverwendungs-Muster (beibehalten!)
+
+- `renderElementToCanvas` → eine Funktion für Generator-ZIP UND Etsy-PNG-Export
+- `apiFetch` / `apiJson` → ein Client mit JWT-Refresh für ALLE API-Aufrufe
+- `useCanvasRender` Hook → stabile Referenz für alle Canvas-Operationen
+- `cn()` → eine Utility für Tailwind-Klassen überall
+- `etsy/services/` → getrennte Module für Client, Rate-Limit, Token-Refresh
+
+## Benennungs-Konventionen
+
+- **Dateien:** PascalCase für React-Komponenten (`CanvasViewport.tsx`), camelCase für Utilities/Hooks (`useCanvasRender.ts`, `renderElement.ts`), snake_case für Python (`template_set.py`)
+- **Komponenten:** Semantisch und generisch (`Button`, `Dropzone`, nicht `MockupUploadButton`)
+- **Event-Handler:** `handle`-Prefix (`handleClick`, `handleDragEnd`)
+- **TypeScript:** `const` statt `function`, Typen immer definieren
+- **Python:** PEP 8, Type-Hints bei neuen Funktionen, Docstrings bei Models/Views
+
+## Workflow-Regeln
+
+1. **Vor jeder neuen Komponente:** Prüfe ob in `src/components/ui/` oder `src/components/` bereits etwas Ähnliches existiert → erweitern statt neu erstellen
+2. **Vor jedem neuen Endpoint:** Prüfe bestehende URL-Patterns in `core/urls.py` und `etsy/urls.py`
+3. **Typen:** Änderungen an Domain-Typen IMMER in `src/types/mockup.ts` UND `backend/core/models.py` synchron halten
+4. **Migrationen:** Nach jeder Model-Änderung `makemigrations` + `migrate` ausführen
+5. **Environment:** Secrets NIE in Code – immer über `.env` und `os.environ.get()`
+6. **Keine leeren catch-Blöcke:** Fehler immer loggen oder dem User anzeigen
+
+## Abhängigkeiten
+
+- Frontend: `package.json` mit `npm` – neue Deps nur mit `npm install <pkg>`
+- Backend: `requirements.txt` mit Version-Ranges – neue Deps mit Range eintragen
+- Keine manuellen Versionsnummern erfinden, immer aktuelle Version prüfen
