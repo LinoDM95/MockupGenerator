@@ -61,6 +61,8 @@ INSTALLED_APPS = [
     "ai_integration",
     "upscaler",
     "automation",
+    "marketing_integration",
+    "user_settings",
 ]
 
 MIDDLEWARE = [
@@ -68,6 +70,7 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'gelato_integration.middleware.R2TempCleanupMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -183,6 +186,19 @@ STORAGES = {
 
 AWS_S3_CUSTOM_DOMAIN = os.environ.get("AWS_S3_CUSTOM_DOMAIN", "")
 
+# Gelato TemporaryDesignUpload auf R2: Bereinigung ohne Celery (Middleware bei /api/* + Upload-Hook).
+# Optional: ``python manage.py cleanup_r2_temp_designs`` per Cron (force, ohne Cooldown).
+R2_TEMP_DESIGN_MAX_AGE_HOURS = int(os.environ.get("R2_TEMP_DESIGN_MAX_AGE_HOURS", "24"))
+R2_TEMP_CLEANUP_COOLDOWN_SECONDS = float(os.environ.get("R2_TEMP_CLEANUP_COOLDOWN_SECONDS", "300"))
+
+# Marketing / Pinterest: optional comma-separated hostnames for pin image URLs (HTTPS only).
+# If non-empty, the URL host must match one entry (lowercased). If empty, any HTTPS URL is allowed.
+MARKETING_PIN_IMAGE_URL_ALLOWED_HOSTS = [
+    h.strip().lower()
+    for h in os.environ.get("MARKETING_PIN_IMAGE_URL_ALLOWED_HOSTS", "").split(",")
+    if h.strip()
+]
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -236,5 +252,20 @@ TOKEN_ENCRYPTION_KEY = (
     os.environ.get("TOKEN_ENCRYPTION_KEY", "") or ETSY_TOKEN_ENCRYPTION_KEY
 )
 ETSY_API_RPS = float(os.environ.get("ETSY_API_RPS", "10"))
+
+# Pinterest API v5 (OAuth — App-ID und Secret aus developers.pinterest.com)
+PINTEREST_APP_ID = (os.environ.get("PINTEREST_APP_ID", "") or "").strip()
+PINTEREST_APP_SECRET = (os.environ.get("PINTEREST_APP_SECRET", "") or "").strip()
+PINTEREST_REDIRECT_URI = (
+    os.environ.get("PINTEREST_REDIRECT_URI", "http://127.0.0.1:5173/pinterest/callback")
+    or ""
+).strip()
+PINTEREST_SCOPES = (
+    os.environ.get(
+        "PINTEREST_SCOPES",
+        "pins:read,pins:write,boards:read,boards:write,user_accounts:read",
+    )
+    or ""
+).strip()
 
 # AI Integration (per-user keys stored in DB, no global API key needed)

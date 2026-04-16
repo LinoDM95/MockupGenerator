@@ -1,13 +1,20 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Archive, Globe, Loader2, Package, Trash2 } from "lucide-react";
 
+import { useAppStore } from "../../store/appStore";
 import type { ArtworkItem, TemplateSet } from "../../types/mockup";
 import { Button } from "../ui/Button";
+import { IntegrationMissingCallout } from "../ui/IntegrationMissingCallout";
 import { Card } from "../ui/Card";
 import { Select } from "../ui/Select";
 import { ArtworkUploader } from "./ArtworkUploader";
 
-type Progress = { current: number; total: number; message: string };
+type Progress = {
+  current: number;
+  total: number;
+  message: string;
+  packPercent?: number | null;
+};
 
 type Props = {
   onFiles: (files: FileList | null) => void;
@@ -21,6 +28,8 @@ type Props = {
   onClearAll: () => void;
   isGenerating: boolean;
   progress: Progress;
+  /** Fortschritt laeuft im Vollbild-Overlay — hier nur Kurzhinweis */
+  inlineProgressMinimal?: boolean;
   onGenerate: () => void;
   gelatoConnected?: boolean;
   onGelatoExport?: () => void;
@@ -38,10 +47,12 @@ export const BatchQueue = ({
   onClearAll,
   isGenerating,
   progress,
+  inlineProgressMinimal = false,
   onGenerate,
   gelatoConnected = false,
   onGelatoExport,
 }: Props) => {
+  const goToIntegrationWizardStep = useAppStore((s) => s.goToIntegrationWizardStep);
   const missingSet = artworks.some((a) => !a.setId);
 
   return (
@@ -179,27 +190,34 @@ export const BatchQueue = ({
 
             <div className="mt-auto w-full shrink-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:max-w-[420px] sm:self-end">
               {isGenerating ? (
-                <div className="flex min-w-[300px] flex-col gap-3">
-                  <div className="flex items-center justify-between text-sm font-semibold text-indigo-700">
-                    <div className="flex items-center gap-2">
-                      <Loader2 className="animate-spin" size={16} /> Verarbeite…
+                inlineProgressMinimal ? (
+                  <div className="flex min-w-[260px] items-center gap-3 text-sm text-slate-600">
+                    <Loader2 className="shrink-0 animate-spin text-indigo-600" size={18} />
+                    <span>Fortschritt siehe Vollbildanzeige …</span>
+                  </div>
+                ) : (
+                  <div className="flex min-w-[300px] flex-col gap-3">
+                    <div className="flex items-center justify-between text-sm font-semibold text-indigo-700">
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="animate-spin" size={16} /> Verarbeite…
+                      </div>
+                      <span>
+                        {progress.current} / {progress.total}
+                      </span>
                     </div>
-                    <span>
-                      {progress.current} / {progress.total}
-                    </span>
+                    <div className="app-progress-track">
+                      <motion.div
+                        className="app-progress-fill app-progress-fill-glow-subtle h-full max-w-full"
+                        initial={false}
+                        animate={{
+                          width: `${((progress.packPercent != null ? progress.packPercent / 100 : progress.current / (progress.total || 1)) * 100)}%`,
+                        }}
+                        transition={{ ease: "linear", duration: 0.25 }}
+                      />
+                    </div>
+                    <p className="truncate text-xs text-slate-500">{progress.message}</p>
                   </div>
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                    <motion.div
-                      className="h-full max-w-full rounded-full bg-indigo-600"
-                      initial={false}
-                      animate={{
-                        width: `${(progress.current / (progress.total || 1)) * 100}%`,
-                      }}
-                      transition={{ ease: "linear", duration: 0.25 }}
-                    />
-                  </div>
-                  <p className="truncate text-xs text-slate-500">{progress.message}</p>
-                </div>
+                )
               ) : (
                 <div className="flex flex-col gap-2">
                   <Button
@@ -211,7 +229,7 @@ export const BatchQueue = ({
                     <Archive size={20} strokeWidth={1.75} />
                     {missingSet ? "Sets für alle wählen!" : "ZIP-Datei generieren"}
                   </Button>
-                  {gelatoConnected && onGelatoExport && (
+                  {gelatoConnected && onGelatoExport ? (
                     <Button
                       type="button"
                       variant="outline"
@@ -222,7 +240,15 @@ export const BatchQueue = ({
                       <Globe size={20} strokeWidth={1.75} />
                       Zu Gelato exportieren
                     </Button>
-                  )}
+                  ) : null}
+                  {!gelatoConnected && onGelatoExport ? (
+                    <IntegrationMissingCallout
+                      title="Gelato ist nicht verbunden"
+                      description="Verbinde dein Gelato-Konto, um Mockups direkt als Produkte zu exportieren."
+                      actionLabel="Gelato einrichten"
+                      onSetup={() => goToIntegrationWizardStep(1)}
+                    />
+                  ) : null}
                 </div>
               )}
             </div>

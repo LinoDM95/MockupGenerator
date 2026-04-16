@@ -83,6 +83,10 @@ class AIManager:
         critic_data: dict | None = None,
     ) -> dict[str, Any]:
         """Run one expert-debate step (Gemini only)."""
+        if target_type.lower().strip() == "social_caption":
+            raise AIProviderError(
+                "Expert-Modus unterstützt target 'social_caption' nicht."
+            )
         if not isinstance(self._provider, GeminiProvider):
             raise AIProviderError(
                 "Expert-Modus ist nur mit dem Gemini-Provider verfügbar."

@@ -92,3 +92,20 @@ export const gelatoStartExport = (
 
 export const gelatoGetTaskStatus = (taskIds: string[]) =>
   apiJson<GelatoExportTask[]>(`/api/gelato/tasks/?task_ids=${taskIds.join(",")}`);
+
+export type GelatoTempUploadResponse = {
+  id: string;
+  image: string;
+  public_url: string;
+  uploaded_at: string;
+};
+
+/** Ein Bild nach R2 (temp) laden — öffentliche URL für Pinterest & Co. */
+export const gelatoUploadTempImage = (file: File) => {
+  const fd = new FormData();
+  fd.append("image", file, file.name);
+  return apiJson<GelatoTempUploadResponse>("/api/gelato/upload-temp-image/", {
+    method: "POST",
+    body: fd,
+  });
+};

@@ -2,9 +2,24 @@
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  /* Indigo/Violett wie BlockingProgressOverlay — für helle UI (Fortschritt, Akzente) */
+  --app-accent-from: #6366f1;
+  --app-accent-via: #8b5cf6;
+  --app-accent-to: #818cf8;
 }
 
 @layer base {
+  /* Anker-Sprünge (z. B. Landing: #four-pillars, #how-it-works) unter sticky Header sichtbar lassen */
+  html {
+    scroll-padding-top: 4.5rem;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+
   body {
     @apply bg-slate-50 text-slate-800 antialiased;
   }
@@ -68,9 +83,55 @@
   }
 }
 
+/* BlockingProgressOverlay: unbestimmter Fortschritt (gleitender Indigo/Violett-Schimmer) */
+@keyframes overlay-indigo-shimmer {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+.overlay-progress-indeterminate {
+  width: 42%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(129, 140, 248, 0.25) 25%,
+    rgba(167, 139, 250, 0.95) 50%,
+    rgba(129, 140, 248, 0.35) 75%,
+    transparent 100%
+  );
+  animation: overlay-indigo-shimmer 1.85s ease-in-out infinite;
+}
+
 @layer utilities {
+  /** Track für Fortschritt auf hellem Grund (an Overlay-Balken angelehnt) */
+  .app-progress-track {
+    @apply h-1.5 w-full overflow-hidden rounded-full bg-indigo-100 ring-1 ring-inset ring-indigo-200/50;
+  }
+
+  /** Füllung: gleicher Verlauf wie BlockingProgressOverlay */
+  .app-progress-fill {
+    @apply h-full max-w-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-400;
+  }
+
+  /** Schwächeres Glow als im Vollbild-Overlay — für helle Flächen */
+  .app-progress-fill-glow-subtle {
+    box-shadow:
+      0 0 12px rgba(99, 102, 241, 0.28),
+      0 0 22px rgba(139, 92, 246, 0.12);
+  }
+
   .studio-linear-bar-fill {
     animation: studio-linear-indeterminate 1.25s ease-in-out infinite;
+  }
+
+  .overlay-progress-fill-glow {
+    box-shadow:
+      0 0 20px rgba(99, 102, 241, 0.45),
+      0 0 40px rgba(139, 92, 246, 0.2);
   }
 
   .animate-marquee {

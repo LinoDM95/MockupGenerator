@@ -71,6 +71,17 @@ export const canvasToBlob = (
     );
   });
 
+/** JPEG für ZIP-Export (Mockup-Generator); nutzt Blob statt Base64. */
+export const canvasToJpegBlob = (
+  canvas: HTMLCanvasElement,
+  quality = 0.85,
+): Promise<Blob> => canvasToBlob(canvas, "image/jpeg", quality);
+
+export const releaseCanvas = (canvas: HTMLCanvasElement) => {
+  canvas.width = 0;
+  canvas.height = 0;
+};
+
 export const compressImage = async (dataUrl: string): Promise<string> => {
   const img = await loadImage(dataUrl);
   const canvas = document.createElement("canvas");

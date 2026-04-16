@@ -1,4 +1,4 @@
-import { Loader2 } from "lucide-react";
+import { Download, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import JSZip from "jszip";
 
@@ -13,8 +13,14 @@ import {
   gelatoStatus,
 } from "../api/gelato";
 import { useLoadTemplateSets } from "../hooks/useLoadTemplateSets";
-import { createArtworkPreviewObjectUrl, loadImage } from "../lib/canvas/image";
+import {
+  canvasToJpegBlob,
+  createArtworkPreviewObjectUrl,
+  loadImage,
+  releaseCanvas,
+} from "../lib/canvas/image";
 import { renderTemplateToCanvas } from "../lib/canvas/renderTemplate";
+import { triggerAnchorDownload } from "../lib/download";
 import { getErrorMessage } from "../lib/error";
 import { sanitizeFileName } from "../lib/sanitize";
 import { toast } from "../lib/toast";
@@ -23,6 +29,15 @@ import { useAppStore } from "../store/appStore";
 import { BatchQueue } from "./generator/BatchQueue";
 import { ExportProgress } from "./gelato/ExportProgress";
 import { GelatoExportModal } from "./gelato/GelatoExportModal";
+import { BlockingProgressOverlay } from "./ui/BlockingProgressOverlay";
+import { Button } from "./ui/Button";
+
+const yieldToMain = () =>
+  new Promise<void>((resolve) => {
+    requestAnimationFrame(() => resolve());
+  });
+
+const JS_STORE = { compression: "STORE" as const };
 
 export const GeneratorView = () => {
   const templateSets = useAppStore((s) => s.templateSets);
@@ -33,7 +48,12 @@ export const GeneratorView = () => {
   useLoadTemplateSets({ silent: true });
 
   const [isGenerating, setIsGenerating] = useState(false);
-  const [progress, setProgress] = useState({ current: 0, total: 0, message: "" });
+  const [progress, setProgress] = useState({
+    current: 0,
+    total: 0,
+    message: "",
+    packPercent: null as number | null,
+  });
   const [isPreparingPreviews, setIsPreparingPreviews] = useState(false);
   const previewJobsPendingRef = useRef(0);
 
@@ -42,6 +62,12 @@ export const GeneratorView = () => {
   const [gelatoTemplates, setGelatoTemplates] = useState<GelatoTpl[]>([]);
   const [showGelatoModal, setShowGelatoModal] = useState(false);
   const [gelatoTaskIds, setGelatoTaskIds] = useState<string[]>([]);
+
+  /** Gleicher Blob fuer manuellen Zweit-Download (frische User-Activation), falls Browser blockiert. */
+  const [manualZipOffer, setManualZipOffer] = useState<{
+    blob: Blob;
+    filename: string;
+  } | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -132,69 +158,127 @@ export const GeneratorView = () => {
 
   const generateBatchAndZIP = async (mainOnly = false) => {
     if (artworks.length === 0) return;
+    setManualZipOffer(null);
     setIsGenerating(true);
-    setProgress({ current: 0, total: artworks.length, message: "Initialisiere ZIP…" });
+    setProgress({
+      current: 0,
+      total: 1,
+      message: "Mockups werden gerendert …",
+      packPercent: null,
+    });
+
+    let totalMockups = 0;
+    for (const art of artworks) {
+      const activeSet = templateSets.find((s) => s.id === art.setId);
+      if (!activeSet || activeSet.templates.length === 0) continue;
+      totalMockups += mainOnly ? 1 : activeSet.templates.length;
+    }
+
+    if (totalMockups === 0) {
+      toast.error(
+        "Keine Mockups in der ZIP — jedes Motiv braucht ein Set mit mindestens einer Vorlage.",
+      );
+      setIsGenerating(false);
+      setProgress({ current: 0, total: 0, message: "", packPercent: null });
+      return;
+    }
+
+    setProgress({
+      current: 0,
+      total: totalMockups,
+      message: "Mockups werden gerendert …",
+      packPercent: null,
+    });
+
     try {
       const zip = new JSZip();
+      let filesAdded = 0;
+      let rendered = 0;
+
       for (let i = 0; i < artworks.length; i++) {
         const artwork = artworks[i];
-        setProgress({
-          current: i + 1,
-          total: artworks.length,
-          message: `Generiere: ${artwork.name}`,
-        });
         const activeSet = templateSets.find((s) => s.id === artwork.setId);
         if (!activeSet || activeSet.templates.length === 0) continue;
 
         const cleanFolderName = sanitizeFileName(artwork.name);
         const artImg = await loadImage(artwork.url);
-        const tplsToRender = mainOnly ? [activeSet.templates[0]] : activeSet.templates;
+        const tplsToRender = mainOnly ? [activeSet.templates[0]!] : activeSet.templates;
 
         if (mainOnly) {
-          const tpl = tplsToRender[0];
+          const tpl = tplsToRender[0]!;
+          rendered += 1;
+          setProgress({
+            current: rendered,
+            total: totalMockups,
+            message: `Mockup ${rendered}/${totalMockups}: ${artwork.name}`,
+            packPercent: null,
+          });
           const canvas = await renderTemplateToCanvas(tpl, artImg, loadImage);
-          const base64Data = canvas
-            .toDataURL("image/jpeg", 0.85)
-            .replace(/^data:image\/(png|jpg|jpeg);base64,/, "");
-          zip.file(`${cleanFolderName}.jpg`, base64Data, { base64: true });
+          const blob = await canvasToJpegBlob(canvas, 0.85);
+          releaseCanvas(canvas);
+          zip.file(`${cleanFolderName}.jpg`, blob, JS_STORE);
+          filesAdded += 1;
+          await yieldToMain();
         } else {
           const folder = zip.folder(cleanFolderName);
           if (!folder) continue;
           for (let t = 0; t < tplsToRender.length; t++) {
-            const tpl = tplsToRender[t];
+            const tpl = tplsToRender[t]!;
+            rendered += 1;
+            setProgress({
+              current: rendered,
+              total: totalMockups,
+              message: `Mockup ${rendered}/${totalMockups}: ${artwork.name}`,
+              packPercent: null,
+            });
             const canvas = await renderTemplateToCanvas(tpl, artImg, loadImage);
-            const base64Data = canvas
-              .toDataURL("image/jpeg", 0.85)
-              .replace(/^data:image\/(png|jpg|jpeg);base64,/, "");
+            const jpegBlob = await canvasToJpegBlob(canvas, 0.85);
+            releaseCanvas(canvas);
             const cleanTplName = sanitizeFileName(tpl.name) || "vorlage";
             const shortId = tpl.id.replace(/-/g, "").slice(0, 8);
             const fileName = `${String(t + 1).padStart(2, "0")}_${shortId}_${cleanTplName}.jpg`;
-            folder.file(fileName, base64Data, { base64: true });
-            await new Promise((r) => setTimeout(r, 10));
+            folder.file(fileName, jpegBlob, JS_STORE);
+            filesAdded += 1;
+            await yieldToMain();
           }
         }
       }
+
+      if (filesAdded === 0) {
+        toast.error(
+          "Keine Mockups in der ZIP — jedes Motiv braucht ein Set mit mindestens einer Vorlage.",
+        );
+        return;
+      }
+
       setProgress({
-        current: artworks.length,
-        total: artworks.length,
-        message: "Packe ZIP-Datei…",
+        current: totalMockups,
+        total: totalMockups,
+        message: "ZIP wird gepackt …",
+        packPercent: 0,
       });
-      const blob = await zip.generateAsync({ type: "blob" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
+
+      const blob = await zip.generateAsync({ type: "blob" }, (meta) => {
+        if (meta.percent != null) {
+          setProgress((prev) => ({
+            ...prev,
+            packPercent: meta.percent,
+            message: `ZIP wird gepackt … ${Math.round(meta.percent)}%`,
+          }));
+        }
+      });
+
       const prefix = mainOnly ? "Gelato_Mockups" : "Etsy_Mockup_Batch";
-      link.download = `${prefix}_${Date.now()}.zip`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(link.href);
-      setProgress({ current: 0, total: 0, message: "Fertig." });
-      toast.success("ZIP wurde erstellt und heruntergeladen.");
+      const filename = `${prefix}_${Date.now()}.zip`;
+      triggerAnchorDownload(blob, filename);
+      setManualZipOffer({ blob, filename });
+      toast.success("ZIP wurde erstellt. Speichern-Dialog sollte erscheinen — sonst Button unten.");
     } catch (e) {
       console.error(e);
       toast.error(`Fehler: ${getErrorMessage(e)}`);
     } finally {
-      setTimeout(() => setIsGenerating(false), 1500);
+      setIsGenerating(false);
+      setProgress({ current: 0, total: 0, message: "", packPercent: null });
     }
   };
 
@@ -206,10 +290,16 @@ export const GeneratorView = () => {
       downloadZip: boolean,
     ) => {
       setShowGelatoModal(false);
+      setManualZipOffer(null);
       setIsGenerating(true);
+      setProgress({
+        current: 0,
+        total: 1,
+        message: downloadZip ? "Mockups werden gerendert …" : "Sende Motive an Gelato …",
+        packPercent: null,
+      });
 
       try {
-        // ── ZIP erstellen (sequentiell, vor dem API-Export) ──
         if (downloadZip) {
           const zip = new JSZip();
 
@@ -225,8 +315,17 @@ export const GeneratorView = () => {
             return sum + (set?.templates.length ?? 0);
           }, 0);
 
+          if (totalMockups > 0) {
+            setProgress({
+              current: 0,
+              total: totalMockups,
+              message: "Mockups werden gerendert …",
+              packPercent: null,
+            });
+          }
+
           for (let i = 0; i < items.length; i++) {
-            const { art, title } = items[i];
+            const { art, title } = items[i]!;
             const activeSet = templateSets.find((s) => s.id === art.setId);
             if (!activeSet || activeSet.templates.length === 0) continue;
 
@@ -239,38 +338,59 @@ export const GeneratorView = () => {
             const artImg = await loadImage(art.url);
 
             for (let t = 0; t < activeSet.templates.length; t++) {
-              const tpl = activeSet.templates[t];
-              rendered++;
+              const tpl = activeSet.templates[t]!;
+              rendered += 1;
               setProgress({
                 current: rendered,
                 total: totalMockups,
                 message: `Mockup ${rendered}/${totalMockups}: ${title}`,
+                packPercent: null,
               });
               const canvas = await renderTemplateToCanvas(tpl, artImg, loadImage);
-              const base64Data = canvas
-                .toDataURL("image/jpeg", 0.85)
-                .replace(/^data:image\/(png|jpg|jpeg);base64,/, "");
+              const jpegBlob = await canvasToJpegBlob(canvas, 0.85);
+              releaseCanvas(canvas);
               const cleanTplName = sanitizeFileName(tpl.name) || "vorlage";
               const fileName = `${String(t + 1).padStart(2, "0")}_${cleanTplName}.jpg`;
-              folder.file(fileName, base64Data, { base64: true });
-              await new Promise((r) => setTimeout(r, 10));
+              folder.file(fileName, jpegBlob, JS_STORE);
+              await yieldToMain();
             }
           }
 
-          setProgress({ current: totalMockups, total: totalMockups, message: "Packe ZIP-Datei…" });
-          const blob = await zip.generateAsync({ type: "blob" });
-          const link = document.createElement("a");
-          link.href = URL.createObjectURL(blob);
-          link.download = `Gelato_Mockups_${Date.now()}.zip`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(link.href);
-          toast.success("Mockup-ZIP heruntergeladen.");
+          if (rendered === 0) {
+            toast.error(
+              "Mockup-ZIP ist leer — jedes Motiv braucht ein Set mit Vorlagen.",
+            );
+          } else {
+            setProgress({
+              current: totalMockups,
+              total: totalMockups,
+              message: "ZIP wird gepackt …",
+              packPercent: 0,
+            });
+            const blob = await zip.generateAsync({ type: "blob" }, (meta) => {
+              if (meta.percent != null) {
+                setProgress((prev) => ({
+                  ...prev,
+                  packPercent: meta.percent,
+                  message: `ZIP wird gepackt … ${Math.round(meta.percent)}%`,
+                }));
+              }
+            });
+            const filename = `Gelato_Mockups_${Date.now()}.zip`;
+            triggerAnchorDownload(blob, filename);
+            setManualZipOffer({ blob, filename });
+            toast.success(
+              "Mockup-ZIP erstellt. Speichern-Dialog sollte erscheinen — sonst Button unten.",
+            );
+          }
         }
 
-        // ── Gelato-API-Export ──
-        setProgress({ current: 0, total: artworks.length, message: "Sende Motive an Gelato…" });
+        setProgress({
+          current: 0,
+          total: artworks.length,
+          message: "Sende Motive an Gelato …",
+          packPercent: null,
+        });
         const artworkFiles = artworks.map((a) => a.file);
         const tasks = await gelatoStartExport(
           gelatoTemplateId,
@@ -286,31 +406,64 @@ export const GeneratorView = () => {
         toast.error(`Gelato-Export fehlgeschlagen: ${getErrorMessage(e)}`);
       } finally {
         setIsGenerating(false);
-        setProgress({ current: 0, total: 0, message: "" });
+        setProgress({ current: 0, total: 0, message: "", packPercent: null });
       }
     },
     [artworks, templateSets],
   );
 
+  const handleManualZipDownload = useCallback(() => {
+    if (!manualZipOffer) return;
+    triggerAnchorDownload(manualZipOffer.blob, manualZipOffer.filename);
+    toast.success("Download gestartet.");
+  }, [manualZipOffer]);
+
   return (
     <div className="relative min-h-[min(80vh,720px)]">
-      {isPreparingPreviews ? (
+      {manualZipOffer ? (
         <div
+          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm text-amber-950 shadow-sm"
           role="status"
-          aria-live="polite"
-          aria-busy="true"
-          className="absolute inset-0 z-[100] flex flex-col items-center justify-center gap-4 rounded-xl bg-slate-900/50 backdrop-blur-sm"
         >
-          <Loader2
-            className="h-10 w-10 animate-spin text-white drop-shadow-md"
-            strokeWidth={2}
-            aria-hidden
-          />
-          <div className="text-center text-white drop-shadow-sm">
-            <p className="text-base font-semibold tracking-tight">Bitte warte …</p>
-            <p className="mt-1 text-sm text-white/80">Vorschaubilder werden vorbereitet.</p>
+          <p className="min-w-0 flex-1">
+            Kein Speichern-Dialog? Browser blockiert manchmal automatische Downloads nach
+            langer Verarbeitung — hier erneut mit Klick starten:
+          </p>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2 border-amber-300 bg-white text-amber-900 hover:bg-amber-100"
+              onClick={handleManualZipDownload}
+            >
+              <Download size={16} strokeWidth={2} aria-hidden />
+              ZIP speichern
+            </Button>
+            <button
+              type="button"
+              onClick={() => setManualZipOffer(null)}
+              className="rounded-lg p-2 text-amber-800 transition-colors hover:bg-amber-100"
+              aria-label="Hinweis schliessen"
+            >
+              <X size={18} strokeWidth={2} />
+            </button>
           </div>
         </div>
+      ) : null}
+      {isGenerating ? (
+        <BlockingProgressOverlay
+          title="Bitte warten"
+          message={progress.message}
+          current={progress.current}
+          total={progress.total}
+          packPercent={progress.packPercent}
+        />
+      ) : isPreparingPreviews ? (
+        <BlockingProgressOverlay
+          title="Bitte warte …"
+          subtitle="Vorschaubilder werden vorbereitet."
+          indeterminate
+        />
       ) : null}
       <BatchQueue
         onFiles={handleArtworkUpload}
@@ -332,7 +485,10 @@ export const GeneratorView = () => {
         }}
         isGenerating={isGenerating}
         progress={progress}
-        onGenerate={generateBatchAndZIP}
+        inlineProgressMinimal={isGenerating}
+        onGenerate={() => {
+          void generateBatchAndZIP(false);
+        }}
         gelatoConnected={!!gelatoConn?.connected}
         onGelatoExport={() => setShowGelatoModal(true)}
       />

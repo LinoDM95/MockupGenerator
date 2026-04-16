@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any
 
-VALID_TARGET_TYPES = {"title", "tags", "description", "all"}
+VALID_TARGET_TYPES = {"title", "tags", "description", "all", "social_caption"}
 
 
 class AIProviderError(Exception):
@@ -309,6 +309,33 @@ Etsy, it is too broad. Replace it with a more specific long-tail variant \
 (e.g. "wall art" → "boho nursery wall art").\
 """
 
+# Pinterest / Social — separate from Etsy SYSTEM_PROMPT (used when target_type is social_caption).
+SOCIAL_CAPTION_SYSTEM_PROMPT = """\
+You are a Pinterest marketing copywriter for 2026. Your job is to write a short, \
+highly engaging Pin description and a scroll-stopping Pin title for organic discovery, \
+based on the product image and any seller context.
+
+Rules:
+• Tone: clear, benefit-led, visual; match the seller's niche and brand voice from context.
+• Pin title: concise, specific, keyword-rich but human (max ~100 characters). No ALL CAPS spam.
+• Caption body: 2–4 short sentences or tight lines; front-load the main benefit or aesthetic hook.
+• Include exactly 3–5 relevant hashtags as a separate list (Pinterest-style discovery). \
+Each hashtag must be specific to the product niche — avoid generic tags like #love, #instagood, #art.
+• Do NOT include Etsy SEO rules (no 13 tags, no Etsy title template). This is Pinterest only.
+• Language: match the seller context if they specify a language; otherwise use the same language \
+as the dominant text in the image or English for international appeal.
+• No markdown fences, no commentary outside JSON.
+
+OUTPUT FORMAT (STRICT — valid JSON only):
+{
+  "pin_title": "Short Pin title for Pinterest",
+  "caption": "Plain description text WITHOUT hashtag lines (no # inside this string).",
+  "hashtags": ["#nicheTag1", "#nicheTag2", "#nicheTag3"]
+}
+
+The "hashtags" array MUST contain between 3 and 5 entries. Each must start with #.
+"""
+
 TARGET_INSTRUCTIONS: dict[str, str] = {
     "title": (
         "Focus ONLY on generating the 3 titles following Ruleset 1. "
@@ -323,6 +350,10 @@ TARGET_INSTRUCTIONS: dict[str, str] = {
         "Return empty lists for titles and tags."
     ),
     "all": "Generate all three sections: titles (Ruleset 1), tags (Ruleset 2), and description (Ruleset 3).",
+    "social_caption": (
+        "Generate ONLY Pinterest content: pin_title, caption, and 3–5 hashtags per "
+        "SOCIAL_CAPTION_SYSTEM_PROMPT. Ignore Etsy listing rules entirely."
+    ),
 }
 
 

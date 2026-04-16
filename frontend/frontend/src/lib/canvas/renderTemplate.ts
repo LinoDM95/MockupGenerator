@@ -6,7 +6,7 @@ type LoadImageFn = (src: string) => Promise<HTMLImageElement>;
 
 /**
  * Rendert ein Template mit Artwork auf ein Canvas.
- * Gemeinsame Pipeline für GeneratorView (ZIP) und EtsyWorkspace (PNG-Upload).
+ * Gemeinsame Pipeline für GeneratorView (ZIP) und EtsyListingsEditor (PNG-Upload).
  */
 export const renderTemplateToCanvas = async (
   tpl: Template,

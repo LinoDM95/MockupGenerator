@@ -1,0 +1,327 @@
+import { Loader2 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+
+import { ApiError } from "../../api/client";
+import type { IntegrationStatusResponse } from "../../api/settings";
+import {
+  fetchIntegrationStatus,
+  saveIntegration,
+  testIntegrationConnection,
+} from "../../api/settings";
+import { getErrorMessage } from "../../lib/error";
+import { cn } from "../../lib/cn";
+import { toast } from "../../lib/toast";
+import { useAppStore } from "../../store/appStore";
+import { AISetup } from "../ai/AISetup";
+import { EtsyIntegrationSetup } from "../etsy/EtsyIntegrationSetup";
+import { GelatoSetup } from "../gelato/GelatoSetup";
+import { MarketingIntegrationSetup } from "../marketing/MarketingIntegrationSetup";
+import { Button } from "../ui/Button";
+import { Input } from "../ui/Input";
+
+export type HubTabId = "etsy" | "gelato" | "gemini" | "cloudflare_r2" | "pinterest";
+
+const TABS: { id: HubTabId; label: string }[] = [
+  { id: "etsy", label: "1. Etsy" },
+  { id: "gelato", label: "2. Gelato (POD)" },
+  { id: "gemini", label: "3. Gemini (KI)" },
+  { id: "cloudflare_r2", label: "4. Cloudflare R2" },
+  { id: "pinterest", label: "5. Pinterest" },
+];
+
+const R2_GUIDE = {
+  title: "Cloudflare R2",
+  tagline: "R2 (S3-kompatibel) für temporäre Uploads und Assets – BYOK mit eigenem Bucket.",
+  steps: [
+    "Im Cloudflare-Dashboard R2 aktivieren und S3-kompatible Access-/Secret-Keys anlegen.",
+    "Endpoint (HTTPS), Bucket-Name und Keys unten eintragen und speichern.",
+    "Test ausführen, um Bucket-Zugriff zu prüfen.",
+  ] as [string, string, string],
+  docs: [
+    { href: "https://developers.cloudflare.com/r2/", label: "Cloudflare R2 Docs" },
+    { href: "https://developers.cloudflare.com/r2/api/s3/api/", label: "S3 API für R2" },
+  ],
+};
+
+const statusField = (tab: HubTabId, s: IntegrationStatusResponse | null): boolean => {
+  if (!s) return false;
+  if (tab === "etsy") return s.etsy;
+  if (tab === "gelato") return s.gelato;
+  if (tab === "gemini") return s.gemini;
+  if (tab === "cloudflare_r2") return s.cloudflare_r2;
+  return s.pinterest;
+};
+
+export const SetupHub = () => {
+  const integrationHubSection = useAppStore((s) => s.integrationHubSection);
+  const setIntegrationHubSection = useAppStore((s) => s.setIntegrationHubSection);
+
+  const [tab, setTab] = useState<HubTabId>("etsy");
+  const [status, setStatus] = useState<IntegrationStatusResponse | null>(null);
+  const [loadingStatus, setLoadingStatus] = useState(true);
+
+  const [r2Access, setR2Access] = useState("");
+  const [r2Secret, setR2Secret] = useState("");
+  const [r2Endpoint, setR2Endpoint] = useState("");
+  const [r2Bucket, setR2Bucket] = useState("");
+
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+
+  const [fieldTone, setFieldTone] = useState<"neutral" | "success" | "error">("neutral");
+  const [feedback, setFeedback] = useState("");
+
+  const loadStatus = useCallback(async () => {
+    setLoadingStatus(true);
+    try {
+      const j = await fetchIntegrationStatus();
+      setStatus(j);
+    } catch {
+      setStatus(null);
+    } finally {
+      setLoadingStatus(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (integrationHubSection) {
+      setTab(integrationHubSection);
+      setIntegrationHubSection(null);
+    }
+  }, [integrationHubSection, setIntegrationHubSection]);
+
+  useEffect(() => {
+    void loadStatus();
+  }, [tab, loadStatus]);
+
+  const resetFeedback = () => {
+    setFieldTone("neutral");
+    setFeedback("");
+  };
+
+  const handleTabChange = (next: HubTabId) => {
+    setTab(next);
+    resetFeedback();
+  };
+
+  const inputRingClass =
+    fieldTone === "success"
+      ? "border-emerald-500 ring-2 ring-emerald-500/30"
+      : fieldTone === "error"
+        ? "border-red-500 ring-2 ring-red-500/30"
+        : "";
+
+  const handleSaveR2 = async () => {
+    resetFeedback();
+    setSaving(true);
+    try {
+      await saveIntegration("cloudflare_r2", {
+        access_key: r2Access.trim(),
+        secret_key: r2Secret.trim(),
+        endpoint: r2Endpoint.trim(),
+        bucket_name: r2Bucket.trim(),
+      });
+      toast.success("Gespeichert.");
+      await loadStatus();
+    } catch (e) {
+      toast.error(getErrorMessage(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTestR2 = async () => {
+    resetFeedback();
+    setTesting(true);
+    try {
+      await testIntegrationConnection("cloudflare_r2");
+      setFieldTone("success");
+      setFeedback("Verbindung erfolgreich.");
+    } catch (e) {
+      setFieldTone("error");
+      if (e instanceof ApiError) {
+        setFeedback(e.getDetail());
+      } else {
+        setFeedback(getErrorMessage(e));
+      }
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const embedded =
+    tab === "etsy" || tab === "gelato" || tab === "gemini" || tab === "pinterest";
+
+  const connected = statusField(tab, status);
+  const r2Configured = !!status?.cloudflare_r2;
+  const g = R2_GUIDE;
+
+  return (
+    <div className="grid gap-8 lg:grid-cols-[minmax(200px,260px)_1fr]">
+      <nav aria-label="Integrationen" className="flex flex-col gap-1">
+        {TABS.map((row) => {
+          const active = tab === row.id;
+          const ok = statusField(row.id, status);
+          return (
+            <button
+              key={row.id}
+              type="button"
+              onClick={() => handleTabChange(row.id)}
+              className={cn(
+                "flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
+                active
+                  ? "bg-indigo-50 text-indigo-900"
+                  : "text-slate-700 hover:bg-slate-100",
+              )}
+            >
+              <span
+                className={cn(
+                  "h-2 w-2 shrink-0 rounded-full",
+                  ok ? "bg-emerald-500" : "bg-slate-300",
+                )}
+                aria-hidden
+              />
+              <span>{row.label}</span>
+            </button>
+          );
+        })}
+        {loadingStatus ? (
+          <p className="px-3 text-xs text-slate-500">Status wird geladen…</p>
+        ) : null}
+      </nav>
+
+      <div className="min-w-0 rounded-xl border border-slate-200 bg-white shadow-sm">
+        {embedded ? (
+          <div className="min-w-0 p-4 sm:p-6">
+            {tab === "etsy" ? (
+              <EtsyIntegrationSetup isConnected={!!status?.etsy} />
+            ) : null}
+            {tab === "gelato" ? <GelatoSetup hubSettingsMode /> : null}
+            {tab === "gemini" ? <AISetup hubSettingsMode /> : null}
+            {tab === "pinterest" ? <MarketingIntegrationSetup /> : null}
+          </div>
+        ) : (
+          <div className="p-6">
+            <header className="mb-6">
+              <h2 className="text-lg font-semibold text-slate-900">
+                {r2Configured ? "Cloudflare R2 – Einstellungen" : g.title}
+              </h2>
+              <p className="mt-1 text-sm text-slate-600">
+                {r2Configured
+                  ? "Credentials sind gespeichert. Zum Ändern neue Werte eintragen und speichern oder Verbindung testen."
+                  : g.tagline}
+              </p>
+            </header>
+
+            {!r2Configured ? (
+              <>
+                <div className="mb-6">
+                  <h3 className="mb-3 text-sm font-medium text-slate-800">Anleitung</h3>
+                  <ol className="list-decimal space-y-2 pl-5 text-sm text-slate-600">
+                    <li>{g.steps[0]}</li>
+                    <li>{g.steps[1]}</li>
+                    <li>{g.steps[2]}</li>
+                  </ol>
+                  <div className="mt-3 flex flex-wrap gap-3">
+                    {g.docs.map((l) => (
+                      <a
+                        key={l.href}
+                        href={l.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm font-medium text-indigo-600 underline-offset-2 hover:underline"
+                      >
+                        {l.label}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+
+                <div
+                  className="mb-6 flex aspect-video items-center justify-center rounded-md bg-slate-100 text-sm text-slate-500"
+                  aria-hidden
+                >
+                  Video Placeholder
+                </div>
+              </>
+            ) : null}
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input
+                label="R2 Endpoint (HTTPS)"
+                name="r2_endpoint"
+                type="url"
+                placeholder="https://…"
+                value={r2Endpoint}
+                onChange={(e) => setR2Endpoint(e.target.value)}
+                className={cn("sm:col-span-2", inputRingClass)}
+              />
+              <Input
+                label="Bucket-Name"
+                name="r2_bucket"
+                value={r2Bucket}
+                onChange={(e) => setR2Bucket(e.target.value)}
+                className={inputRingClass}
+              />
+              <Input
+                label="Access Key"
+                name="r2_access"
+                type="password"
+                autoComplete="off"
+                value={r2Access}
+                onChange={(e) => setR2Access(e.target.value)}
+                className={inputRingClass}
+              />
+              <Input
+                label="Secret Key"
+                name="r2_secret"
+                type="password"
+                autoComplete="off"
+                value={r2Secret}
+                onChange={(e) => setR2Secret(e.target.value)}
+                className={inputRingClass}
+              />
+            </div>
+
+            <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-6">
+              <Button
+                type="button"
+                variant="primary"
+                onClick={handleSaveR2}
+                disabled={saving}
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+                Speichern
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleTestR2}
+                disabled={testing}
+                aria-busy={testing}
+              >
+                {testing ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+                Verbindung testen
+              </Button>
+            </div>
+
+            <div className="mt-4 min-h-[1.5rem] text-sm" aria-live="polite" role="status">
+              {feedback ? (
+                <span
+                  className={cn(
+                    fieldTone === "success" && "text-emerald-700",
+                    fieldTone === "error" && "text-red-700",
+                  )}
+                >
+                  {feedback}
+                </span>
+              ) : connected ? (
+                <span className="text-emerald-700">R2-Credentials gespeichert.</span>
+              ) : null}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};

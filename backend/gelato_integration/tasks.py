@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import timedelta
 
 from celery import shared_task
 from django.utils import timezone
 
-from .models import GelatoConnection, GelatoExportTask, TemporaryDesignUpload
+from .models import GelatoConnection, GelatoExportTask
 from .services import GelatoApiError, GelatoClient
 
 logger = logging.getLogger(__name__)
@@ -184,21 +183,10 @@ def process_gelato_bulk_export(self, task_ids: list[str]) -> None:
 
 @shared_task(ignore_result=True)
 def cleanup_r2_temp_designs() -> None:
-    """Delete temporary design uploads older than 24 hours.
+    """Optional: gleiche Logik wie Middleware — braucht Celery nur wenn ihr Beat nutzt.
 
-    For each expired record the image file is removed from Cloudflare R2
-    (via django-storages) before the database row is deleted.
+    Ohne Celery: ``cleanup_expired_r2_temp_uploads`` über Middleware + Management-Command.
     """
-    cutoff = timezone.now() - timedelta(hours=24)
-    expired = TemporaryDesignUpload.objects.filter(uploaded_at__lt=cutoff)
-    count = 0
-    for obj in expired.iterator():
-        try:
-            if obj.image:
-                obj.image.delete(save=False)
-        except Exception:
-            logger.warning("Failed to delete R2 object for TempDesign %s", obj.pk)
-        obj.delete()
-        count += 1
-    if count:
-        logger.info("Cleaned up %d expired temporary design uploads.", count)
+    from .r2_cleanup import cleanup_expired_r2_temp_uploads
+
+    cleanup_expired_r2_temp_uploads(force=True)

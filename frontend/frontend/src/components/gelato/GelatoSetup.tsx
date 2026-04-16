@@ -28,13 +28,19 @@ import {
 } from "../../api/gelato";
 import { getErrorMessage } from "../../lib/error";
 import { toast } from "../../lib/toast";
+import { AppPage } from "../ui/AppPage";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { Input } from "../ui/Input";
 
 type SetupStep = "key" | "store-select" | "connected";
 
-export const GelatoSetup = () => {
+type GelatoSetupProps = {
+  /** Im Setup Hub: bei bestehender Verbindung kompakte Einstellungs-Ansicht. */
+  hubSettingsMode?: boolean;
+};
+
+export const GelatoSetup = ({ hubSettingsMode = false }: GelatoSetupProps) => {
   const [step, setStep] = useState<SetupStep>("key");
   const [connection, setConnection] = useState<GelatoConnectionStatus | null>(null);
   const [templates, setTemplates] = useState<GelatoTemplate[]>([]);
@@ -171,6 +177,7 @@ export const GelatoSetup = () => {
   /* ── Step 1: API-Key eingeben ──────────────────────────────── */
   if (step === "key") {
     return (
+      <AppPage>
       <div className="mx-auto max-w-lg space-y-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
@@ -249,12 +256,14 @@ export const GelatoSetup = () => {
           </div>
         </Card>
       </div>
+      </AppPage>
     );
   }
 
   /* ── Step 2: Store auswählen ───────────────────────────────── */
   if (step === "store-select") {
     return (
+      <AppPage>
       <div className="mx-auto max-w-lg space-y-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
@@ -350,22 +359,35 @@ export const GelatoSetup = () => {
           </div>
         </Card>
       </div>
+      </AppPage>
     );
   }
 
   /* ── Connected: Übersicht + Templates ──────────────────────── */
   return (
-    <div className="space-y-8">
+    <AppPage>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
-            Gelato Integration
+            {hubSettingsMode ? "Gelato – Einstellungen" : "Gelato Integration"}
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Verbunden mit Store{" "}
-            <span className="font-medium text-slate-700">
-              {connection?.store_name || connection?.store_id}
-            </span>
+            {hubSettingsMode ? (
+              <>
+                Store{" "}
+                <span className="font-medium text-slate-700">
+                  {connection?.store_name || connection?.store_id}
+                </span>
+                , Templates und Verbindung verwalten.
+              </>
+            ) : (
+              <>
+                Verbunden mit Store{" "}
+                <span className="font-medium text-slate-700">
+                  {connection?.store_name || connection?.store_id}
+                </span>
+              </>
+            )}
           </p>
         </div>
         <Button
@@ -481,6 +503,6 @@ export const GelatoSetup = () => {
           </div>
         </div>
       )}
-    </div>
+    </AppPage>
   );
 };

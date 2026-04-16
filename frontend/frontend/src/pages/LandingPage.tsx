@@ -2,24 +2,33 @@ import { useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   motion,
+  useReducedMotion,
   useScroll,
   useTransform,
   useInView,
 } from "framer-motion";
 import {
+  type LucideIcon,
   ArrowRight,
   BarChart3,
   Check,
   FileImage,
+  FolderOpen,
   Layers,
+  Key,
+  Link2,
+  Maximize,
+  Megaphone,
   Package,
   Rocket,
   Search,
   Send,
   ShoppingBag,
+  Sparkles,
   Tag,
   TrendingUp,
   Upload,
+  Users,
   Zap,
 } from "lucide-react";
 
@@ -37,12 +46,17 @@ const FadeIn = ({
 }) => {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-80px" });
+  const reduceMotion = useReducedMotion();
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, y: 32 }}
+      initial={{ opacity: 0, y: reduceMotion ? 0 : 32 }}
       animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.6, delay, ease: [0.25, 0.46, 0.45, 0.94] }}
+      transition={{
+        duration: reduceMotion ? 0.2 : 0.6,
+        delay: reduceMotion ? 0 : delay,
+        ease: [0.25, 0.46, 0.45, 0.94],
+      }}
       className={className}
     >
       {children}
@@ -68,7 +82,9 @@ const MOCKUP_COLORS = [
   "bg-lime-400",
 ];
 
-const Hero = () => (
+const Hero = () => {
+  const reduceMotion = useReducedMotion();
+  return (
   <section className="relative overflow-hidden">
     {/* Soft mesh gradient background */}
     <div className="pointer-events-none absolute inset-0 -z-10">
@@ -80,41 +96,103 @@ const Hero = () => (
     <div className="mx-auto max-w-7xl px-4 pb-24 pt-20 sm:px-6 sm:pt-28 lg:px-8 lg:pt-36">
       <div className="text-center">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: reduceMotion ? 0 : 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="mx-auto mb-6 flex w-fit items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-4 py-1.5 text-sm font-medium text-indigo-700"
+          transition={{ duration: reduceMotion ? 0.2 : 0.5 }}
+          className="mx-auto mb-6 flex w-fit max-w-[95vw] flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-full border border-indigo-200 bg-indigo-50 px-4 py-1.5 text-xs font-medium text-indigo-700 sm:text-sm"
         >
-          <Zap size={14} /> Print-on-Demand Automation
+          <Zap size={14} className="shrink-0" />
+          <span className="text-center">
+            Erstellen · Verbreiten · Automatisieren · Integrationen
+          </span>
         </motion.div>
 
         <motion.h1
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: reduceMotion ? 0 : 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.1 }}
+          transition={{ duration: reduceMotion ? 0.2 : 0.7, delay: reduceMotion ? 0 : 0.1 }}
           className="text-5xl font-bold tracking-tight text-slate-900 sm:text-6xl lg:text-7xl"
         >
-          The Ultimate Print-on-Demand
+          Die komplette Print-on-Demand-Pipeline
           <br />
           <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
-            Automation Engine.
+            von Motiv bis Etsy-Entwurf.
           </span>
         </motion.h1>
 
         <motion.p
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: reduceMotion ? 0 : 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.25 }}
+          transition={{ duration: reduceMotion ? 0.2 : 0.6, delay: reduceMotion ? 0 : 0.25 }}
           className="mx-auto mt-6 max-w-2xl text-lg text-slate-600 sm:text-xl"
         >
-          Create one template. Generate 100s of mockups. Sync directly to
-          Gelato&nbsp;&amp;&nbsp;Etsy. Dominate your niche with advanced analytics.
+          Vorlagen im Studio anlegen, Motive im Generator einspielen, Mockups automatisch
+          erzeugen, Listing-Texte mit oder ohne KI schreiben — dann nach Gelato und als
+          Etsy-Entwurf. Ein durchgängiger Kernablauf; weitere Funktionen in der App
+          ergänzen ihn.
         </motion.p>
 
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: reduceMotion ? 0 : 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
+          transition={{ duration: reduceMotion ? 0.2 : 0.55, delay: reduceMotion ? 0 : 0.35 }}
+          className="mx-auto mt-8 max-w-2xl rounded-2xl border border-indigo-100/90 bg-indigo-50/50 px-4 py-4 text-left shadow-sm sm:px-6 sm:py-5"
+        >
+          <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-indigo-900">
+            <Key size={16} className="shrink-0 text-indigo-600" strokeWidth={2} aria-hidden />
+            Kostenlos starten · KI mit eigenen API-Keys
+          </p>
+          <ul className="space-y-2.5 text-sm leading-relaxed text-slate-700">
+            <li className="flex gap-2.5">
+              <Check
+                size={16}
+                className="mt-0.5 shrink-0 text-emerald-600"
+                strokeWidth={2}
+                aria-hidden
+              />
+              <span>
+                <strong className="font-semibold text-slate-900">Haupt-Tool</strong> (Generator,
+                Vorlagen-Studio, Kern-Workflow bis Etsy/Gelato):{" "}
+                <strong className="font-semibold text-slate-900">komplett kostenlos</strong> — ohne
+                Abo.
+              </span>
+            </li>
+            <li className="flex gap-2.5">
+              <Check
+                size={16}
+                className="mt-0.5 shrink-0 text-emerald-600"
+                strokeWidth={2}
+                aria-hidden
+              />
+              <span>
+                <strong className="font-semibold text-slate-900">KI-Upscaler &amp; KI-Texte</strong>{" "}
+                (z.&nbsp;B. Tags, Beschreibungen):{" "}
+                <strong className="font-semibold text-slate-900">eigene API-Keys eintragen</strong>{" "}
+                und nutzen — <strong className="font-semibold text-slate-900">kein Abo</strong> der
+                App für diese Funktionen; du zahlst nur deinen Anbieter nach Nutzung.
+              </span>
+            </li>
+            <li className="flex gap-2.5">
+              <Check
+                size={16}
+                className="mt-0.5 shrink-0 text-amber-600"
+                strokeWidth={2}
+                aria-hidden
+              />
+              <span>
+                <strong className="font-semibold text-slate-900">Kostenpflichtig</strong> sind nur
+                der Bereich <strong className="font-semibold text-slate-900">„Verbreiten“</strong>{" "}
+                (Marketing) und <strong className="font-semibold text-slate-900">„Automatisieren“</strong>{" "}
+                — der Rest der Plattform bleibt frei nutzbar.
+              </span>
+            </li>
+          </ul>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: reduceMotion ? 0 : 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: reduceMotion ? 0.2 : 0.5, delay: reduceMotion ? 0 : 0.4 }}
           className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row"
         >
           <Link
@@ -138,9 +216,13 @@ const Hero = () => (
 
       {/* Floating mockup grid animation */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.9, y: 40 }}
+        initial={{ opacity: 0, scale: reduceMotion ? 1 : 0.9, y: reduceMotion ? 0 : 40 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.9, delay: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+        transition={{
+          duration: reduceMotion ? 0.25 : 0.9,
+          delay: reduceMotion ? 0 : 0.5,
+          ease: [0.25, 0.46, 0.45, 0.94],
+        }}
         className="mx-auto mt-20 max-w-4xl"
       >
         <div className="relative rounded-2xl border border-slate-200/60 bg-white/60 p-6 shadow-xl shadow-slate-200/40 backdrop-blur-md sm:p-10">
@@ -199,6 +281,107 @@ const Hero = () => (
       </motion.div>
     </div>
   </section>
+  );
+};
+
+/* ------------------------------------------------------------------ */
+/*  SECTION — Vier Bereiche (wie Hauptnavigation)                      */
+/* ------------------------------------------------------------------ */
+const PILLARS: {
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  chip: string;
+}[] = [
+  {
+    title: "Erstellen",
+    description:
+      "Vorlagen-Studio, Generator und Etsy-Editor: Mockups aus Vorlagen, Motive und Listings — der Kern deines Shops.",
+    icon: Layers,
+    chip: "Kern",
+  },
+  {
+    title: "Verbreiten",
+    description:
+      "Kostenpflichtiger Marketing-Bereich: Pinterest, KI-Captions und Warteschlange — zusätzliche Reichweite neben deinen Etsy-Listings.",
+    icon: Megaphone,
+    chip: "Social",
+  },
+  {
+    title: "Automatisieren",
+    description:
+      "Kostenpflichtiger Bereich: experimentelle Pipeline mit Etappen von Upscale über SEO und Mockups bis Gelato — transparent im Fortschritt.",
+    icon: Rocket,
+    chip: "Extra",
+  },
+  {
+    title: "Integrationen",
+    description:
+      "Etsy, Gelato, Gemini und Vertex (BYOK), Pinterest-OAuth — einmal verbinden. KI-Upscaler und KI-Texte mit eigenen Keys, ohne App-Abo für diese Funktionen.",
+    icon: Link2,
+    chip: "Ein Konto",
+  },
+];
+
+const PillarCard = ({
+  title,
+  description,
+  icon: Icon,
+  chip,
+  index,
+}: (typeof PILLARS)[number] & { index: number }) => {
+  const reduceMotion = useReducedMotion();
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-60px" });
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: reduceMotion ? 0 : 24 }}
+      animate={inView ? { opacity: 1, y: 0 } : {}}
+      transition={{
+        duration: reduceMotion ? 0.2 : 0.45,
+        delay: reduceMotion ? 0 : index * 0.08,
+        ease: [0.25, 0.46, 0.45, 0.94],
+      }}
+      className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white/70 p-6 shadow-sm backdrop-blur-md transition-all duration-300 hover:shadow-lg"
+    >
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 transition-transform duration-200 group-hover:scale-[1.03]">
+          <Icon size={18} strokeWidth={1.75} />
+        </div>
+        <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+          {chip}
+        </span>
+      </div>
+      <h3 className="mb-2 text-lg font-bold text-slate-900">{title}</h3>
+      <p className="text-sm leading-relaxed text-slate-600">{description}</p>
+    </motion.div>
+  );
+};
+
+const FourPillars = () => (
+  <section id="four-pillars" className="relative border-b border-slate-100 bg-white py-20 lg:py-24">
+    <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-40 bg-gradient-to-b from-indigo-50/50 to-transparent" />
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <FadeIn className="mb-12 text-center">
+        <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-indigo-600">
+          Die Plattform
+        </p>
+        <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+          Vier Bereiche in der App
+        </h2>
+        <p className="mx-auto mt-3 max-w-2xl text-lg text-slate-600">
+          Dieselbe Struktur wie in der App: vier Bereiche für Erstellen, Sichtbarkeit,
+          Automatisierung und technische Anbindungen.
+        </p>
+      </FadeIn>
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        {PILLARS.map((p, i) => (
+          <PillarCard key={p.title} {...p} index={i} />
+        ))}
+      </div>
+    </div>
+  </section>
 );
 
 /* ------------------------------------------------------------------ */
@@ -207,25 +390,33 @@ const Hero = () => (
 const steps = [
   {
     num: "01",
-    title: "Designs hochladen",
+    title: "Motive hochladen",
     description:
-      "Lade deine Designs per Drag & Drop hoch. Das System akzeptiert PNG, JPG und SVG — einzeln oder als Batch mit 20+ Dateien gleichzeitig.",
+      "Zieh deine Motive in den Generator — einzeln oder als Batch. Das sind die Rohdesigns für alle weiteren Schritte.",
     icon: Upload,
     visual: "upload",
   },
   {
     num: "02",
-    title: "Master-Template anwenden",
+    title: "Vorlage wählen — Mockups automatisch",
     description:
-      "Erstelle einmalig ein Mockup-Template. Mit einem Klick wird es auf alle hochgeladenen Designs gleichzeitig angewendet — in Sekunden statt Stunden.",
+      "Deine Mockup-Vorlagen kommen aus dem Vorlagen-Studio (einmalig anlegen). Du wählst nur die Vorlage; alle Mockups werden daraus automatisch generiert — kein manuelles Zusammenklicken pro Bild.",
     icon: Layers,
     visual: "template",
   },
   {
     num: "03",
-    title: "Automatisch publizieren",
+    title: "Titel, Tags & Beschreibung",
     description:
-      "Deine fertigen Mockups werden direkt an Gelato oder Etsy übermittelt. Listings, Bilder und Tags — alles automatisiert.",
+      "Pflege Listing-Texte selbst oder mit KI: Die KI kann sich an aktuelle Markt-Trends und Statistiken orientieren — mit eigenem API-Key (BYOK), ohne Abo der App für diese KI-Funktionen. Beim Multi-Agent-Listing arbeiten mehrere „Agenten“ wie in einer Diskussion zusammen — für stärkere, differenziertere Ergebnisse als ein Einzeiler.",
+    icon: Sparkles,
+    visual: "listing",
+  },
+  {
+    num: "04",
+    title: "Gelato & Etsy-Entwurf",
+    description:
+      "Das Motiv wird mit allen Metadaten nach Gelato übernommen. Bei Etsy entsteht ein Listing-Entwurf mit Texten — du fügst nur noch die generierten Mockup-Bilder ins Listing ein, dann ist der Gang live.",
     icon: Send,
     visual: "publish",
   },
@@ -263,7 +454,7 @@ const StepVisualTemplate = () => (
   <div className="relative mx-auto w-full max-w-sm">
     <div className="mb-4 flex items-center gap-3 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3">
       <Layers className="text-indigo-600" size={20} strokeWidth={1.75} />
-      <span className="text-sm font-semibold text-indigo-800">Master Template</span>
+      <span className="text-sm font-semibold text-indigo-800">Vorlage aus Vorlagen-Studio</span>
     </div>
     <div className="grid grid-cols-3 gap-2">
       {Array.from({ length: 6 }).map((_, i) => (
@@ -287,8 +478,48 @@ const StepVisualTemplate = () => (
       viewport={{ once: true }}
       className="mt-3 text-center text-xs font-medium text-slate-500"
     >
-      6 Mockups in 2.3s generiert
+      Mockups automatisch aus Vorlage
     </motion.p>
+  </div>
+);
+
+const StepVisualListingText = () => (
+  <div className="relative mx-auto w-full max-w-sm space-y-3">
+    <div className="rounded-xl border border-indigo-200 bg-indigo-50/90 px-4 py-3">
+      <div className="flex items-center gap-2 text-xs font-semibold text-indigo-950">
+        <Users size={16} strokeWidth={1.75} className="shrink-0 text-indigo-600" aria-hidden />
+        Multi-Agent Listing
+      </div>
+      <p className="mt-1.5 text-[11px] leading-snug text-indigo-950/85">
+        Mehrere KI-Rollen im Austausch — stärkere Texte als ein Einzeiler, orientiert an
+        aktuellen Trends und Markt-Statistiken.
+      </p>
+    </div>
+    <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+        Titel · Tags · Beschreibung
+      </p>
+      <div className="h-2.5 w-4/5 rounded bg-slate-200" />
+      <div className="flex flex-wrap gap-1.5">
+        {["Sommer", "Poster", "Wohnzimmer"].map((t) => (
+          <span
+            key={t}
+            className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600"
+          >
+            {t}
+          </span>
+        ))}
+      </div>
+      <div className="space-y-1.5">
+        <div className="h-1.5 w-full rounded bg-slate-100" />
+        <div className="h-1.5 w-[92%] rounded bg-slate-100" />
+        <div className="h-1.5 w-[70%] rounded bg-slate-100" />
+      </div>
+      <div className="flex items-center gap-1.5 border-t border-slate-100 pt-2 text-[10px] font-medium text-emerald-800">
+        <Sparkles size={12} className="text-emerald-600" aria-hidden />
+        KI optional · oder manuell
+      </div>
+    </div>
   </div>
 );
 
@@ -296,7 +527,7 @@ const StepVisualPublish = () => (
   <div className="relative mx-auto w-full max-w-sm space-y-4">
     <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-sm font-medium text-slate-700">Publishing…</span>
+        <span className="text-sm font-medium text-slate-700">Export &amp; Etsy-Entwurf…</span>
         <span className="text-xs font-semibold text-indigo-600">100%</span>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-slate-100">
@@ -309,28 +540,74 @@ const StepVisualPublish = () => (
         />
       </div>
     </div>
-    {["Gelato Storefront", "Etsy Listing"].map((label, i) => (
+    {[
+      { title: "Gelato", sub: "Produkt, Bilder, Tags, Beschreibung" },
+      { title: "Etsy", sub: "Listing-Entwurf mit Texten" },
+    ].map(({ title, sub }, i) => (
       <motion.div
-        key={label}
+        key={title}
         initial={{ opacity: 0, x: 20 }}
         whileInView={{ opacity: 1, x: 0 }}
         transition={{ delay: 1.5 + i * 0.2, duration: 0.4 }}
         viewport={{ once: true }}
-        className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3"
+        className="flex flex-col gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 sm:flex-row sm:items-center"
       >
-        <Check className="text-emerald-600" size={18} strokeWidth={2} />
-        <span className="text-sm font-semibold text-emerald-800">{label}</span>
-        <span className="ml-auto rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
-          Published
+        <Check className="shrink-0 text-emerald-600 sm:mt-0" size={18} strokeWidth={2} aria-hidden />
+        <div className="min-w-0 flex-1">
+          <span className="text-sm font-semibold text-emerald-900">{title}</span>
+          <p className="text-xs text-emerald-800/90">{sub}</p>
+        </div>
+        <span className="shrink-0 self-start rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 sm:self-center">
+          {i === 0 ? "Synchron" : "Entwurf"}
         </span>
       </motion.div>
     ))}
+    <p className="text-center text-xs leading-relaxed text-slate-500">
+      Letzter Schritt auf Etsy: die generierten Mockup-Bilder ins Listing legen — dann
+      veröffentlichen.
+    </p>
+  </div>
+);
+
+const StepVisualAfterFlow = () => (
+  <div className="mx-auto w-full max-w-md rounded-xl border border-violet-200/80 bg-gradient-to-br from-violet-50/90 to-white p-6 shadow-sm">
+    <div className="mb-3 flex flex-wrap items-center gap-2 text-violet-900">
+      <Rocket size={18} strokeWidth={1.75} aria-hidden />
+      <span className="text-sm font-semibold">Automatisieren</span>
+      <span className="ml-auto rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-900">
+        Kostenpflichtig · Vorschau
+      </span>
+    </div>
+    <p className="mb-4 text-xs leading-relaxed text-violet-900/90">
+      Für große Serien: experimentelle Pipeline mit Etappen (u. a. Upscale, SEO, Mockups,
+      Gelato) — <strong className="font-semibold">kostenpflichtiger Bereich</strong>, nicht der
+      gleiche Weg wie der kostenlose Kern-Workflow oben.
+    </p>
+    <div className="flex flex-col gap-2">
+      {["Upscale", "SEO", "Mockups", "Gelato"].map((label, i) => (
+        <motion.div
+          key={label}
+          initial={{ opacity: 0, scale: 0.98 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.08 + i * 0.07, duration: 0.25 }}
+          viewport={{ once: true }}
+          className="flex items-center gap-2 rounded-lg border border-violet-100 bg-white/90 px-3 py-2 text-xs font-medium text-violet-900"
+        >
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-violet-100 text-[10px] font-bold text-violet-700">
+            {i + 1}
+          </span>
+          {label}
+          <Check className="ml-auto text-emerald-600" size={14} strokeWidth={2} aria-hidden />
+        </motion.div>
+      ))}
+    </div>
   </div>
 );
 
 const STEP_VISUALS: Record<string, React.FC> = {
   upload: StepVisualUpload,
   template: StepVisualTemplate,
+  listing: StepVisualListingText,
   publish: StepVisualPublish,
 };
 
@@ -350,8 +627,12 @@ const HowItWorks = () => {
             So funktioniert&apos;s
           </p>
           <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
-            Drei Schritte. Null Handarbeit.
+            Vier Schritte — vom Motiv zum Etsy-Entwurf
           </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-lg text-slate-600">
+            Der gesamte Kernablauf der Plattform an einem Ort: Kurztexte links, Beispiele
+            rechts — von Rohmotiv bis Gelato und Etsy-Entwurf.
+          </p>
         </FadeIn>
 
         <div className="relative">
@@ -387,6 +668,27 @@ const HowItWorks = () => {
               );
             })}
           </div>
+
+          <div
+            id="after-core-flow"
+            className="mt-24 border-t border-slate-200 pt-20 lg:mt-32 lg:pt-28"
+          >
+            <FadeIn className="mb-10 text-center">
+              <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-indigo-600">
+                Noch mehr
+              </p>
+              <h3 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                Automatisierungs-Pipeline
+              </h3>
+              <p className="mx-auto mt-3 max-w-2xl text-base text-slate-600">
+                Zusätzlich zum manuellen Kern-Workflow: eine experimentelle Pipeline für
+                viele Motive auf einmal — mit klaren Etappen und Fortschritt pro Motiv.
+              </p>
+            </FadeIn>
+            <FadeIn delay={0.1}>
+              <StepVisualAfterFlow />
+            </FadeIn>
+          </div>
         </div>
       </div>
     </section>
@@ -394,7 +696,66 @@ const HowItWorks = () => {
 };
 
 /* ------------------------------------------------------------------ */
-/*  SECTION 3 — Bento Grid                                             */
+/*  SECTION — Zusatzmodule (Upscaler & Verbreiten getrennt)            */
+/* ------------------------------------------------------------------ */
+const ExtraModules = () => (
+  <section id="extra-modules" className="border-b border-slate-100 bg-white py-20 lg:py-24">
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <FadeIn className="mb-12 text-center">
+        <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-indigo-600">
+          Optional
+        </p>
+        <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+          Zusatzmodule — einzeln nutzbar
+        </h2>
+        <p className="mx-auto mt-3 max-w-2xl text-lg text-slate-600">
+          <span className="font-medium text-slate-800">
+            KI-Upscaler (Vertex, BYOK) und Verbreiten (Pinterest)
+          </span>{" "}
+          sind zusätzliche Module: den Upscaler nutzt du mit eigenem API-Key —{" "}
+          <span className="font-medium text-slate-800">kein Abo der App</span> für diese
+          KI-Funktion. <span className="font-medium text-slate-800">Verbreiten (Marketing)</span>{" "}
+          ist kostenpflichtig und vom kostenlosen Kern-Workflow getrennt.
+        </p>
+      </FadeIn>
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+        <FadeIn>
+          <div className="flex h-full flex-col rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-8 shadow-sm">
+            <div className="mb-4 inline-flex w-fit items-center gap-2 rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-900">
+              <Maximize size={14} strokeWidth={1.75} aria-hidden />
+              KI-Upscaler
+            </div>
+            <h3 className="text-xl font-bold text-slate-900">Vertex · Bildqualität hochfahren</h3>
+            <p className="mt-3 flex-1 text-sm leading-relaxed text-slate-600">
+              Eigenes Google-Cloud-Dienstkonto (BYOK): API-Key eintragen und nutzen —{" "}
+              <strong className="font-semibold text-slate-800">kein Abo der App</strong> für den
+              Upscaler. Motive vor dem Export oder für den Druck hochskalieren; im Generator
+              nutzt du parallel KI für Texte/Tags ebenfalls mit eigenem Key (Gemini).
+            </p>
+          </div>
+        </FadeIn>
+        <FadeIn delay={0.08}>
+          <div className="flex h-full flex-col rounded-2xl border border-rose-200/80 bg-gradient-to-br from-rose-50/80 to-white p-8 shadow-sm">
+            <div className="mb-4 inline-flex w-fit items-center gap-2 rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-900">
+              <Megaphone size={14} strokeWidth={1.75} aria-hidden />
+              Verbreiten · Marketing
+            </div>
+            <h3 className="text-xl font-bold text-slate-900">Pinterest &amp; Sichtbarkeit</h3>
+            <p className="mt-3 flex-1 text-sm leading-relaxed text-slate-600">
+              <strong className="font-semibold text-slate-800">Kostenpflichtiger Marketing-Bereich:</strong>{" "}
+              Pinterest verbinden, Boards wählen, Pins mit KI-Captions aus der Warteschlange
+              posten — Reichweite neben Etsy (Bereich „Verbreiten“), unabhängig vom kostenlosen
+              Haupt-Tool.
+            </p>
+          </div>
+        </FadeIn>
+      </div>
+    </div>
+  </section>
+);
+
+/* ------------------------------------------------------------------ */
+/*  SECTION 3 — Bento Grid (2×2)                                       */
 /* ------------------------------------------------------------------ */
 const BentoGrid = () => (
   <section className="bg-white py-24 lg:py-32">
@@ -404,118 +765,146 @@ const BentoGrid = () => (
           Features
         </p>
         <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
-          Alles, was du brauchst.
+          Alles im Überblick
         </h2>
         <p className="mx-auto mt-4 max-w-2xl text-lg text-slate-600">
-          Von der Mockup-Erstellung über den automatischen Upload bis zur Nischen-Analyse
-          — in einer Plattform.
+          Funktionen und Anbindungen im Überblick — ohne den Ablauf von oben zu wiederholen.
         </p>
       </FadeIn>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        {/* Box 1 — Gelato (large, 2 cols) */}
-        <FadeIn className="md:col-span-2">
-          <div className="group relative h-full overflow-hidden rounded-2xl border border-slate-200 bg-white/60 p-8 shadow-sm backdrop-blur-md transition-all duration-300 hover:shadow-lg">
-            <div className="mb-6">
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
-                <Package size={14} /> Gelato Integration
-              </div>
-              <h3 className="mb-2 text-xl font-bold text-slate-900">
-                Direct Gelato Sync
-              </h3>
-              <p className="max-w-md text-sm text-slate-600 leading-relaxed">
-                Dein Design geht direkt in die Gelato-Pipeline. Produkt erstellen,
-                Mockups generieren, veröffentlichen — alles in einem Flow.
-              </p>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <FadeIn>
+          <div className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/60 p-8 shadow-sm backdrop-blur-md transition-all duration-300 hover:shadow-lg">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+              <Layers size={14} strokeWidth={1.75} /> Erstellen
             </div>
-            {/* Abstract pipeline visualization */}
-            <div className="flex items-center gap-3">
-              {[
-                { label: "Design", icon: FileImage, bg: "bg-indigo-100 text-indigo-600" },
-                { label: "Mockup", icon: Layers, bg: "bg-violet-100 text-violet-600" },
-                { label: "Gelato", icon: Rocket, bg: "bg-emerald-100 text-emerald-600" },
-              ].map((node, j) => (
-                <motion.div key={node.label} className="flex items-center gap-3">
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.2 + j * 0.15, duration: 0.4 }}
-                    viewport={{ once: true }}
-                    className={`flex items-center gap-2 rounded-lg ${node.bg} px-4 py-2.5`}
-                  >
-                    <node.icon size={16} strokeWidth={1.75} />
-                    <span className="text-sm font-medium">{node.label}</span>
-                  </motion.div>
-                  {j < 2 && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      whileInView={{ opacity: 1 }}
-                      transition={{ delay: 0.3 + j * 0.15 }}
-                      viewport={{ once: true }}
-                    >
-                      <ArrowRight className="text-slate-300" size={18} />
-                    </motion.div>
-                  )}
+            <h3 className="mb-2 text-xl font-bold text-slate-900">
+              Generator, Vorlagen-Studio, Etsy
+            </h3>
+            <p className="mb-6 flex-1 text-sm leading-relaxed text-slate-600">
+              Mockups aus Vorlagen erzeugen, Sets im Vorlagen-Studio pflegen und Etsy-Listings
+              bearbeiten — der zentrale Arbeitsbereich für deinen Shop.
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              {[Layers, FolderOpen, ShoppingBag].map((Ic, j) => (
+                <motion.div
+                  key={j}
+                  initial={{ opacity: 0, y: 6 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.05 + j * 0.06, duration: 0.25 }}
+                  viewport={{ once: true }}
+                  className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700"
+                >
+                  <Ic size={18} strokeWidth={1.75} />
                 </motion.div>
               ))}
             </div>
           </div>
         </FadeIn>
 
-        {/* Box 2 — Mockup Engine */}
-        <FadeIn delay={0.15}>
-          <div className="group relative h-full overflow-hidden rounded-2xl border border-slate-200 bg-white/60 p-8 shadow-sm backdrop-blur-md transition-all duration-300 hover:shadow-lg">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">
-              <Layers size={14} /> Mockup Engine
+        <FadeIn delay={0.08}>
+          <div className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/60 p-8 shadow-sm backdrop-blur-md transition-all duration-300 hover:shadow-lg">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-800">
+              <Megaphone size={14} strokeWidth={1.75} /> Verbreiten
             </div>
             <h3 className="mb-2 text-xl font-bold text-slate-900">
-              Create Once, Use Forever
+              Verbreiten
             </h3>
-            <p className="mb-6 text-sm text-slate-600 leading-relaxed">
-              Ein Master-Template. Unendlich viele Outputs. Lade 20 Designs hoch und
-              erhalte in Sekunden 100+ fertige Mockups.
+            <p className="mb-6 flex-1 text-sm leading-relaxed text-slate-600">
+              <strong className="font-semibold text-slate-800">Kostenpflichtiger Marketing-Bereich:</strong>{" "}
+              Pinterest anbinden, Boards wählen und Pins mit KI-Captions aus der Warteschlange
+              — für Reichweite neben Etsy.
             </p>
-            <div className="flex items-start gap-4">
-              <motion.div
-                initial={{ opacity: 0 }}
-                whileInView={{ opacity: 1 }}
-                transition={{ delay: 0.3 }}
-                viewport={{ once: true }}
-                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border-2 border-dashed border-indigo-300 bg-indigo-50 text-indigo-600"
-              >
-                <Layers size={24} strokeWidth={1.5} />
-              </motion.div>
-              <div className="grid grid-cols-3 gap-1.5">
-                {Array.from({ length: 9 }).map((_, k) => (
-                  <motion.div
-                    key={k}
-                    initial={{ opacity: 0, scale: 0.5 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.4 + k * 0.04, duration: 0.25 }}
-                    viewport={{ once: true }}
-                    className={`h-6 w-6 rounded ${MOCKUP_COLORS[k] ?? "bg-slate-200"} opacity-70`}
-                  />
-                ))}
-              </div>
+            <div className="flex items-center gap-2 rounded-xl border border-rose-100 bg-rose-50/50 px-4 py-3">
+              <Sparkles size={18} className="text-rose-600" strokeWidth={1.75} />
+              <span className="text-sm font-medium text-rose-900">KI · Captions &amp; Queue</span>
             </div>
           </div>
         </FadeIn>
 
-        {/* Box 3 — Etsy Analytics (full width on md) */}
-        <FadeIn delay={0.1} className="md:col-span-3">
+        <FadeIn delay={0.05}>
+          <div className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/60 p-8 shadow-sm backdrop-blur-md transition-all duration-300 hover:shadow-lg">
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-2 rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-800">
+                <Rocket size={14} strokeWidth={1.75} /> Automatisieren
+              </span>
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900">
+                Kostenpflichtig · Vorschau
+              </span>
+            </div>
+            <h3 className="mb-2 text-xl font-bold text-slate-900">
+              Pipeline: mehrere Motive, klare Etappen
+            </h3>
+            <p className="mb-6 flex-1 text-sm leading-relaxed text-slate-600">
+              Experimenteller Lauf mit Phasen wie Upscale, SEO, Mockups und Gelato —{" "}
+              <strong className="font-semibold text-slate-800">kostenpflichtiger Bereich</strong>;
+              Status pro Motiv, nicht produktionsreif, aber transparenter Überblick.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {["Upscale", "SEO", "Mockups", "Gelato"].map((label, i) => (
+                <motion.span
+                  key={label}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.1 + i * 0.05, duration: 0.2 }}
+                  viewport={{ once: true }}
+                  className="rounded-lg bg-violet-100/80 px-2.5 py-1 text-xs font-medium text-violet-900"
+                >
+                  {label}
+                </motion.span>
+              ))}
+            </div>
+          </div>
+        </FadeIn>
+
+        <FadeIn delay={0.12}>
+          <div className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/60 p-8 shadow-sm backdrop-blur-md transition-all duration-300 hover:shadow-lg">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-900">
+              <Link2 size={14} strokeWidth={1.75} /> Integrationen
+            </div>
+            <h3 className="mb-2 text-xl font-bold text-slate-900">
+              Etsy, Gelato, KI, Pinterest
+            </h3>
+            <p className="mb-6 flex-1 text-sm leading-relaxed text-slate-600">
+              OAuth für Etsy und Pinterest, Gelato-Store und API, Gemini für Texte sowie
+              Vertex für den Upscaler (BYOK) — zentral konfiguriert.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { label: "Etsy", icon: ShoppingBag },
+                { label: "Gelato", icon: Package },
+                { label: "Gemini", icon: Sparkles },
+                { label: "Vertex", icon: Maximize },
+              ].map(({ label, icon: Ic }, i) => (
+                <motion.span
+                  key={label}
+                  initial={{ opacity: 0 }}
+                  whileInView={{ opacity: 1 }}
+                  transition={{ delay: 0.08 + i * 0.05 }}
+                  viewport={{ once: true }}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700"
+                >
+                  <Ic size={12} strokeWidth={1.75} className="text-slate-500" />
+                  {label}
+                </motion.span>
+              ))}
+            </div>
+          </div>
+        </FadeIn>
+
+        <FadeIn delay={0.06} className="md:col-span-2">
           <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white/60 p-8 shadow-sm backdrop-blur-md transition-all duration-300 hover:shadow-lg">
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:items-center">
               <div>
-                <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-                  <BarChart3 size={14} /> Etsy Analytics
+                <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">
+                  <BarChart3 size={14} strokeWidth={1.75} /> Etsy Analytics
                 </div>
                 <h3 className="mb-2 text-xl font-bold text-slate-900">
-                  Etsy Niche &amp; Listing Analytics
+                  Nischen &amp; Listings
                 </h3>
-                <p className="max-w-md text-sm text-slate-600 leading-relaxed">
-                  Analysiere Listings, finde profitable Nischen und tracke
-                  Competitor-Tags. Datengetriebene Entscheidungen für dein
-                  Etsy-Business.
+                <p className="max-w-md text-sm leading-relaxed text-slate-600">
+                  Listings analysieren, Tags und Trends im Blick — ergänzend zu
+                  Erstellung und Verbreitung.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
                   {["Wall Art", "Poster", "T-Shirt", "Mug", "Tote Bag"].map((tag) => (
@@ -528,8 +917,7 @@ const BentoGrid = () => (
                   ))}
                 </div>
               </div>
-              <div className="flex h-32 items-end gap-2 self-end">
-                {/* Abstract chart bars */}
+              <div className="flex h-32 items-end gap-2">
                 {[35, 52, 44, 65, 58, 78, 70, 90, 85, 95].map((h, idx) => (
                   <motion.div
                     key={idx}
@@ -555,12 +943,17 @@ const BentoGrid = () => (
 const MARQUEE_ITEMS = [
   { icon: ShoppingBag, label: "Etsy" },
   { icon: Package, label: "Gelato" },
+  { icon: Sparkles, label: "KI · Gemini" },
+  { icon: Maximize, label: "Upscaler · Vertex" },
+  { icon: Megaphone, label: "Pinterest" },
+  { icon: FolderOpen, label: "Vorlagen-Studio" },
   { icon: TrendingUp, label: "Analytics" },
   { icon: Layers, label: "Mockups" },
-  { icon: Rocket, label: "Automation" },
+  { icon: Rocket, label: "Pipeline" },
   { icon: Search, label: "Niche Research" },
   { icon: FileImage, label: "Templates" },
   { icon: Send, label: "Publishing" },
+  { icon: Link2, label: "Integrationen" },
 ];
 
 const Marquee = () => (
@@ -614,8 +1007,9 @@ const FinalCTA = () => (
           </span>
         </h2>
         <p className="mx-auto mt-6 max-w-xl text-lg text-slate-600">
-          Spare Stunden pro Woche. Automatisiere deinen gesamten Print-on-Demand Workflow
-          — von der Idee bis zum fertigen Listing.
+          Motive, Vorlagen-Mockups, Listing-Texte mit oder ohne KI (eigene API-Keys), Gelato-Export
+          und Etsy-Listing-Entwurf — der Kern kostenlos; KI-Upscaler &amp; Co. per BYOK ohne
+          App-Abo. Marketing &amp; Automatisierung kostenpflichtig.
         </p>
         <div className="mt-10">
           <Link
@@ -670,6 +1064,12 @@ export const LandingPage = () => (
           >
             So funktioniert&apos;s
           </a>
+          <a
+            href="#four-pillars"
+            className="hidden text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 sm:inline"
+          >
+            Bereiche
+          </a>
           <Link
             to="/login"
             className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-indigo-700"
@@ -682,6 +1082,8 @@ export const LandingPage = () => (
 
     <Hero />
     <HowItWorks />
+    <FourPillars />
+    <ExtraModules />
     <BentoGrid />
     <Marquee />
     <FinalCTA />

@@ -29,6 +29,7 @@ import { cn } from "../../lib/cn";
 import { getErrorMessage } from "../../lib/error";
 import { toast } from "../../lib/toast";
 import { useAppStore } from "../../store/appStore";
+import { AppPage } from "../ui/AppPage";
 import { Button } from "../ui/Button";
 
 const POLL_MS = 2000;
@@ -470,6 +471,7 @@ export const AutomationView = () => {
   const templateSets = useAppStore((s) => s.templateSets);
   const globalSetId = useAppStore((s) => s.globalSetId);
   const setActiveTab = useAppStore((s) => s.setActiveTab);
+  const setWorkspaceTab = useAppStore((s) => s.setWorkspaceTab);
   const setEditingSetId = useAppStore((s) => s.setEditingSetId);
   useLoadTemplateSets({ silent: true });
 
@@ -583,9 +585,21 @@ export const AutomationView = () => {
   }, [stopPoll]);
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8">
+    <AppPage>
+      <div
+        role="status"
+        className="rounded-xl border border-dashed border-amber-300/80 bg-amber-50/90 px-4 py-3 text-center text-sm text-amber-950 shadow-sm"
+      >
+        <p className="font-semibold">Automation — Vorschau, nicht produktionsreif</p>
+        <p className="mt-1 text-xs text-amber-900/90">
+          Pipeline und Anbindungen sind experimentell. Nutze für zuverlässige Abläufe
+          den Bereich <span className="font-medium">Erstellen</span> (Generator, Vorlagen)
+          und <span className="font-medium">Integrationen</span>.
+        </p>
+      </div>
+
       <div className="text-center">
-        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-violet-50">
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-violet-50 opacity-90">
           <Rocket size={24} className="text-violet-600" />
         </div>
         <h1 className="text-xl font-semibold text-slate-900">Automation</h1>
@@ -610,7 +624,8 @@ export const AutomationView = () => {
             type="button"
             className="mt-3 border-amber-300 bg-white text-amber-950 hover:bg-amber-100"
             onClick={() => {
-              setActiveTab("templates");
+              setActiveTab("workspace");
+              setWorkspaceTab("templates");
               setEditingSetId(null);
             }}
           >
@@ -751,6 +766,6 @@ export const AutomationView = () => {
           </motion.div>
         ) : null}
       </AnimatePresence>
-    </div>
+    </AppPage>
   );
 };

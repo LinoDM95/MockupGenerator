@@ -19,6 +19,8 @@ _CLOUD_PLATFORM_SCOPE = "https://www.googleapis.com/auth/cloud-platform"
 MAX_OUTPUT_PIXELS = 17_000_000
 OVERLAP_SRC = 64
 VALID_FACTORS: dict[str, int] = {"x2": 2, "x4": 4}
+# Mindest-Skalierung vor Tiling (isotrop), um API-Kacheln zu sparen; zu starke Reduktion vermeiden.
+SMART_SCALE_MIN = 0.85
 
 
 class UpscaleError(Exception):
@@ -184,6 +186,13 @@ def _upscale_single(
     return _call_upscale_api(client, pil_img, factor_str, project_id)
 
 
+def _tiling_grid_dims(w: int, h: int, overlap: int, step: int) -> tuple[int, int]:
+    """Spalten/Zeilen wie in _upscale_tiled: ceil((dim - overlap) / step), mind. 1."""
+    cols = max(1, math.ceil((w - overlap) / step))
+    rows = max(1, math.ceil((h - overlap) / step))
+    return cols, rows
+
+
 def _build_blend_mask(
     tile_w: int,
     tile_h: int,
@@ -225,9 +234,10 @@ def _upscale_tiled(
         ) from exc
 
     factor_str = f"x{factor_int}"
-    w, h = pil_img.size
-    target_w, target_h = w * factor_int, h * factor_int
+    orig_w, orig_h = pil_img.size
+    w, h = orig_w, orig_h
 
+    # floor(sqrt(MAX_OUTPUT_PIXELS)) / factor — max. Kachel in Quellpixeln pro Kante
     max_tile_px = int(math.isqrt(MAX_OUTPUT_PIXELS))
     max_tile_src = max_tile_px // factor_int
 
@@ -240,13 +250,68 @@ def _upscale_tiled(
     overlap = min(OVERLAP_SRC, max_tile_src // 4)
     step = max_tile_src - overlap
 
-    cols = max(1, math.ceil((w - overlap) / step))
-    rows = max(1, math.ceil((h - overlap) / step))
+    cols, rows = _tiling_grid_dims(w, h, overlap, step)
     total_tiles = cols * rows
+
+    # Smart-Scaling: knapp über einer Kachelgrenze isotrop verkleinern, um eine Zeile/Spalte
+    # einzusparen (max. ~15 % Fläche), wenn die Gittergrenze das zulässt.
+    # w_cap/h_cap: größte Breite/Höhe mit genau cols-1 bzw. rows-1 Kacheln (ceil((dim-overlap)/step)==k).
+    smart_scale_applied = False
+    candidates: list[tuple[float, str, int, int, int, int]] = []
+    if total_tiles > 1:
+        if rows > 1:
+            h_cap = (rows - 1) * step + overlap
+            s_row = h_cap / float(h)
+            if s_row < 1.0 and s_row >= SMART_SCALE_MIN - 1e-12:
+                w_n = max(1, round(orig_w * s_row))
+                h_n = max(1, round(orig_h * s_row))
+                c2, r2 = _tiling_grid_dims(w_n, h_n, overlap, step)
+                if c2 * r2 < total_tiles:
+                    candidates.append((s_row, "fewer_rows", c2, r2, w_n, h_n))
+        if cols > 1:
+            w_cap = (cols - 1) * step + overlap
+            s_col = w_cap / float(w)
+            if s_col < 1.0 and s_col >= SMART_SCALE_MIN - 1e-12:
+                w_n = max(1, round(orig_w * s_col))
+                h_n = max(1, round(orig_h * s_col))
+                c2, r2 = _tiling_grid_dims(w_n, h_n, overlap, step)
+                if c2 * r2 < total_tiles:
+                    candidates.append((s_col, "fewer_cols", c2, r2, w_n, h_n))
+
+        if candidates:
+            best_s, how, cols, rows, w, h = max(candidates, key=lambda t: t[0])
+            total_tiles = cols * rows
+            smart_scale_applied = True
+            pil_img = pil_img.resize((w, h), PILImage.Resampling.LANCZOS)
+            oc0, or0 = _tiling_grid_dims(orig_w, orig_h, overlap, step)
+            tiles_before = oc0 * or0
+            logger.info(
+                "Smart-scale tiled upscale: optimized input %dx%d -> %dx%d (%s, s=%.4f) "
+                "API tiles %d -> %d (was %dx%d grid)",
+                orig_w,
+                orig_h,
+                w,
+                h,
+                how,
+                best_s,
+                tiles_before,
+                total_tiles,
+                oc0,
+                or0,
+            )
+
+    target_w, target_h = w * factor_int, h * factor_int
 
     logger.info(
         "Tiled upscale: %dx%d -> %dx%d, grid %dx%d (%d tiles), overlap=%dpx",
-        w, h, target_w, target_h, cols, rows, total_tiles, overlap,
+        w,
+        h,
+        target_w,
+        target_h,
+        cols,
+        rows,
+        total_tiles,
+        overlap,
     )
 
     overlap_out = overlap * factor_int
@@ -293,7 +358,13 @@ def _upscale_tiled(
     result /= weights[:, :, np.newaxis]
     result = np.clip(result, 0, 255).astype(np.uint8)
 
-    return PILImage.fromarray(result, "RGB")
+    out = PILImage.fromarray(result, "RGB")
+    if smart_scale_applied:
+        out = out.resize(
+            (orig_w * factor_int, orig_h * factor_int),
+            PILImage.Resampling.LANCZOS,
+        )
+    return out
 
 
 def upscale_image(

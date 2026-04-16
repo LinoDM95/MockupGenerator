@@ -30,9 +30,12 @@ import type { ArtworkMetadata, GelatoTemplate } from "../../api/gelato";
 import { cn } from "../../lib/cn";
 import { getErrorMessage } from "../../lib/error";
 import { toast } from "../../lib/toast";
+import { useIntegrationFlags } from "../../hooks/useIntegrationFlags";
 import { useAiActivityStore } from "../../store/aiActivityStore";
+import { useAppStore } from "../../store/appStore";
 import type { ArtworkItem } from "../../types/mockup";
 import { Button } from "../ui/Button";
+import { IntegrationMissingCallout } from "../ui/IntegrationMissingCallout";
 import { Input } from "../ui/Input";
 import { Select } from "../ui/Select";
 import {
@@ -319,6 +322,10 @@ export const GelatoExportModal = ({
   const [expertFallbackBanner, setExpertFallbackBanner] = useState<string | null>(null);
   const [expertStepLabel, setExpertStepLabel] = useState("");
   const expertAbortRef = useRef<AbortController | null>(null);
+
+  const { gelato: gelatoIntegrationOk, loading: integrationFlagsLoading } =
+    useIntegrationFlags();
+  const goToIntegrationWizardStep = useAppStore((s) => s.goToIntegrationWizardStep);
 
   useEffect(() => {
     void (async () => {
@@ -835,6 +842,15 @@ export const GelatoExportModal = ({
 
         {/* Body */}
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          {!integrationFlagsLoading && !gelatoIntegrationOk ? (
+            <IntegrationMissingCallout
+              className="mb-4"
+              title="Gelato ist nicht verbunden"
+              description="Ohne API-Verbindung kann kein Export zu Gelato gestartet werden. Richte Gelato im Assistenten ein oder unter „Alle Integrationen“."
+              actionLabel="Gelato einrichten"
+              onSetup={() => goToIntegrationWizardStep(1)}
+            />
+          ) : null}
           {step === 1 ? (
             <div className="space-y-5">
               {/* Template + Shipping */}
@@ -855,6 +871,16 @@ export const GelatoExportModal = ({
                   ))
                 )}
               </Select>
+
+              {!aiConnected ? (
+                <IntegrationMissingCallout
+                  variant="slate"
+                  title="Gemini (KI) ist nicht verbunden"
+                  description="Für automatische Listing-Texte brauchst du einen Gemini-API-Key. Du kannst Metadaten auch manuell eintragen."
+                  actionLabel="Gemini einrichten"
+                  onSetup={() => goToIntegrationWizardStep(2)}
+                />
+              ) : null}
 
               {/* AI bulk section */}
               {aiConnected && (
@@ -1106,11 +1132,11 @@ export const GelatoExportModal = ({
                 />
                 <div>
                   <span className="text-sm font-medium text-slate-700">
-                    ZIP mit Haupt-Mockup herunterladen
+                    Mockup-ZIP herunterladen
                   </span>
                   <p className="text-xs text-slate-500">
-                    Parallel zum Gelato-Export wird eine ZIP-Datei mit dem ersten Mockup
-                    pro Motiv erstellt und heruntergeladen.
+                    Parallel zum Gelato-Export wird eine ZIP mit allen Vorlagen pro Motiv
+                    (Ordner pro Motiv) erzeugt und heruntergeladen — optional abschaltbar.
                   </p>
                 </div>
               </label>
@@ -1285,8 +1311,9 @@ export const GelatoExportModal = ({
                     <span className="font-medium">Expert-Modus (Multi-Agent)</span>
                     <span className="mt-0.5 block text-slate-500">
                       Trend-Scout, Kritiker und Editor nacheinander — War Room hier, Verlauf unten rechts
-                      unter „KI“. Standard kommt aus dem Tab{" "}
-                      <span className="font-medium text-slate-600">KI</span> (Multi-Agent Listing).
+                      unter „KI“. Standard kommt aus{" "}
+                      <span className="font-medium text-slate-600">Integrationen → Gemini (KI)</span>{" "}
+                      (Multi-Agent Listing).
                     </span>
                   </span>
                 </label>

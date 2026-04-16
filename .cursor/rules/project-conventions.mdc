@@ -24,6 +24,8 @@ frontend/frontend/ → React 19 + Vite 8 + TypeScript 6 + Tailwind 4 SPA
   src/types/      → Zentrale TypeScript-Definitionen
 ```
 
+**Layout & Navigation (Frontend):** App Shell, Hauptnavigation, Breitenregeln und `SubNavTab` — siehe `.cursor/rules/frontend-patterns.mdc` (Abschnitt „App Shell & Navigation“).
+
 ## Datenmodell-Hierarchie
 
 `User → TemplateSet → Template (mit ImageField) → TemplateElement (type + JSON payload)`

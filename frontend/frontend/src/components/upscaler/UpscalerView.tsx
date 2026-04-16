@@ -25,9 +25,12 @@ import {
   upscaleImage,
 } from "../../api/upscaler";
 import { ApiError } from "../../api/client";
+import { triggerAnchorDownload } from "../../lib/download";
 import { getErrorMessage } from "../../lib/error";
 import { toast } from "../../lib/toast";
 import { useAppStore } from "../../store/appStore";
+import { AppPage } from "../ui/AppPage";
+import { BlockingProgressOverlay } from "../ui/BlockingProgressOverlay";
 import { Button } from "../ui/Button";
 import { Dropzone } from "../ui/Dropzone";
 
@@ -61,9 +64,17 @@ const safeZipBaseName = (name: string, index: number): string => {
   return base.replace(/[/\\?%*:|"<>]/g, "_").slice(0, 120);
 };
 
+const JS_STORE = { compression: "STORE" as const };
+
+const yieldToMain = () =>
+  new Promise<void>((resolve) => {
+    requestAnimationFrame(() => resolve());
+  });
+
 export const UpscalerView = () => {
   const activeTab = useAppStore((s) => s.activeTab);
-  const setActiveTab = useAppStore((s) => s.setActiveTab);
+  const workspaceTab = useAppStore((s) => s.workspaceTab);
+  const goToIntegrationWizardStep = useAppStore((s) => s.goToIntegrationWizardStep);
   const setEditingSetId = useAppStore((s) => s.setEditingSetId);
 
   const [items, setItems] = useState<BatchItem[]>([]);
@@ -77,6 +88,14 @@ export const UpscalerView = () => {
   const [progressIdx, setProgressIdx] = useState(0);
   const [progressTotal, setProgressTotal] = useState(0);
 
+  const [isBuildingZip, setIsBuildingZip] = useState(false);
+  const [zipProgress, setZipProgress] = useState({
+    current: 0,
+    total: 1,
+    message: "",
+    packPercent: null as number | null,
+  });
+
   const itemsRef = useRef(items);
   itemsRef.current = items;
 
@@ -88,7 +107,7 @@ export const UpscalerView = () => {
   }, []);
 
   useEffect(() => {
-    if (activeTab !== "upscaler") return;
+    if (activeTab !== "workspace" || workspaceTab !== "upscaler") return;
     void (async () => {
       try {
         const s = await aiStatus();
@@ -97,7 +116,7 @@ export const UpscalerView = () => {
         setVertexReady(false);
       }
     })();
-  }, [activeTab]);
+  }, [activeTab, workspaceTab]);
 
   useEffect(
     () => () => {
@@ -180,7 +199,7 @@ export const UpscalerView = () => {
     if (!items.length || isProcessing) return;
     if (!vertexReady) {
       toast.error(
-        "Bitte zuerst unter KI-Integration ein Vertex-Dienstkonto hinterlegen.",
+        "Bitte zuerst unter Integrationen → Gemini (KI) ein Vertex-Dienstkonto hinterlegen.",
       );
       return;
     }
@@ -303,19 +322,60 @@ export const UpscalerView = () => {
       toast.error("Keine fertigen Bilder fuer den ZIP-Download.");
       return;
     }
-    const zip = new JSZip();
-    done.forEach((it, index) => {
-      const name = `${safeZipBaseName(it.file.name, index)}_upscaled.png`;
-      zip.file(name, it.resultBlob!);
+    setIsBuildingZip(true);
+    setZipProgress({
+      current: 0,
+      total: done.length,
+      message: "ZIP wird zusammengestellt …",
+      packPercent: null,
     });
-    const blob = await zip.generateAsync({ type: "blob" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `upscaled_batch_${Date.now()}.zip`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("ZIP heruntergeladen.");
+
+    try {
+      const zip = new JSZip();
+      for (let index = 0; index < done.length; index++) {
+        const it = done[index]!;
+        const name = `${safeZipBaseName(it.file.name, index)}_upscaled.png`;
+        zip.file(name, it.resultBlob!, JS_STORE);
+        setZipProgress({
+          current: index + 1,
+          total: done.length,
+          message: `Dateien ${index + 1}/${done.length} …`,
+          packPercent: null,
+        });
+        await yieldToMain();
+      }
+
+      setZipProgress({
+        current: done.length,
+        total: done.length,
+        message: "ZIP wird gepackt …",
+        packPercent: 0,
+      });
+
+      const blob = await zip.generateAsync({ type: "blob" }, (meta) => {
+        if (meta.percent != null) {
+          setZipProgress((prev) => ({
+            ...prev,
+            packPercent: meta.percent,
+            message: `ZIP wird gepackt … ${Math.round(meta.percent)}%`,
+          }));
+        }
+      });
+
+      triggerAnchorDownload(blob, `upscaled_batch_${Date.now()}.zip`);
+      toast.success("ZIP heruntergeladen.");
+    } catch (e) {
+      console.error(e);
+      toast.error(`ZIP fehlgeschlagen: ${getErrorMessage(e)}`);
+    } finally {
+      setIsBuildingZip(false);
+      setZipProgress({
+        current: 0,
+        total: 1,
+        message: "",
+        packPercent: null,
+      });
+    }
   }, [items]);
 
   const handleDownloadSinglePng = useCallback((it: BatchItem) => {
@@ -353,6 +413,7 @@ export const UpscalerView = () => {
   // ── Empty: Dropzone ──
   if (items.length === 0) {
     return (
+      <AppPage>
       <div className="mx-auto max-w-2xl space-y-6">
         <div className="text-center">
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50">
@@ -374,19 +435,19 @@ export const UpscalerView = () => {
             <p className="font-medium">Vertex-Dienstkonto fehlt</p>
             <p className="mt-1 text-xs text-amber-900/90">
               Für den Upscaler brauchst du ein eigenes Google-Cloud-Dienstkonto
-              (BYOK). Lege es unter{" "}
-              <span className="font-semibold">KI-Integration</span> im Bereich
-              Vertex AI ab.
+              (BYOK). Richte es im geführten Assistenten unter{" "}
+              <span className="font-semibold">Schritt 3: Vertex AI</span> ein (oder unter
+              Integrationen → Gemini (KI) → Vertex AI).
             </p>
             <Button
               variant="outline"
               className="mt-3 border-amber-300 bg-white text-amber-950 hover:bg-amber-100"
               onClick={() => {
-                setActiveTab("ai");
+                goToIntegrationWizardStep(3);
                 setEditingSetId(null);
               }}
             >
-              <Settings size={16} /> Zu KI-Integration
+              <Settings size={16} /> Vertex einrichten
             </Button>
           </div>
         ) : null}
@@ -404,12 +465,22 @@ export const UpscalerView = () => {
 
         {genericError ? <ErrorBanner message={genericError} /> : null}
       </div>
+      </AppPage>
     );
   }
 
   // ── Queue + Ergebnis (Einzel: Slider, Mehrfach: Textliste + ZIP) ──
   return (
-    <div className="mx-auto max-w-4xl space-y-6 pb-10">
+    <AppPage className="pb-10">
+      {isBuildingZip ? (
+        <BlockingProgressOverlay
+          title="ZIP wird erstellt"
+          message={zipProgress.message}
+          current={zipProgress.current}
+          total={zipProgress.total}
+          packPercent={zipProgress.packPercent}
+        />
+      ) : null}
       {vertexApiGate ? (
         <VertexApiNotEnabledBox activationUrl={vertexApiGate} />
       ) : null}
@@ -530,11 +601,11 @@ export const UpscalerView = () => {
                 variant="outline"
                 className="mt-2 border-amber-300 bg-white text-xs text-amber-950"
                 onClick={() => {
-                  setActiveTab("ai");
+                  goToIntegrationWizardStep(3);
                   setEditingSetId(null);
                 }}
               >
-                <Settings size={14} /> Zu KI-Integration
+                <Settings size={14} /> Vertex einrichten
               </Button>
             </div>
           ) : null}
@@ -586,7 +657,7 @@ export const UpscalerView = () => {
             </p>
             <BeforeAfterSlider
               beforeSrc={singlePreviewItem.previewUrl}
-              afterSrc={singlePreviewItem.resultUrl}
+              afterSrc={singlePreviewItem.resultUrl!}
             />
             <div className="flex justify-center pt-2">
               <Button
@@ -676,14 +747,14 @@ export const UpscalerView = () => {
             <Button
               className="w-full"
               onClick={() => void handleDownloadZip()}
-              disabled={doneCount === 0}
+              disabled={doneCount === 0 || isBuildingZip}
             >
               <Download size={16} /> Alle fertigen als ZIP laden
             </Button>
           </div>
         </div>
       ) : null}
-    </div>
+    </AppPage>
   );
 };
 

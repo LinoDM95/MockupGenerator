@@ -115,8 +115,9 @@ def _r2_storage():
 class TemporaryDesignUpload(models.Model):
     """Short-lived image stored on Cloudflare R2 for Gelato product creation.
 
-    Automatically cleaned up after 24 hours by the
-    ``cleanup_r2_temp_designs`` Celery task.
+    Cleaned up after R2_TEMP_DESIGN_MAX_AGE_HOURS (default 24) via
+    R2TempCleanupMiddleware (API traffic), Gelato upload hook, or
+    ``manage.py cleanup_r2_temp_designs``; optional Celery task with same logic.
     """
 
     image = models.ImageField(upload_to="temp_designs/", storage=_r2_storage)

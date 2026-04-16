@@ -2,14 +2,24 @@ import { create } from "zustand";
 
 import type { ArtworkItem, Template, TemplateSet } from "../types/mockup";
 
-export type AppTab =
-  | "generator"
-  | "templates"
+/** Hauptnavigation (Header): weniger Einträge, mehr Struktur. */
+export type AppTab = "workspace" | "integrations" | "automation" | "marketing";
+
+/** Unter-Tabs im Bereich „Erstellen“. */
+export type WorkspaceTab = "generator" | "templates" | "upscaler" | "etsy";
+
+/** Zielbereich im zentralen Integrations-Setup (Setup Hub). */
+export type IntegrationHubSection =
   | "etsy"
   | "gelato"
-  | "ai"
-  | "upscaler"
-  | "automation";
+  | "gemini"
+  | "cloudflare_r2"
+  | "pinterest";
+
+/** Unteransicht auf der Seite „Integrationen“. */
+export type IntegrationsPanelMode = "wizard" | "all";
+
+export type IntegrationWizardStepId = 1 | 2 | 3;
 
 interface DialogState {
   isOpen: boolean;
@@ -29,6 +39,30 @@ interface AppState {
 
   activeTab: AppTab;
   setActiveTab: (t: AppTab) => void;
+
+  workspaceTab: WorkspaceTab;
+  setWorkspaceTab: (t: WorkspaceTab) => void;
+
+  /** Einmaliges Ziel im Setup Hub (wird nach Anzeige zurückgesetzt). */
+  integrationHubSection: IntegrationHubSection | null;
+  setIntegrationHubSection: (s: IntegrationHubSection | null) => void;
+
+  /** Assistent vs. alle Integrationen (Setup Hub). */
+  integrationsPanelMode: IntegrationsPanelMode;
+  setIntegrationsPanelMode: (m: IntegrationsPanelMode) => void;
+
+  /** Einmalig: geführter Assistent startet auf diesem Schritt (1=Gelato, 2=Gemini, 3=Vertex). */
+  integrationWizardInitialStep: IntegrationWizardStepId | null;
+  setIntegrationWizardInitialStep: (s: IntegrationWizardStepId | null) => void;
+
+  /** Zum Integrations-Setup wechseln und optional einen Bereich öffnen (öffnet „Alle Integrationen“). */
+  goToIntegration: (section: IntegrationHubSection) => void;
+
+  /** Geführten Assistenten öffnen und Schritt fokussieren. */
+  goToIntegrationWizardStep: (step: IntegrationWizardStepId) => void;
+
+  /** Erstellen-Bereich inkl. Unter-Tab (z. B. von Etsy-Integration zu Listings). */
+  goToWorkspace: (tab: WorkspaceTab) => void;
 
   templateSets: TemplateSet[];
   setTemplateSets: (sets: TemplateSet[]) => void;
@@ -89,8 +123,38 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ accessToken: null, refreshToken: null, templateSets: [] });
   },
 
-  activeTab: "generator",
+  activeTab: "workspace",
   setActiveTab: (t) => set({ activeTab: t }),
+
+  workspaceTab: "generator",
+  setWorkspaceTab: (t) => set({ workspaceTab: t }),
+
+  integrationHubSection: null,
+  setIntegrationHubSection: (s) => set({ integrationHubSection: s }),
+
+  integrationsPanelMode: "wizard",
+  setIntegrationsPanelMode: (m) => set({ integrationsPanelMode: m }),
+
+  integrationWizardInitialStep: null,
+  setIntegrationWizardInitialStep: (s) => set({ integrationWizardInitialStep: s }),
+
+  goToIntegration: (section) =>
+    set({
+      activeTab: "integrations",
+      integrationsPanelMode: "all",
+      integrationHubSection: section,
+    }),
+
+  goToIntegrationWizardStep: (step) =>
+    set({
+      activeTab: "integrations",
+      integrationsPanelMode: "wizard",
+      integrationWizardInitialStep: step,
+      integrationHubSection: null,
+    }),
+
+  goToWorkspace: (tab) =>
+    set({ activeTab: "workspace", workspaceTab: tab }),
 
   templateSets: [],
   setTemplateSets: (sets) => set({ templateSets: sets }),

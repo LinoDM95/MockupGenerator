@@ -25,6 +25,7 @@ import {
 } from "../../api/ai";
 import { getErrorMessage } from "../../lib/error";
 import { toast } from "../../lib/toast";
+import { AppPage } from "../ui/AppPage";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { Dropzone } from "../ui/Dropzone";
@@ -50,7 +51,19 @@ const VERTEX_HELP_STEPS = [
   "Lade die heruntergeladene .json-Datei hier hoch oder füge den Inhalt in das Textfeld ein. Die Project-ID wird automatisch aus der Datei gelesen.",
 ];
 
-export const AISetup = () => {
+export type AISetupWizardSection = "gemini" | "vertex" | "all";
+
+type AISetupProps = {
+  /** Im Setup Hub: kompakte Überschrift; Hilfetexte kürzen wenn schon verbunden. */
+  hubSettingsMode?: boolean;
+  /** Geführter Assistent: nur Gemini- oder nur Vertex-Block (Default: alles). */
+  wizardSection?: AISetupWizardSection;
+};
+
+export const AISetup = ({
+  hubSettingsMode = false,
+  wizardSection = "all",
+}: AISetupProps) => {
   const [connection, setConnection] = useState<AIConnectionStatus | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -206,19 +219,41 @@ export const AISetup = () => {
 
   const geminiConnected = !!connection?.connected;
 
-  return (
-    <div className="mx-auto max-w-2xl space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
-          KI-Integration
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Gemini für Texte und Tags, Google Cloud Vertex AI mit eigenem
-          Dienstkonto für den Bild-Upscaler (BYOK).
-        </p>
-      </div>
+  const showGeminiBlock = wizardSection === "all" || wizardSection === "gemini";
+  const showVertexBlock = wizardSection === "all" || wizardSection === "vertex";
+  const showPageHeader = wizardSection === "all";
 
+  const inner = (
+    <>
+      {showPageHeader ? (
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+            {hubSettingsMode ? "Gemini & Vertex – Einstellungen" : "KI-Integration"}
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            {hubSettingsMode ? (
+              geminiConnected ? (
+                <>
+                  Modell, Grounding, Vertex-BYOK und Optionen – alles an einem Ort.
+                </>
+              ) : (
+                <>
+                  Gemini API-Key und Vertex-Dienstkonto für die App einrichten.
+                </>
+              )
+            ) : (
+              <>
+                Gemini für Texte und Tags, Google Cloud Vertex AI mit eigenem
+                Dienstkonto für den Bild-Upscaler (BYOK).
+              </>
+            )}
+          </p>
+        </div>
+      ) : null}
+
+      <div className="mx-auto max-w-2xl space-y-8">
       {/* —— Google Gemini —— */}
+      {showGeminiBlock ? (
       <section aria-labelledby="gemini-heading">
         <h2 id="gemini-heading" className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
           Google Gemini
@@ -360,31 +395,33 @@ export const AISetup = () => {
               </div>
             </Card>
 
-            <Card>
-              <div className="flex items-start gap-4">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-50">
-                  <Sparkles size={20} className="text-indigo-600" />
+            {!(hubSettingsMode && geminiConnected) ? (
+              <Card>
+                <div className="flex items-start gap-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-50">
+                    <Sparkles size={20} className="text-indigo-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-900">
+                      So nutzt du die KI
+                    </h3>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Gehe zum <span className="font-medium text-slate-700">Generator</span>,
+                      lade deine Motive hoch und klicke auf{" "}
+                      <span className="font-medium text-slate-700">Zu Gelato exportieren</span>.
+                      Im Export-Dialog findest du bei jedem Motiv einen{" "}
+                      <span className="inline-flex items-center gap-1 rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-600">
+                        <Sparkles size={12} /> KI
+                      </span>{" "}
+                      Button, der Titel, Beschreibung und Tags automatisch generiert. Optional
+                      aktivierst du dort den Expert-Modus oder nutzt die Voreinstellung von
+                      oben. Das Protokoll erscheint unten rechts unter{" "}
+                      <span className="font-medium text-slate-700">KI-Aktivität</span>.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-900">
-                    So nutzt du die KI
-                  </h3>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Gehe zum <span className="font-medium text-slate-700">Generator</span>,
-                    lade deine Motive hoch und klicke auf{" "}
-                    <span className="font-medium text-slate-700">Zu Gelato exportieren</span>.
-                    Im Export-Dialog findest du bei jedem Motiv einen{" "}
-                    <span className="inline-flex items-center gap-1 rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-600">
-                      <Sparkles size={12} /> KI
-                    </span>{" "}
-                    Button, der Titel, Beschreibung und Tags automatisch generiert. Optional
-                    aktivierst du dort den Expert-Modus oder nutzt die Voreinstellung von
-                    oben. Das Protokoll erscheint unten rechts unter{" "}
-                    <span className="font-medium text-slate-700">KI-Aktivität</span>.
-                  </p>
-                </div>
-              </div>
-            </Card>
+              </Card>
+            ) : null}
           </div>
         ) : (
           <Card>
@@ -455,8 +492,10 @@ export const AISetup = () => {
           </Card>
         )}
       </section>
+      ) : null}
 
       {/* —— Vertex AI Upscaler BYOK —— */}
+      {showVertexBlock ? (
       <section aria-labelledby="vertex-heading">
         <h2 id="vertex-heading" className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
           Google Cloud Vertex AI (Upscaler)
@@ -551,6 +590,14 @@ export const AISetup = () => {
           </div>
         </Card>
       </section>
-    </div>
+      ) : null}
+      </div>
+    </>
   );
+
+  if (wizardSection !== "all") {
+    return <div className="w-full">{inner}</div>;
+  }
+
+  return <AppPage>{inner}</AppPage>;
 };

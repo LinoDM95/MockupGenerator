@@ -6,6 +6,13 @@ alwaysApply: false
 
 # Frontend-Patterns
 
+## App Shell & Navigation
+
+- **Ein Raster für eingeloggte App:** `<main>` in `App.tsx` begrenzt mit `mx-auto max-w-7xl` + horizontales Padding. Feature-Views **kein** zweites `max-w-*` auf der **Root** — volle Breite innerhalb der Shell (`AppPage`: `w-full space-y-8`). Bewusst schmale Spalten (Formulare, Lesetext) nur **innen** z. B. mit `max-w-2xl mx-auto` auf dem jeweiligen Block.
+- **Hauptnavigation:** Tab-Labels und `shortLabel` **nur** in `App.tsx` (`mainTabs`) pflegen. Feste Token: Lucide-Icon **18px**, `strokeWidth={1.75}`, Label + Icon; Kurzlabels auf `sm:hidden` / voller Text `sm:inline` — wie in den Header-Buttons. Keine willkürliche Sonderbehandlung einzelner Tabs (z. B. abgeschwächte Farbe) ohne UX-Grund.
+- **Unter-Navigation** (Erstellen, Integrationen): `SubNavTab` in `src/components/ui/SubNavTab.tsx` — gleicher visueller Rhythmus wie die Hauptnavigation (inkl. aktivem Unterstrich).
+- **Copy / Überschriften:** Anzeigenamen an die Tabs koppeln: **Erstellen**, **Verbreiten**, **Automatisieren**, **Integrationen** (interne `AppTab`-IDs z. B. `marketing` unverändert).
+
 ## Wiederverwendung & Auslagerung (Frontend)
 
 ### Komponenten: Erweitern statt Duplizieren

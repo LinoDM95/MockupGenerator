@@ -3,7 +3,6 @@ from __future__ import annotations
 import io
 import logging
 import os
-import time
 import uuid as _uuid
 
 from django.conf import settings
@@ -26,6 +25,7 @@ from .serializers import (
     TemplateSyncSerializer,
     TemporaryDesignUploadSerializer,
 )
+from .r2_cleanup import cleanup_expired_r2_temp_uploads
 from .services import GelatoApiError, GelatoClient
 from .tasks import process_gelato_bulk_export
 
@@ -94,42 +94,6 @@ def _optimize_image(file) -> tuple[io.BytesIO | None, str]:
     return buf, new_name
 
 
-# ── R2 cleanup ───────────────────────────────────────────────────────
-
-_last_cleanup_ts: float = 0.0
-_CLEANUP_COOLDOWN = 300  # at most once per 5 minutes
-
-
-def _cleanup_expired_r2_files() -> None:
-    """Delete TemporaryDesignUpload records (and their R2 objects) older than 24h.
-
-    Guarded by a module-level cooldown so batch uploads don't trigger
-    repeated cleanup queries.
-    """
-    global _last_cleanup_ts
-    now = time.monotonic()
-    if now - _last_cleanup_ts < _CLEANUP_COOLDOWN:
-        return
-    _last_cleanup_ts = now
-
-    from datetime import timedelta
-
-    cutoff = timezone.now() - timedelta(hours=24)
-    expired = TemporaryDesignUpload.objects.filter(uploaded_at__lt=cutoff)
-    count = 0
-    for obj in expired.iterator():
-        try:
-            if obj.image:
-                obj.image.delete(save=False)
-        except Exception:
-            logger.warning("Failed to delete R2 object for TempDesign %s", obj.pk)
-        obj.delete()
-        count += 1
-    if count:
-        print(f"[gelato DEBUG] R2 cleanup: deleted {count} expired files (>24h)", flush=True)
-        logger.info("R2 cleanup: deleted %d expired temporary uploads.", count)
-
-
 # ── R2 upload ───────────────────────────────────────────────────────
 
 
@@ -137,12 +101,12 @@ def _upload_to_r2(file, prefix: str) -> str:
     """Upload *file* to Cloudflare R2 and return its public URL.
 
     Large images are automatically optimised (PNG->JPEG, etc.) before upload.
-    Also creates a ``TemporaryDesignUpload`` record so the existing 24-hour
-    cleanup task will garbage-collect the file automatically.
+    Also creates a ``TemporaryDesignUpload`` record so Middleware/Upload-Hook
+    die Datei nach konfigurierbarer Aufbewahrungszeit entfernen kann.
 
-    Before uploading, expired files (>24h) are purged from R2.
+    Before uploading, expired files are purged from R2 (cooldown-guarded).
     """
-    _cleanup_expired_r2_files()
+    cleanup_expired_r2_temp_uploads()
 
     from django.core.files.storage import storages
 

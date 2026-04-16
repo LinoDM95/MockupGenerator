@@ -26,6 +26,8 @@ urlpatterns = [
     path("api/ai/", include("ai_integration.urls")),
     path("api/upscaler/", include("upscaler.urls")),
     path("api/automation/", include("automation.urls")),
+    path("api/marketing/", include("marketing_integration.urls")),
+    path("api/settings/", include("user_settings.urls")),
 ]
 
 if settings.DEBUG:

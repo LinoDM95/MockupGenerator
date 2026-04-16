@@ -217,6 +217,16 @@ class GenerateListingDataView(APIView):
 
         expert_mode = _truthy(request.data.get("expert_mode"))
 
+        if expert_mode and target_type == "social_caption":
+            return Response(
+                {
+                    "detail": (
+                        "Expert-Modus ist für target 'social_caption' nicht verfügbar."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         image = request.FILES.get("image")
         if not expert_mode:
             if not image:

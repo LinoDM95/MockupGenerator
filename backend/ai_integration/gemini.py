@@ -14,6 +14,7 @@ from .base import (
     AIResponseParseError,
     AIServiceUnavailableError,
     BaseAIProvider,
+    SOCIAL_CAPTION_SYSTEM_PROMPT,
     SYSTEM_PROMPT,
     TARGET_INSTRUCTIONS,
     VALID_TARGET_TYPES,
@@ -381,6 +382,58 @@ def _normalise_result(data: dict) -> dict:
     return {"titles": titles, "tags": tags, "description": description}
 
 
+_MAX_PIN_TITLE_LEN = 100
+_MAX_PIN_CAPTION_LEN = 800
+_MAX_SOCIAL_HASHTAGS = 5
+
+
+def _normalise_social_caption_result(data: dict) -> dict:
+    """Map Pinterest JSON (pin_title, caption, hashtags) to listing API shape."""
+    pin_title = str(data.get("pin_title") or "").strip()
+    caption = str(data.get("caption") or "").strip()
+    raw_tags = data.get("hashtags")
+    if not isinstance(raw_tags, list):
+        raw_tags = []
+
+    tags: list[str] = []
+    seen: set[str] = set()
+    for t in raw_tags:
+        s = str(t).strip()
+        if not s:
+            continue
+        if not s.startswith("#"):
+            inner = s.lstrip("#").strip()
+            s = f"#{inner}" if inner else ""
+        if len(s) <= 1:
+            continue
+        lower = s.lower()
+        if lower in seen:
+            continue
+        seen.add(lower)
+        tags.append(s)
+        if len(tags) >= _MAX_SOCIAL_HASHTAGS:
+            break
+
+    pin_title = pin_title[:_MAX_PIN_TITLE_LEN]
+    caption = caption[:_MAX_PIN_CAPTION_LEN]
+
+    if not pin_title and caption:
+        pin_title = caption[:_MAX_PIN_TITLE_LEN]
+
+    if not pin_title:
+        pin_title = "Neuer Pin"
+
+    if len(tags) < 3:
+        logger.debug(
+            "Social caption: weniger als 3 Hashtags erhalten (%s)",
+            len(tags),
+        )
+
+    titles = [pin_title] if pin_title else []
+
+    return {"titles": titles, "tags": tags, "description": caption}
+
+
 def _image_to_pil(image_file: Any) -> PILImage.Image:
     """Convert a Django UploadedFile (or file-like) to a PIL Image."""
     image_file.seek(0)
@@ -575,6 +628,21 @@ class GeminiProvider(BaseAIProvider):
             required=["titles", "tags", "description"],
         )
 
+    def _schema_social_caption_flat(self) -> Any:
+        """Pinterest social_caption: pin_title, caption, hashtags[]."""
+        t = self._types
+        ty = t.Type
+        str_list = t.Schema(type=ty.ARRAY, items=t.Schema(type=ty.STRING))
+        return t.Schema(
+            type=ty.OBJECT,
+            properties={
+                "pin_title": t.Schema(type=ty.STRING),
+                "caption": t.Schema(type=ty.STRING),
+                "hashtags": str_list,
+            },
+            required=["pin_title", "caption", "hashtags"],
+        )
+
     def _schema_scout_or_editor_data(self) -> Any:
         t = self._types
         ty = t.Type
@@ -746,6 +814,52 @@ class GeminiProvider(BaseAIProvider):
             )
         raise AIProviderError(f"Gemini-API-Fehler: {err_str[:300]}")
 
+    def _generate_social_caption_listing(
+        self,
+        image_file: Any,
+        context_text: str,
+        style_reference: str,
+    ) -> dict:
+        """Pinterest — eigenes System-Prompt + Schema; kein Google-Search-Grounding."""
+        image_part = self._image_file_to_part(image_file)
+        target_instruction = TARGET_INSTRUCTIONS.get(
+            "social_caption",
+            "Generate Pinterest pin_title, caption, and 3–5 hashtags as JSON.",
+        )
+        user_prompt_parts: list[str] = [target_instruction]
+        if context_text.strip():
+            user_prompt_parts.append(
+                f"Seller / product context: {context_text.strip()}"
+            )
+        if style_reference.strip():
+            user_prompt_parts.append(
+                "STYLE CONSISTENCY: Match tone and hashtag style of this reference "
+                "(pin_title / caption / hashtags only):\n"
+                f"{style_reference.strip()}"
+            )
+        user_prompt_parts.append(
+            "Analyse the attached product image and respond with ONLY the JSON object "
+            "for pin_title, caption, and hashtags (no markdown fences, no commentary)."
+        )
+        user_text = "\n\n".join(user_prompt_parts)
+
+        config = self._make_config(
+            system_instruction=SOCIAL_CAPTION_SYSTEM_PROMPT,
+            temperature=0.7,
+            use_grounding=False,
+            response_schema=self._schema_social_caption_flat(),
+        )
+
+        def parse_social(t: str) -> dict:
+            parsed = _extract_json(t)
+            return _normalise_social_caption_result(parsed)
+
+        return self._run_json_parse_loop(
+            contents=[image_part, user_text],
+            config=config,
+            parse=parse_social,
+        )
+
     def generate_listing_data(
         self,
         image_file: Any,
@@ -758,6 +872,13 @@ class GeminiProvider(BaseAIProvider):
             raise AIProviderError(
                 f"Ungültiger target_type '{target_type}'. "
                 f"Erlaubt: {', '.join(sorted(VALID_TARGET_TYPES))}"
+            )
+
+        if target_type == "social_caption":
+            return self._generate_social_caption_listing(
+                image_file=image_file,
+                context_text=context_text,
+                style_reference=style_reference,
             )
 
         image_part = self._image_file_to_part(image_file)
@@ -812,6 +933,11 @@ class GeminiProvider(BaseAIProvider):
             raise AIProviderError(
                 f"Ungültiger target_type '{target_type}'. "
                 f"Erlaubt: {', '.join(sorted(VALID_TARGET_TYPES))}"
+            )
+
+        if target_type == "social_caption":
+            raise AIProviderError(
+                "Expert-Modus unterstützt target_type 'social_caption' nicht."
             )
 
         time.sleep(1)
