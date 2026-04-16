@@ -7,6 +7,7 @@ import type {
   GelatoConnectionStatus,
   GelatoTemplate as GelatoTpl,
 } from "../api/gelato";
+import { refreshAccessTokenIfExpiringSoon } from "../api/client";
 import {
   gelatoListTemplates,
   gelatoStartExport,
@@ -21,6 +22,11 @@ import {
 } from "../lib/canvas/image";
 import { renderTemplateToCanvas } from "../lib/canvas/renderTemplate";
 import { triggerAnchorDownload } from "../lib/download";
+import {
+  findTemplateSet,
+  zipBlockReason,
+  zipBlockToastMessage,
+} from "../lib/generatorZipReadiness";
 import { getErrorMessage } from "../lib/error";
 import { sanitizeFileName } from "../lib/sanitize";
 import { toast } from "../lib/toast";
@@ -37,6 +43,16 @@ const yieldToMain = () =>
     requestAnimationFrame(() => resolve());
   });
 
+const mockupExportErrorMessage = (e: unknown): string => {
+  if (e instanceof DOMException && e.name === "SecurityError") {
+    return (
+      "Der Browser blockiert den Export: Ein Vorlagen-Hintergrundbild kommt von einer anderen Domain ohne CORS. " +
+      "Bitte Mockup-Hintergründe über dieselbe Quelle wie die App laden oder im Vorlagen-Editor prüfen."
+    );
+  }
+  return getErrorMessage(e);
+};
+
 const JS_STORE = { compression: "STORE" as const };
 
 export const GeneratorView = () => {
@@ -45,7 +61,15 @@ export const GeneratorView = () => {
   const setArtworks = useAppStore((s) => s.setArtworks);
   const globalSetId = useAppStore((s) => s.globalSetId);
   const setGlobalSetId = useAppStore((s) => s.setGlobalSetId);
-  useLoadTemplateSets({ silent: true });
+  const { reload: reloadTemplateSets } = useLoadTemplateSets({ silent: true });
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === "visible") void reloadTemplateSets();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [reloadTemplateSets]);
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState({
@@ -158,6 +182,10 @@ export const GeneratorView = () => {
 
   const generateBatchAndZIP = async (mainOnly = false) => {
     if (artworks.length === 0) return;
+    await refreshAccessTokenIfExpiringSoon();
+    await reloadTemplateSets();
+    const sets = useAppStore.getState().templateSets;
+
     setManualZipOffer(null);
     setIsGenerating(true);
     setProgress({
@@ -169,15 +197,13 @@ export const GeneratorView = () => {
 
     let totalMockups = 0;
     for (const art of artworks) {
-      const activeSet = templateSets.find((s) => s.id === art.setId);
+      const activeSet = findTemplateSet(art.setId, sets);
       if (!activeSet || activeSet.templates.length === 0) continue;
       totalMockups += mainOnly ? 1 : activeSet.templates.length;
     }
 
     if (totalMockups === 0) {
-      toast.error(
-        "Keine Mockups in der ZIP — jedes Motiv braucht ein Set mit mindestens einer Vorlage.",
-      );
+      toast.error(zipBlockToastMessage(zipBlockReason(artworks, sets)));
       setIsGenerating(false);
       setProgress({ current: 0, total: 0, message: "", packPercent: null });
       return;
@@ -197,7 +223,7 @@ export const GeneratorView = () => {
 
       for (let i = 0; i < artworks.length; i++) {
         const artwork = artworks[i];
-        const activeSet = templateSets.find((s) => s.id === artwork.setId);
+        const activeSet = findTemplateSet(artwork.setId, sets);
         if (!activeSet || activeSet.templates.length === 0) continue;
 
         const cleanFolderName = sanitizeFileName(artwork.name);
@@ -245,9 +271,7 @@ export const GeneratorView = () => {
       }
 
       if (filesAdded === 0) {
-        toast.error(
-          "Keine Mockups in der ZIP — jedes Motiv braucht ein Set mit mindestens einer Vorlage.",
-        );
+        toast.error(zipBlockToastMessage(zipBlockReason(artworks, sets)));
         return;
       }
 
@@ -275,7 +299,7 @@ export const GeneratorView = () => {
       toast.success("ZIP wurde erstellt. Speichern-Dialog sollte erscheinen — sonst Button unten.");
     } catch (e) {
       console.error(e);
-      toast.error(`Fehler: ${getErrorMessage(e)}`);
+      toast.error(`Fehler: ${mockupExportErrorMessage(e)}`);
     } finally {
       setIsGenerating(false);
       setProgress({ current: 0, total: 0, message: "", packPercent: null });
@@ -289,6 +313,10 @@ export const GeneratorView = () => {
       freeShipping: boolean,
       downloadZip: boolean,
     ) => {
+      await refreshAccessTokenIfExpiringSoon();
+      await reloadTemplateSets();
+      const sets = useAppStore.getState().templateSets;
+
       setShowGelatoModal(false);
       setManualZipOffer(null);
       setIsGenerating(true);
@@ -311,7 +339,7 @@ export const GeneratorView = () => {
 
           let rendered = 0;
           const totalMockups = items.reduce((sum, { art }) => {
-            const set = templateSets.find((s) => s.id === art.setId);
+            const set = findTemplateSet(art.setId, sets);
             return sum + (set?.templates.length ?? 0);
           }, 0);
 
@@ -326,7 +354,7 @@ export const GeneratorView = () => {
 
           for (let i = 0; i < items.length; i++) {
             const { art, title } = items[i]!;
-            const activeSet = templateSets.find((s) => s.id === art.setId);
+            const activeSet = findTemplateSet(art.setId, sets);
             if (!activeSet || activeSet.templates.length === 0) continue;
 
             const num = String(i + 1).padStart(2, "0");
@@ -357,9 +385,7 @@ export const GeneratorView = () => {
           }
 
           if (rendered === 0) {
-            toast.error(
-              "Mockup-ZIP ist leer — jedes Motiv braucht ein Set mit Vorlagen.",
-            );
+            toast.error(zipBlockToastMessage(zipBlockReason(artworks, sets)));
           } else {
             setProgress({
               current: totalMockups,
@@ -403,13 +429,13 @@ export const GeneratorView = () => {
         toast.success(`${ids.length} Designs an Gelato gesendet (Draft).`);
       } catch (e) {
         console.error(e);
-        toast.error(`Gelato-Export fehlgeschlagen: ${getErrorMessage(e)}`);
+        toast.error(`Gelato-Export fehlgeschlagen: ${mockupExportErrorMessage(e)}`);
       } finally {
         setIsGenerating(false);
         setProgress({ current: 0, total: 0, message: "", packPercent: null });
       }
     },
-    [artworks, templateSets],
+    [artworks, reloadTemplateSets],
   );
 
   const handleManualZipDownload = useCallback(() => {

@@ -1,6 +1,10 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Archive, Globe, Loader2, Package, Trash2 } from "lucide-react";
 
+import {
+  templateSetHasTemplates,
+  zipBlockReason,
+} from "../../lib/generatorZipReadiness";
 import { useAppStore } from "../../store/appStore";
 import type { ArtworkItem, TemplateSet } from "../../types/mockup";
 import { Button } from "../ui/Button";
@@ -53,7 +57,14 @@ export const BatchQueue = ({
   onGelatoExport,
 }: Props) => {
   const goToIntegrationWizardStep = useAppStore((s) => s.goToIntegrationWizardStep);
-  const missingSet = artworks.some((a) => !a.setId);
+  const zipReason = zipBlockReason(artworks, templateSets);
+  const zipDisabled = zipReason !== "ok";
+  const zipPrimaryLabel =
+    zipReason === "missing_set"
+      ? "Sets für alle wählen!"
+      : zipReason === "no_templates"
+        ? "Set braucht Vorlagen!"
+        : "ZIP-Datei generieren";
 
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
@@ -161,14 +172,18 @@ export const BatchQueue = ({
                         <Select
                           value={art.setId}
                           onChange={(e) => onUpdateArtwork(art.id, "setId", e.target.value)}
-                          className={!art.setId ? "border-red-300 bg-red-50" : ""}
+                          className={
+                            !templateSetHasTemplates(art.setId, templateSets)
+                              ? "border-red-300 bg-red-50"
+                              : ""
+                          }
                         >
                           <option value="" disabled>
                             -- Set wählen --
                           </option>
                           {templateSets.map((s) => (
                             <option key={s.id} value={s.id}>
-                              {s.name}
+                              {s.name} ({s.templates.length} Vorlagen)
                             </option>
                           ))}
                         </Select>
@@ -222,18 +237,18 @@ export const BatchQueue = ({
                 <div className="flex flex-col gap-2">
                   <Button
                     type="button"
-                    disabled={missingSet}
+                    disabled={zipDisabled}
                     onClick={onGenerate}
                     className="w-full gap-3 py-3 text-base font-semibold"
                   >
                     <Archive size={20} strokeWidth={1.75} />
-                    {missingSet ? "Sets für alle wählen!" : "ZIP-Datei generieren"}
+                    {zipPrimaryLabel}
                   </Button>
                   {gelatoConnected && onGelatoExport ? (
                     <Button
                       type="button"
                       variant="outline"
-                      disabled={missingSet}
+                      disabled={zipDisabled}
                       onClick={onGelatoExport}
                       className="w-full gap-3 py-3 text-base font-semibold"
                     >

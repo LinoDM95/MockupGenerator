@@ -24,9 +24,10 @@ import {
   UpscaleVertexApiNotEnabledError,
   upscaleImage,
 } from "../../api/upscaler";
-import { ApiError } from "../../api/client";
+import { ApiError, refreshAccessTokenIfExpiringSoon } from "../../api/client";
 import { triggerAnchorDownload } from "../../lib/download";
 import { getErrorMessage } from "../../lib/error";
+import { formatUpscaleUserMessage } from "../../lib/upscaleUserMessage";
 import { toast } from "../../lib/toast";
 import { useAppStore } from "../../store/appStore";
 import { AppPage } from "../ui/AppPage";
@@ -220,6 +221,8 @@ export const UpscalerView = () => {
     setProgressTotal(todo.length);
     setProgressIdx(0);
 
+    await refreshAccessTokenIfExpiringSoon();
+
     let anySuccess = false;
     let vertexAborted = false;
     let successInThisRun = 0;
@@ -275,8 +278,9 @@ export const UpscalerView = () => {
             break;
           }
 
-          const msg =
+          const raw =
             e instanceof ApiError ? e.getDetail() : getErrorMessage(e);
+          const msg = formatUpscaleUserMessage(raw);
           setItems((prev) => {
             const next = [...prev];
             next[idx] = {

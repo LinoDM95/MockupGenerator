@@ -77,6 +77,11 @@ Remove ALL transactional data such as "Sale" or "Free Shipping".
 title into tags, unless the item is made exclusively for that occasion.
 • Provide exactly 3 unique title options that target slightly different \
 search queries a buyer might use for the same product.
+• SPECIFIC SCENE/ACTION: Never just name the generic subject (e.g., 'Cat Poster', \
+'Mountain Art'). You MUST describe the specific action, defining pose, or unique \
+scenario happening in the image right at the beginning of the title (e.g., 'Cat Drinking \
+Coffee', 'Sunset Over Snowy Mountains', 'Woman Reading A Book'). This captures specific \
+long-tail buyer intent.
 
 ═══════════════════════════════════════════════════════════════
 RULESET 2 – THE 13 TAGS  (FUNNEL STRATEGY, ZERO FILLER)
@@ -181,11 +186,13 @@ sentence patterns, paragraph flow, and formatting 1:1. Only swap the \
 product-specific nouns, adjectives, and keywords.
 
 --- TITLE TEMPLATE ---
-Pattern: "[Subject] [Product Type] [Medium]: [Style] [Category] Print"
-Example: "Lioness and Cub Poster Wall Art: Vintage Safari Animal Print"
-• The colon separates the product noun from the style qualifier.
-• ALWAYS use this "[Subject] [Type] [Medium]: [Style] [Category] Print" \
-pattern. Just change the words to match the actual product.
+Pattern: "[Specific Scene/Action + Subject] [Product Type] [Medium]: [Style] [Category] Print"
+Example: "Woman Reading Book Poster Wall Art: Cozy Cottagecore Art Print"
+• The colon separates the leading block (which MUST start with the specific scene, \
+action, or defining detail before the product type) from the style qualifier.
+• ALWAYS use this "[Specific Scene/Action + Subject] [Type] [Medium]: [Style] [Category] Print" \
+pattern. Lead with [Specific Scene/Action] — the concrete moment, pose, or scenario — \
+then the subject and product words; only swap the bracketed words to match the actual product.
 
 --- TAG TEMPLATE (FUNNEL) ---
 Pattern: 13 two-to-three-word phrases, each ≤ 20 chars, following the \

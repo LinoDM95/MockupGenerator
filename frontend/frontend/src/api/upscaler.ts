@@ -22,6 +22,17 @@ export class UpscaleVertexApiNotEnabledError extends Error {
 }
 
 const throwUpscaleHttpError = (res: Response, bodyText: string): never => {
+  if (res.status === 401) {
+    throw new ApiError(
+      "HTTP 401",
+      401,
+      JSON.stringify({
+        detail:
+          "Deine Sitzung ist abgelaufen oder du bist nicht angemeldet. Bitte Seite neu laden, erneut anmelden und den Upscaler noch einmal starten.",
+      }),
+    );
+  }
+
   try {
     const j = JSON.parse(bodyText) as Record<string, unknown>;
     if (

@@ -1,9 +1,14 @@
 import type { ComponentType } from "react";
+import { useEffect } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 import { Link2, Layers, LogOut, Megaphone, Rocket } from "lucide-react";
 import { Navigate } from "react-router-dom";
 
+import {
+  clearProactiveTokenRefresh,
+  scheduleProactiveAccessRefresh,
+} from "./api/client";
 import { cn } from "./lib/cn";
 import { DialogHost } from "./components/DialogHost";
 import { AIActivityPanel } from "./components/ai/AIActivityPanel";
@@ -35,6 +40,14 @@ function App() {
   const setActiveTab = useAppStore((s) => s.setActiveTab);
   const setEditingSetId = useAppStore((s) => s.setEditingSetId);
   const reduceMotion = useReducedMotion();
+
+  useEffect(() => {
+    if (!accessToken) {
+      clearProactiveTokenRefresh();
+      return;
+    }
+    scheduleProactiveAccessRefresh();
+  }, [accessToken]);
 
   if (!accessToken) {
     return <Navigate to="/" replace />;

@@ -121,6 +121,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
     set({ accessToken: null, refreshToken: null, templateSets: [] });
+    void import("../api/client").then((m) => m.clearProactiveTokenRefresh());
   },
 
   activeTab: "workspace",

@@ -7,6 +7,7 @@ import os
 import time
 from io import BytesIO
 from typing import Any, Literal, Tuple
+from urllib.parse import quote
 
 from PIL import Image as PILImage
 
@@ -43,8 +44,12 @@ class VertexAPINotEnabledError(UpscaleError):
         self.project_id = project_id
 
 
-def _get_vertex_client(service_account_json: str) -> Tuple[Any, str]:
-    """Create a Vertex AI client from the user's GCP service account JSON (BYOK)."""
+def _get_vertex_client(service_account_json: str) -> Tuple[Any, str, Any]:
+    """Create a Vertex AI client from the user's GCP service account JSON (BYOK).
+
+    Returns ``(client, project_id, scoped_credentials)``. Credentials are needed
+    to download upscale results that Vertex returns as ``gs://`` URIs only.
+    """
     from google import genai
     from google.oauth2 import service_account
 
@@ -84,7 +89,7 @@ def _get_vertex_client(service_account_json: str) -> Tuple[Any, str]:
         location=location,
         credentials=scoped_credentials,
     )
-    return client, project_id
+    return client, project_id, scoped_credentials
 
 
 def _pil_to_genai_image(pil_img: PILImage.Image):
@@ -98,13 +103,109 @@ def _pil_to_genai_image(pil_img: PILImage.Image):
     return types.Image(image_bytes=image_bytes)
 
 
-def _genai_image_to_pil(genai_img) -> PILImage.Image:
-    """Convert a google-genai Image response back to PIL."""
-    if hasattr(genai_img, "image") and hasattr(genai_img.image, "image_bytes"):
-        return PILImage.open(BytesIO(genai_img.image.image_bytes))
-    if hasattr(genai_img, "image_bytes"):
-        return PILImage.open(BytesIO(genai_img.image_bytes))
-    raise UpscaleError("Unerwartetes API-Antwortformat.")
+def _download_gcs_object_bytes(gs_uri: str, credentials: Any) -> bytes:
+    """Load object bytes from ``gs://bucket/path/to/object`` using OAuth (same SA as Vertex)."""
+    import httpx
+    from google.auth.transport.requests import Request as GoogleAuthRequest
+
+    if not gs_uri.startswith("gs://"):
+        raise UpscaleError("Ungueltige GCS-URI.")
+    rest = gs_uri[5:]
+    slash = rest.find("/")
+    if slash <= 0 or slash >= len(rest) - 1:
+        raise UpscaleError("GCS-URI unvollstaendig.")
+    bucket_name = rest[:slash]
+    blob_name = rest[slash + 1 :]
+    encoded = quote(blob_name, safe="")
+    url = (
+        f"https://storage.googleapis.com/storage/v1/b/{bucket_name}/o/"
+        f"{encoded}?alt=media"
+    )
+    if not credentials.valid:
+        credentials.refresh(GoogleAuthRequest())
+    headers = {"Authorization": f"Bearer {credentials.token}"}
+    resp = httpx.get(url, headers=headers, timeout=120.0)
+    if resp.status_code == 403:
+        logger.warning("GCS download forbidden: %s", (resp.text or "")[:300])
+        raise UpscaleAPIError(
+            "Kein Zugriff auf das Upscale-Ergebnis im Cloud-Speicher. "
+            "Dem Dienstkonto werden Leserechte auf den Vertex-/Imagen-Bucket benoetigt "
+            "(z. B. Rolle „Storage Object Viewer“ auf das Projekt oder den Bucket).",
+            status_code=503,
+        )
+    if resp.status_code != 200:
+        logger.warning(
+            "GCS download failed: %s body=%s",
+            resp.status_code,
+            (resp.text or "")[:300],
+        )
+        raise UpscaleAPIError(
+            "Das hochskalierte Bild konnte nicht aus dem Cloud-Speicher geladen werden. "
+            "Bitte spaeter erneut versuchen.",
+            status_code=503,
+        )
+    return resp.content
+
+
+def _types_image_to_pil(image_obj: Any, credentials: Any) -> PILImage.Image:
+    """Convert google.genai ``Image`` (inline bytes or GCS URI) to PIL."""
+    gcs_uri = getattr(image_obj, "gcs_uri", None)
+    raw: bytes | None = None
+    if gcs_uri:
+        raw = _download_gcs_object_bytes(gcs_uri, credentials)
+    else:
+        raw = getattr(image_obj, "image_bytes", None)
+    if not raw:
+        raise UpscaleAPIError(
+            "Vertex AI hat keine Bilddaten geliefert (weder Bytes noch GCS-URI). "
+            "Bitte spaeter erneut versuchen.",
+            status_code=503,
+        )
+    try:
+        return PILImage.open(BytesIO(raw))
+    except PILImage.UnidentifiedImageError as exc:
+        logger.warning(
+            "Upscale response bytes are not a decodable image (len=%s)",
+            len(raw),
+        )
+        raise UpscaleAPIError(
+            "Das Upscale-Ergebnis war kein gueltiges Bild. Bitte spaeter erneut versuchen.",
+            status_code=503,
+        ) from exc
+
+
+def _generated_image_to_pil(generated: Any, credentials: Any) -> PILImage.Image:
+    """Convert first ``GeneratedImage`` from upscale response to PIL."""
+    rai = getattr(generated, "rai_filtered_reason", None)
+    if rai:
+        raise UpscaleAPIError(
+            f"Das Bild wurde blockiert: {rai}",
+            status_code=400,
+        )
+    inner = getattr(generated, "image", None)
+    if inner is None:
+        raise UpscaleAPIError(
+            "Upscale-Antwort enthielt kein Bild.",
+            status_code=503,
+        )
+    return _types_image_to_pil(inner, credentials)
+
+
+def _vertex_upscale_user_message(msg: str) -> str | None:
+    """Erkennt typische Google-Vertex-/Imagen-Fehler und liefert eine klare Nutzer-Meldung."""
+    um = msg.upper()
+    if "INTERNAL" in um and ("STATUS" in um or "ERROR" in um or "500" in msg):
+        return (
+            "Der Upscale-Dienst von Google (Vertex AI) hat einen internen Fehler gemeldet. "
+            "Das ist meist voruebergehend und liegt nicht an deinem Bild oder dieser App — "
+            "bitte in einigen Minuten erneut versuchen."
+        )
+    if "REQUEST FAILED" in um and ("TRY AGAIN" in um or "MINUTES" in um):
+        return (
+            "Der Upscale-Dienst von Google ist kurz ueberlastet oder nicht erreichbar. "
+            "Bitte spaeter erneut versuchen."
+        )
+    return None
 
 
 def _call_upscale_api(
@@ -112,6 +213,7 @@ def _call_upscale_api(
     pil_tile: PILImage.Image,
     factor_str: str,
     project_id: str,
+    credentials: Any,
     output_mime: str = "image/png",
 ) -> PILImage.Image:
     """Call the Imagen 4.0 upscale API for a single image/tile."""
@@ -158,6 +260,12 @@ def _call_upscale_api(
                 "Das Bild wurde vom Sicherheitsfilter blockiert.",
                 status_code=400,
             ) from exc
+        friendly = _vertex_upscale_user_message(msg)
+        if friendly:
+            raise UpscaleAPIError(
+                friendly,
+                status_code=503,
+            ) from exc
         raise UpscaleAPIError(
             f"Upscale fehlgeschlagen: {msg}",
             status_code=500,
@@ -172,7 +280,7 @@ def _call_upscale_api(
             )
         raise UpscaleError("Keine Antwort vom Upscale-Dienst erhalten.")
 
-    return _genai_image_to_pil(response.generated_images[0])
+    return _generated_image_to_pil(response.generated_images[0], credentials)
 
 
 def _upscale_single(
@@ -180,10 +288,11 @@ def _upscale_single(
     pil_img: PILImage.Image,
     factor_str: str,
     project_id: str,
+    credentials: Any,
 ) -> PILImage.Image:
     """Upscale the full image in a single API call (output <= 17MP)."""
     logger.info("Single upscale %s with factor %s", pil_img.size, factor_str)
-    return _call_upscale_api(client, pil_img, factor_str, project_id)
+    return _call_upscale_api(client, pil_img, factor_str, project_id, credentials)
 
 
 def _tiling_grid_dims(w: int, h: int, overlap: int, step: int) -> tuple[int, int]:
@@ -222,6 +331,7 @@ def _upscale_tiled(
     pil_img: PILImage.Image,
     factor_int: int,
     project_id: str,
+    credentials: Any,
 ) -> PILImage.Image:
     """Upscale a large image by splitting it into overlapping tiles,
     upscaling each, then blending them back together."""
@@ -337,7 +447,9 @@ def _upscale_tiled(
             if tile_idx > 1:
                 time.sleep(0.5)
 
-            upscaled_tile = _call_upscale_api(client, tile, factor_str, project_id)
+            upscaled_tile = _call_upscale_api(
+                client, tile, factor_str, project_id, credentials
+            )
             tile_arr = np.array(upscaled_tile.convert("RGB"), dtype=np.float32)
             th, tw = tile_arr.shape[:2]
 
@@ -380,12 +492,12 @@ def upscale_image(
     w, h = pil_img.size
     target_pixels = (w * factor_int) * (h * factor_int)
 
-    client, project_id = _get_vertex_client(service_account_json)
+    client, project_id, credentials = _get_vertex_client(service_account_json)
 
     if pil_img.mode == "RGBA":
         pil_img = pil_img.convert("RGB")
 
     if target_pixels <= MAX_OUTPUT_PIXELS:
-        return _upscale_single(client, pil_img, factor, project_id)
+        return _upscale_single(client, pil_img, factor, project_id, credentials)
     else:
-        return _upscale_tiled(client, pil_img, factor_int, project_id)
+        return _upscale_tiled(client, pil_img, factor_int, project_id, credentials)

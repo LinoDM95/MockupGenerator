@@ -2,6 +2,70 @@ import { useAppStore } from "../store/appStore";
 
 const getToken = () => localStorage.getItem("access_token");
 
+/** Access-Token ~5 Min vor Ablauf erneuern (lange Sessions / Batch-Jobs). */
+const PROACTIVE_BUFFER_MS = 5 * 60 * 1000;
+const PROACTIVE_MIN_DELAY_MS = 5_000;
+
+let proactiveRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+const parseJwtExpMs = (token: string): number | null => {
+  try {
+    const part = token.split(".")[1];
+    if (!part) return null;
+    const b64 = part.replace(/-/g, "+").replace(/_/g, "/");
+    const pad = "=".repeat((4 - (b64.length % 4)) % 4);
+    const payload = JSON.parse(atob(b64 + pad)) as { exp?: number };
+    return typeof payload.exp === "number" ? payload.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+};
+
+/** Timer abbrechen (z. B. bei Logout). */
+export const clearProactiveTokenRefresh = (): void => {
+  if (proactiveRefreshTimer !== null) {
+    clearTimeout(proactiveRefreshTimer);
+    proactiveRefreshTimer = null;
+  }
+};
+
+/**
+ * Plant ein Access-Token-Refresh kurz vor Ablauf. Nach erfolgreichem Login oder
+ * manuellem Refresh erneut aufrufen (z. B. aus App.tsx bei accessToken-Änderung).
+ */
+export const scheduleProactiveAccessRefresh = (): void => {
+  clearProactiveTokenRefresh();
+  const token = localStorage.getItem("access_token");
+  if (!token) return;
+  const expMs = parseJwtExpMs(token);
+  if (!expMs) return;
+  const dueIn = expMs - PROACTIVE_BUFFER_MS - Date.now();
+  const delayMs = dueIn <= 0 ? PROACTIVE_MIN_DELAY_MS : dueIn;
+
+  proactiveRefreshTimer = setTimeout(() => {
+    proactiveRefreshTimer = null;
+    void (async () => {
+      const ok = await refreshAccessToken();
+      if (ok) {
+        scheduleProactiveAccessRefresh();
+      }
+    })();
+  }, delayMs);
+};
+
+/** Vor langen Operationen: Token erneuern, wenn es in wenigen Minuten abläuft. */
+export const refreshAccessTokenIfExpiringSoon = async (): Promise<void> => {
+  const token = localStorage.getItem("access_token");
+  if (!token) return;
+  const expMs = parseJwtExpMs(token);
+  if (!expMs) return;
+  if (expMs - Date.now() >= PROACTIVE_BUFFER_MS) return;
+  const ok = await refreshAccessToken();
+  if (ok) {
+    scheduleProactiveAccessRefresh();
+  }
+};
+
 /** Kein Refresh bei Login/Register/Refresh-Endpoint (Endlosschleifen vermeiden). */
 const shouldTryRefreshOn401 = (path: string): boolean => {
   const base = path.split("?")[0] ?? path;
@@ -28,6 +92,7 @@ const refreshAccessToken = async (): Promise<boolean> => {
         const data = (await res.json()) as { access?: string; refresh?: string };
         if (!data.access) return false;
         useAppStore.getState().setTokens(data.access, data.refresh ?? refresh);
+        scheduleProactiveAccessRefresh();
         return true;
       } catch {
         return false;
