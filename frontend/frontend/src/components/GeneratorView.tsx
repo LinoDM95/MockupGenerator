@@ -1,5 +1,5 @@
-import { Download, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { CheckCircle2, Download, Loader2, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import JSZip from "jszip";
 
 import type {
@@ -31,12 +31,14 @@ import { getErrorMessage } from "../lib/error";
 import { sanitizeFileName } from "../lib/sanitize";
 import { toast } from "../lib/toast";
 import type { ArtworkItem } from "../types/mockup";
+import { useWorkSessionEta } from "../hooks/useWorkSessionEta";
 import { useAppStore } from "../store/appStore";
+import { ArtworkListThumbnail } from "./generator/ArtworkListThumbnail";
 import { BatchQueue } from "./generator/BatchQueue";
 import { ExportProgress } from "./gelato/ExportProgress";
 import { GelatoExportModal } from "./gelato/GelatoExportModal";
-import { BlockingProgressOverlay } from "./ui/BlockingProgressOverlay";
 import { Button } from "./ui/Button";
+import { WorkSessionShell } from "./ui/workSession/WorkSessionShell";
 
 const yieldToMain = () =>
   new Promise<void>((resolve) => {
@@ -55,13 +57,22 @@ const mockupExportErrorMessage = (e: unknown): string => {
 
 const JS_STORE = { compression: "STORE" as const };
 
+/** Listen-Thumbnails: klein genug für schnelles createImageBitmap, nicht die volle Datei im <img>. */
+const PREVIEW_MAX_EDGE = 256;
+const PREVIEW_CONCURRENCY = 3;
+
 export const GeneratorView = () => {
   const templateSets = useAppStore((s) => s.templateSets);
   const artworks = useAppStore((s) => s.artworks);
   const setArtworks = useAppStore((s) => s.setArtworks);
   const globalSetId = useAppStore((s) => s.globalSetId);
   const setGlobalSetId = useAppStore((s) => s.setGlobalSetId);
+  const setNavigationLocked = useAppStore((s) => s.setNavigationLocked);
+  const openConfirm = useAppStore((s) => s.openConfirm);
   const { reload: reloadTemplateSets } = useLoadTemplateSets({ silent: true });
+
+  const { recordSample, reset: resetEta, getRemainingLabel } = useWorkSessionEta();
+  const cancelGenerateRef = useRef(false);
 
   useEffect(() => {
     const onVis = () => {
@@ -80,6 +91,15 @@ export const GeneratorView = () => {
   });
   const [isPreparingPreviews, setIsPreparingPreviews] = useState(false);
   const previewJobsPendingRef = useRef(0);
+  const previewAbortControllersRef = useRef<AbortController[]>([]);
+
+  useEffect(() => {
+    if (isGenerating || isPreparingPreviews) {
+      setNavigationLocked(true);
+    } else {
+      setNavigationLocked(false);
+    }
+  }, [isGenerating, isPreparingPreviews, setNavigationLocked]);
 
   // Gelato state
   const [gelatoConn, setGelatoConn] = useState<GelatoConnectionStatus | null>(null);
@@ -124,35 +144,53 @@ export const GeneratorView = () => {
     previewJobsPendingRef.current += 1;
     setIsPreparingPreviews(true);
 
+    const ac = new AbortController();
+    previewAbortControllersRef.current.push(ac);
+    const signal = ac.signal;
+
     void (async () => {
-      const previews = new Map<string, string>();
       try {
-        for (const item of newItems) {
+        const queue = [...newItems];
+        const previewOne = async (item: ArtworkItem) => {
+          if (signal.aborted) return;
           try {
-            const p = await createArtworkPreviewObjectUrl(item.file, 384);
-            previews.set(item.id, p);
+            const p = await createArtworkPreviewObjectUrl(item.file, PREVIEW_MAX_EDGE);
+            if (signal.aborted) {
+              URL.revokeObjectURL(p);
+              return;
+            }
+            setArtworks((prev) => {
+              const row = prev.find((a) => a.id === item.id);
+              if (!row) {
+                URL.revokeObjectURL(p);
+                return prev;
+              }
+              return prev.map((a) => {
+                if (a.id !== item.id) return a;
+                if (a.previewUrl) URL.revokeObjectURL(a.previewUrl);
+                return { ...a, previewUrl: p };
+              });
+            });
           } catch (e) {
             console.error("Vorschau fehlgeschlagen:", item.name, e);
           }
-          await new Promise<void>((r) => {
-            requestAnimationFrame(() => r());
-          });
-        }
-        setArtworks((prev) => {
-          const alive = new Set(prev.map((a) => a.id));
-          for (const [id, p] of previews) {
-            if (!alive.has(id)) URL.revokeObjectURL(p);
+        };
+
+        const worker = async () => {
+          while (queue.length > 0 && !signal.aborted) {
+            const item = queue.shift();
+            if (!item) break;
+            await previewOne(item);
           }
-          return prev.map((a) => {
-            const p = previews.get(a.id);
-            if (!p) return a;
-            const stillSame = newItems.some((n) => n.id === a.id && n.url === a.url);
-            if (!stillSame) return a;
-            if (a.previewUrl) URL.revokeObjectURL(a.previewUrl);
-            return { ...a, previewUrl: p };
-          });
-        });
+        };
+
+        await Promise.all(
+          Array.from({ length: PREVIEW_CONCURRENCY }, () => worker()),
+        );
       } finally {
+        previewAbortControllersRef.current = previewAbortControllersRef.current.filter(
+          (c) => c !== ac,
+        );
         previewJobsPendingRef.current = Math.max(0, previewJobsPendingRef.current - 1);
         if (previewJobsPendingRef.current === 0) setIsPreparingPreviews(false);
       }
@@ -180,20 +218,39 @@ export const GeneratorView = () => {
     setArtworks((prev) => prev.map((a) => ({ ...a, setId: globalSetId })));
   };
 
+  const generatorFooterEta = useMemo(() => {
+    if (!isGenerating || progress.packPercent != null) return null;
+    if (progress.total <= 0) return null;
+    return getRemainingLabel(Math.max(0, progress.total - progress.current));
+  }, [
+    isGenerating,
+    progress.current,
+    progress.total,
+    progress.packPercent,
+    getRemainingLabel,
+  ]);
+
+  const handleAbortGenerate = useCallback(async () => {
+    const ok = await openConfirm(
+      "Wirklich abbrechen? Bereits gerenderte Mockups werden als ZIP angeboten, der Rest entfällt.",
+    );
+    if (!ok) return;
+    cancelGenerateRef.current = true;
+  }, [openConfirm]);
+
+  const handleAbortPreviews = useCallback(async () => {
+    const ok = await openConfirm(
+      "Vorschau-Erstellung abbrechen? Bereits fertige Vorschaubilder bleiben erhalten; der Rest wird ohne Listen-Vorschau angezeigt.",
+    );
+    if (!ok) return;
+    previewAbortControllersRef.current.forEach((c) => c.abort());
+  }, [openConfirm]);
+
   const generateBatchAndZIP = async (mainOnly = false) => {
     if (artworks.length === 0) return;
     await refreshAccessTokenIfExpiringSoon();
     await reloadTemplateSets();
     const sets = useAppStore.getState().templateSets;
-
-    setManualZipOffer(null);
-    setIsGenerating(true);
-    setProgress({
-      current: 0,
-      total: 1,
-      message: "Mockups werden gerendert …",
-      packPercent: null,
-    });
 
     let totalMockups = 0;
     for (const art of artworks) {
@@ -204,11 +261,13 @@ export const GeneratorView = () => {
 
     if (totalMockups === 0) {
       toast.error(zipBlockToastMessage(zipBlockReason(artworks, sets)));
-      setIsGenerating(false);
-      setProgress({ current: 0, total: 0, message: "", packPercent: null });
       return;
     }
 
+    cancelGenerateRef.current = false;
+    resetEta();
+    setManualZipOffer(null);
+    setIsGenerating(true);
     setProgress({
       current: 0,
       total: totalMockups,
@@ -221,7 +280,8 @@ export const GeneratorView = () => {
       let filesAdded = 0;
       let rendered = 0;
 
-      for (let i = 0; i < artworks.length; i++) {
+      batch: for (let i = 0; i < artworks.length; i++) {
+        if (cancelGenerateRef.current) break batch;
         const artwork = artworks[i];
         const activeSet = findTemplateSet(artwork.setId, sets);
         if (!activeSet || activeSet.templates.length === 0) continue;
@@ -239,16 +299,20 @@ export const GeneratorView = () => {
             message: `Mockup ${rendered}/${totalMockups}: ${artwork.name}`,
             packPercent: null,
           });
+          const t0 = performance.now();
           const canvas = await renderTemplateToCanvas(tpl, artImg, loadImage);
           const blob = await canvasToJpegBlob(canvas, 0.85);
           releaseCanvas(canvas);
+          recordSample(performance.now() - t0);
           zip.file(`${cleanFolderName}.jpg`, blob, JS_STORE);
           filesAdded += 1;
           await yieldToMain();
+          if (cancelGenerateRef.current) break batch;
         } else {
           const folder = zip.folder(cleanFolderName);
           if (!folder) continue;
           for (let t = 0; t < tplsToRender.length; t++) {
+            if (cancelGenerateRef.current) break batch;
             const tpl = tplsToRender[t]!;
             rendered += 1;
             setProgress({
@@ -257,9 +321,11 @@ export const GeneratorView = () => {
               message: `Mockup ${rendered}/${totalMockups}: ${artwork.name}`,
               packPercent: null,
             });
+            const t0 = performance.now();
             const canvas = await renderTemplateToCanvas(tpl, artImg, loadImage);
             const jpegBlob = await canvasToJpegBlob(canvas, 0.85);
             releaseCanvas(canvas);
+            recordSample(performance.now() - t0);
             const cleanTplName = sanitizeFileName(tpl.name) || "vorlage";
             const shortId = tpl.id.replace(/-/g, "").slice(0, 8);
             const fileName = `${String(t + 1).padStart(2, "0")}_${shortId}_${cleanTplName}.jpg`;
@@ -268,6 +334,36 @@ export const GeneratorView = () => {
             await yieldToMain();
           }
         }
+      }
+
+      if (cancelGenerateRef.current) {
+        if (filesAdded === 0) {
+          toast.error("Abgebrochen — es waren noch keine Mockups fertig.");
+          return;
+        }
+        setProgress({
+          current: totalMockups,
+          total: totalMockups,
+          message: "ZIP wird gepackt …",
+          packPercent: 0,
+        });
+        const blob = await zip.generateAsync({ type: "blob" }, (meta) => {
+          if (meta.percent != null) {
+            setProgress((prev) => ({
+              ...prev,
+              packPercent: meta.percent,
+              message: `ZIP wird gepackt … ${Math.round(meta.percent)}%`,
+            }));
+          }
+        });
+        const prefix = mainOnly ? "Gelato_Mockups" : "Etsy_Mockup_Batch";
+        const filename = `${prefix}_partial_${Date.now()}.zip`;
+        triggerAnchorDownload(blob, filename);
+        setManualZipOffer({ blob, filename });
+        toast.success(
+          "Abgebrochen — ZIP mit den fertigen Mockups wurde erstellt.",
+        );
+        return;
       }
 
       if (filesAdded === 0) {
@@ -319,6 +415,8 @@ export const GeneratorView = () => {
 
       setShowGelatoModal(false);
       setManualZipOffer(null);
+      cancelGenerateRef.current = false;
+      resetEta();
       setIsGenerating(true);
       setProgress({
         current: 0,
@@ -352,7 +450,8 @@ export const GeneratorView = () => {
             });
           }
 
-          for (let i = 0; i < items.length; i++) {
+          gelatoZip: for (let i = 0; i < items.length; i++) {
+            if (cancelGenerateRef.current) break gelatoZip;
             const { art, title } = items[i]!;
             const activeSet = findTemplateSet(art.setId, sets);
             if (!activeSet || activeSet.templates.length === 0) continue;
@@ -366,6 +465,7 @@ export const GeneratorView = () => {
             const artImg = await loadImage(art.url);
 
             for (let t = 0; t < activeSet.templates.length; t++) {
+              if (cancelGenerateRef.current) break gelatoZip;
               const tpl = activeSet.templates[t]!;
               rendered += 1;
               setProgress({
@@ -374,14 +474,45 @@ export const GeneratorView = () => {
                 message: `Mockup ${rendered}/${totalMockups}: ${title}`,
                 packPercent: null,
               });
+              const t0 = performance.now();
               const canvas = await renderTemplateToCanvas(tpl, artImg, loadImage);
               const jpegBlob = await canvasToJpegBlob(canvas, 0.85);
               releaseCanvas(canvas);
+              recordSample(performance.now() - t0);
               const cleanTplName = sanitizeFileName(tpl.name) || "vorlage";
               const fileName = `${String(t + 1).padStart(2, "0")}_${cleanTplName}.jpg`;
               folder.file(fileName, jpegBlob, JS_STORE);
               await yieldToMain();
             }
+          }
+
+          if (cancelGenerateRef.current) {
+            if (rendered > 0) {
+              setProgress({
+                current: totalMockups,
+                total: totalMockups,
+                message: "ZIP wird gepackt …",
+                packPercent: 0,
+              });
+              const blob = await zip.generateAsync({ type: "blob" }, (meta) => {
+                if (meta.percent != null) {
+                  setProgress((prev) => ({
+                    ...prev,
+                    packPercent: meta.percent,
+                    message: `ZIP wird gepackt … ${Math.round(meta.percent)}%`,
+                  }));
+                }
+              });
+              const filename = `Gelato_Mockups_partial_${Date.now()}.zip`;
+              triggerAnchorDownload(blob, filename);
+              setManualZipOffer({ blob, filename });
+              toast.success(
+                "Abgebrochen — ZIP mit den fertigen Mockups wurde erstellt.",
+              );
+            } else {
+              toast.error("Abgebrochen — es waren noch keine Mockups fertig.");
+            }
+            return;
           }
 
           if (rendered === 0) {
@@ -411,6 +542,8 @@ export const GeneratorView = () => {
           }
         }
 
+        if (cancelGenerateRef.current) return;
+
         setProgress({
           current: 0,
           total: artworks.length,
@@ -435,7 +568,7 @@ export const GeneratorView = () => {
         setProgress({ current: 0, total: 0, message: "", packPercent: null });
       }
     },
-    [artworks, reloadTemplateSets],
+    [artworks, reloadTemplateSets, recordSample, resetEta],
   );
 
   const handleManualZipDownload = useCallback(() => {
@@ -448,7 +581,7 @@ export const GeneratorView = () => {
     <div className="relative min-h-[min(80vh,720px)]">
       {manualZipOffer ? (
         <div
-          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm text-amber-950 shadow-sm"
+          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-950 ring-1 ring-inset ring-amber-500/20"
           role="status"
         >
           <p className="min-w-0 flex-1">
@@ -476,20 +609,90 @@ export const GeneratorView = () => {
           </div>
         </div>
       ) : null}
-      {isGenerating ? (
-        <BlockingProgressOverlay
-          title="Bitte warten"
-          message={progress.message}
-          current={progress.current}
-          total={progress.total}
-          packPercent={progress.packPercent}
-        />
-      ) : isPreparingPreviews ? (
-        <BlockingProgressOverlay
-          title="Bitte warte …"
-          subtitle="Vorschaubilder werden vorbereitet."
-          indeterminate
-        />
+      {isGenerating || isPreparingPreviews ? (
+        <WorkSessionShell
+          title="Generator"
+          subtitle={
+            isGenerating
+              ? "Mockups werden gerendert und anschließend gezippt."
+              : "Vorschaubilder werden aus deinen Motiven erzeugt."
+          }
+          message={
+            isGenerating
+              ? progress.message
+              : "Thumbnails werden erstellt — bitte kurz warten."
+          }
+          current={isGenerating ? progress.current : 0}
+          total={isGenerating ? Math.max(1, progress.total) : 1}
+          packPercent={isGenerating ? progress.packPercent : null}
+          indeterminate={!isGenerating}
+          etaLabel={isGenerating ? generatorFooterEta : null}
+          abortLabel={
+            isPreparingPreviews && !isGenerating ? "Vorschau abbrechen" : undefined
+          }
+          onAbort={
+            isGenerating
+              ? handleAbortGenerate
+              : isPreparingPreviews
+                ? handleAbortPreviews
+                : undefined
+          }
+        >
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/15 bg-slate-900/70 shadow-xl shadow-indigo-950/25 ring-1 ring-indigo-400/15">
+              <div className="shrink-0 border-b border-white/10 px-4 py-3">
+                <p className="text-xs font-medium text-indigo-100/70">Motive</p>
+                <p className="text-sm text-indigo-50/95">
+                  {artworks.length} Datei(en) in der Warteschlange
+                </p>
+              </div>
+              <div
+                className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]"
+                aria-label="Liste der Motive"
+              >
+                <ul className="divide-y divide-white/10">
+                  {artworks.map((a) => (
+                    <li key={a.id} className="flex items-center gap-3 px-4 py-3">
+                      <ArtworkListThumbnail
+                        previewUrl={a.previewUrl}
+                        variant="dark"
+                        className="h-12 w-12"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-white">
+                          {a.name}
+                        </p>
+                        <p className="text-xs text-indigo-100/65">
+                          {isGenerating
+                            ? "In der Warteschlange"
+                            : a.previewUrl
+                              ? "Vorschau bereit"
+                              : "Vorschau wird erstellt …"}
+                        </p>
+                      </div>
+                      {isGenerating ? (
+                        <Loader2
+                          className="h-5 w-5 shrink-0 animate-spin text-violet-300"
+                          aria-hidden
+                        />
+                      ) : a.previewUrl ? (
+                        <CheckCircle2
+                          className="h-5 w-5 shrink-0 text-emerald-400"
+                          aria-hidden
+                        />
+                      ) : (
+                        <Loader2
+                          className="h-5 w-5 shrink-0 animate-spin text-violet-300"
+                          aria-hidden
+                        />
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </WorkSessionShell>
       ) : null}
       <BatchQueue
         onFiles={handleArtworkUpload}
@@ -501,6 +704,8 @@ export const GeneratorView = () => {
         onUpdateArtwork={updateArtwork}
         onRemoveArtwork={removeArtwork}
         onClearAll={() => {
+          previewAbortControllersRef.current.forEach((c) => c.abort());
+          previewAbortControllersRef.current = [];
           previewJobsPendingRef.current = 0;
           setIsPreparingPreviews(false);
           artworks.forEach((a) => {
@@ -509,9 +714,9 @@ export const GeneratorView = () => {
           });
           setArtworks([]);
         }}
-        isGenerating={isGenerating}
+        isGenerating={isGenerating || isPreparingPreviews}
         progress={progress}
-        inlineProgressMinimal={isGenerating}
+        inlineProgressMinimal={isGenerating || isPreparingPreviews}
         onGenerate={() => {
           void generateBatchAndZIP(false);
         }}

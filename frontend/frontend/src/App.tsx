@@ -2,13 +2,10 @@ import type { ComponentType } from "react";
 import { useEffect } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
-import { Link2, Layers, LogOut, Megaphone, Rocket } from "lucide-react";
+import { Link2, Layers, LogOut, Megaphone, Rocket, Zap } from "lucide-react";
 import { Navigate } from "react-router-dom";
 
-import {
-  clearProactiveTokenRefresh,
-  scheduleProactiveAccessRefresh,
-} from "./api/client";
+import { clearProactiveTokenRefresh, scheduleProactiveAccessRefresh } from "./api/client";
 import { cn } from "./lib/cn";
 import { DialogHost } from "./components/DialogHost";
 import { AIActivityPanel } from "./components/ai/AIActivityPanel";
@@ -33,12 +30,15 @@ const tabContent: Record<AppTab, ComponentType> = {
   marketing: MarketingDashboard,
 };
 
+const NAV_LOCK_TITLE = "Während eines laufenden Vorgangs ist die Navigation gesperrt.";
+
 function App() {
   const accessToken = useAppStore((s) => s.accessToken);
   const logout = useAppStore((s) => s.logout);
   const activeTab = useAppStore((s) => s.activeTab);
   const setActiveTab = useAppStore((s) => s.setActiveTab);
   const setEditingSetId = useAppStore((s) => s.setEditingSetId);
+  const navigationLocked = useAppStore((s) => s.navigationLocked);
   const reduceMotion = useReducedMotion();
 
   useEffect(() => {
@@ -49,72 +49,88 @@ function App() {
     scheduleProactiveAccessRefresh();
   }, [accessToken]);
 
-  if (!accessToken) {
-    return <Navigate to="/" replace />;
-  }
+  if (!accessToken) return <Navigate to="/" replace />;
 
   const ActiveView = tabContent[activeTab];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-indigo-50/30">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-indigo-500/20">
       <AIActivityPanel />
       <DialogHost />
 
-      <header className="sticky top-0 z-50 border-b border-slate-200/85 bg-white/90 shadow-[0_1px_0_0_rgba(99,102,241,0.07)] backdrop-blur-lg ring-1 ring-indigo-500/5">
-        <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-3 sm:h-16 sm:gap-4 sm:px-6 lg:px-8">
-          <span className="min-w-0 shrink truncate text-sm font-semibold tracking-tight text-slate-900 sm:text-base">
-            Mockup Generator Pro
-          </span>
+      <header className="pointer-events-none sticky top-4 z-50 px-4 sm:px-6 lg:px-8">
+        <div className="pointer-events-auto mx-auto flex h-14 max-w-5xl items-center justify-between rounded-full bg-white px-4 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 sm:px-6">
+          <div className="flex shrink-0 items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 shadow-sm">
+              <Zap size={16} className="text-white" fill="currentColor" />
+            </div>
+            <span className="hidden text-sm font-bold tracking-tight text-slate-900 sm:block">
+              Mockup Generator Pro
+            </span>
+          </div>
 
           <nav
-            className="flex min-w-0 flex-1 items-center justify-center gap-0.5 sm:gap-1"
+            className="flex min-w-0 items-center gap-1 sm:gap-2"
             aria-label="Hauptnavigation"
           >
-            {mainTabs.map(({ id, label, shortLabel, icon: Icon }) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => {
-                  setActiveTab(id);
-                  setEditingSetId(null);
-                }}
-                className={cn(
-                  "relative flex min-w-0 items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-medium transition-all duration-200 sm:gap-2 sm:px-4 sm:text-sm",
-                  activeTab === id
-                    ? "text-indigo-600"
-                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-800",
-                )}
-                aria-current={activeTab === id ? "page" : undefined}
-              >
-                <Icon size={18} strokeWidth={1.75} className="shrink-0" />
-                <span className="hidden min-w-0 truncate sm:inline">{label}</span>
-                <span className="truncate sm:hidden">{shortLabel}</span>
-                {activeTab === id && (
-                  <span className="absolute -bottom-px left-2 right-2 h-0.5 rounded-full bg-indigo-600 sm:left-3 sm:right-3" />
-                )}
-              </button>
-            ))}
+            {mainTabs.map(({ id, label, shortLabel, icon: Icon }) => {
+              const isActive = activeTab === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  disabled={navigationLocked}
+                  title={navigationLocked ? NAV_LOCK_TITLE : undefined}
+                  onClick={() => {
+                    if (navigationLocked) return;
+                    setActiveTab(id);
+                    setEditingSetId(null);
+                  }}
+                  className={cn(
+                    "relative flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold tracking-wide transition-colors sm:px-4 sm:text-sm",
+                    navigationLocked
+                      ? "cursor-not-allowed opacity-50"
+                      : "hover:text-indigo-600",
+                    isActive ? "bg-indigo-50/50 text-indigo-600" : "text-slate-500",
+                  )}
+                  aria-current={isActive ? "page" : undefined}
+                >
+                  <Icon size={16} strokeWidth={2} className="shrink-0" />
+                  <span className="hidden sm:inline">{label}</span>
+                  <span className="sm:hidden">{shortLabel}</span>
+                </button>
+              );
+            })}
           </nav>
 
           <button
             type="button"
-            onClick={() => logout()}
-            className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-2 text-xs text-slate-500 transition-all duration-200 hover:bg-slate-100 hover:text-slate-800 sm:gap-1.5 sm:px-3 sm:text-sm"
+            disabled={navigationLocked}
+            title={navigationLocked ? NAV_LOCK_TITLE : undefined}
+            onClick={() => {
+              if (navigationLocked) return;
+              logout();
+            }}
+            className={cn(
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors",
+              navigationLocked
+                ? "cursor-not-allowed opacity-50"
+                : "hover:bg-slate-100 hover:text-slate-900",
+            )}
           >
-            <LogOut size={15} strokeWidth={1.75} className="sm:size-4" />
-            <span className="hidden sm:inline">Abmelden</span>
+            <LogOut size={16} strokeWidth={2} />
           </button>
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-3 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <main className="relative z-10 mx-auto max-w-7xl px-4 pb-12 pt-10 sm:px-6 lg:px-8">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
-            initial={{ opacity: 0, y: reduceMotion ? 0 : 6 }}
+            initial={{ opacity: 0, y: reduceMotion ? 0 : 8 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: reduceMotion ? 0 : 4 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
+            exit={{ opacity: 0, y: reduceMotion ? 0 : -4 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
           >
             <ActiveView />
           </motion.div>

@@ -30,11 +30,13 @@ import {
   type EtsyListingImage,
 } from "../../api/etsy";
 import { useCanvasRender } from "../../hooks/useCanvasRender";
+import { cn } from "../../lib/cn";
 import { toast } from "../../lib/toast";
 import { useAppStore } from "../../store/appStore";
 import type { Template } from "../../types/mockup";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
+import { EmptyState } from "../ui/EmptyState";
 import { IntegrationMissingCallout } from "../ui/IntegrationMissingCallout";
 import { Select } from "../ui/Select";
 import { renderTemplateToPngBlob } from "./mockupExport";
@@ -74,7 +76,7 @@ const SortableSlotRow = ({
         paddingBottom: 0,
       }}
       transition={{ duration: 0.2, layout: { duration: 0.2, ease: "easeOut" } }}
-      className="flex items-center gap-3 overflow-hidden rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm"
+      className="flex items-center gap-3 overflow-hidden rounded-xl bg-white px-3 py-2.5 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5"
     >
       <button
         type="button"
@@ -279,31 +281,40 @@ export const EtsyListingsEditor = () => {
 
   const etsyImages = selectedListing?.images || [];
 
+  const primaryListingImageUrl = useMemo(() => {
+    if (!etsyImages.length) return null;
+    const sorted = [...etsyImages].sort((a, b) => imageRank(a) - imageRank(b));
+    const first = sorted[0];
+    return first?.url_570xN || first?.url_fullxfull || first?.url_75x75 || null;
+  }, [etsyImages]);
+
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-6">
         <div className="flex items-center gap-3">
-          <div className="rounded-lg bg-indigo-50 p-2.5">
-            <Store className="text-indigo-600" size={22} strokeWidth={1.75} />
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-50 ring-1 ring-inset ring-slate-900/5">
+            <Store className="text-slate-700" size={22} strokeWidth={1.5} aria-hidden />
           </div>
           <div>
-            <h2 className="text-xl font-semibold text-slate-900">Etsy Listings &amp; Editor</h2>
-            <p className="text-sm text-slate-500">
-              Listings auswählen, Bilder verwalten und Mockups per Bulk-Job zu Etsy senden.
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900">Etsy Listings</h2>
+            <p className="mt-0.5 text-sm font-medium text-slate-500">
+              Vorschau, Bilder verwalten und Mockups per Bulk-Job senden.
             </p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            type="button"
-            onClick={() => void loadListings()}
-            disabled={listingsLoading}
-          >
-            {listingsLoading ? <Loader2 className="animate-spin" size={16} /> : <RefreshCw size={16} strokeWidth={1.75} />}
-            Aktualisieren
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          type="button"
+          onClick={() => void loadListings()}
+          disabled={listingsLoading}
+        >
+          {listingsLoading ? (
+            <Loader2 className="animate-spin" size={16} aria-hidden />
+          ) : (
+            <RefreshCw size={16} strokeWidth={1.75} aria-hidden />
+          )}
+          Aktualisieren
+        </Button>
       </div>
 
       {!integrationFlagsLoading && !etsyConnected ? (
@@ -315,182 +326,234 @@ export const EtsyListingsEditor = () => {
         />
       ) : null}
 
-      {jobId && (
-        <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900 shadow-sm">
-          <span className="font-medium">Letzter Job:</span> {jobId.slice(0, 8)}… —{" "}
-          <span className="font-medium text-indigo-700">{jobStatus}</span>
+      {jobId ? (
+        <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm font-medium text-slate-800 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-inset ring-slate-900/5">
+          <span className="font-bold text-slate-900">Letzter Job:</span> {jobId.slice(0, 8)}… —{" "}
+          <span className="text-indigo-700">{jobStatus}</span>
         </div>
-      )}
+      ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <h3 className="mb-3 text-sm font-semibold text-slate-900">Listings</h3>
-          {listingsLoading && !listings.length ? (
-            <div className="flex items-center gap-2 py-8 text-sm text-slate-500">
-              <Loader2 className="animate-spin" size={16} /> Listings werden geladen…
-            </div>
-          ) : listings.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 py-8 text-center">
-              <Store className="mx-auto mb-2 text-slate-300" size={32} strokeWidth={1} />
-              <p className="text-sm text-slate-500">
-                Keine Listings oder Shop nicht verbunden.
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                className="mt-4"
-                onClick={() => goToIntegration("etsy")}
-              >
-                Unter Integrationen → Etsy verbinden
-              </Button>
-            </div>
-          ) : (
-            <ul className="max-h-80 space-y-1 overflow-y-auto text-sm">
-              {listings.map((l) => {
-                const id = listingId(l);
-                return (
-                  <li key={id}>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedListingId(id)}
-                      className={`w-full rounded-lg px-3 py-2 text-left transition-colors ${
-                        selectedListingId === id
-                          ? "bg-indigo-50 font-medium text-indigo-900"
-                          : "text-slate-700 hover:bg-slate-50"
-                      }`}
-                    >
-                      {l.title || `Listing ${id}`}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </Card>
-
-        <Card>
-          <h3 className="mb-3 text-sm font-semibold text-slate-900">Listing-Editor</h3>
-          {!selectedListing ? (
-            <p className="py-8 text-center text-sm text-slate-500">
-              Bitte ein Listing auswählen.
-            </p>
-          ) : (
-            <div className="space-y-5">
-              <Select
-                label="Vorlage"
-                value={templateId}
-                onChange={(e) => setTemplateId(e.target.value)}
-              >
-                {templatesFlat.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </Select>
-
-              <Select
-                label="Artwork (Generator)"
-                value={artworkId}
-                onChange={(e) => setArtworkId(e.target.value)}
-              >
-                <option value="">— wählen —</option>
-                {artworks.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
-              </Select>
-
-              <div className="border-t border-slate-200 pt-4">
-                <p className="mb-2 text-sm font-medium text-slate-700">Etsy-Bilder löschen</p>
-                <div className="flex max-h-40 flex-wrap gap-2 overflow-y-auto">
-                  {etsyImages.map((im) => {
+      {listingsLoading && !listings.length ? (
+        <div className="flex items-center justify-center gap-2 py-16 text-sm font-medium text-slate-500">
+          <Loader2 className="animate-spin" size={18} aria-hidden />
+          Listings werden geladen…
+        </div>
+      ) : listings.length === 0 ? (
+        <EmptyState
+          icon={Store}
+          title="Keine Listings"
+          desc="Verbinde deinen Etsy-Shop oder aktualisiere die Liste, sobald dein Shop Listings enthält."
+          action={
+            <Button type="button" variant="outline" onClick={() => goToIntegration("etsy")}>
+              Unter Integrationen verbinden
+            </Button>
+          }
+        />
+      ) : (
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+          <div className="lg:col-span-5">
+            <div className="space-y-4 lg:sticky lg:top-24">
+              <Card padding="sm">
+                <div className="aspect-[4/3] overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-900/5">
+                  {primaryListingImageUrl ? (
+                    <img
+                      src={primaryListingImageUrl}
+                      alt=""
+                      className="h-full w-full object-contain"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-sm font-medium text-slate-400">
+                      Kein Bild
+                    </div>
+                  )}
+                </div>
+                <p className="mt-3 text-center text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                  Vorschau Hauptbild
+                </p>
+              </Card>
+              {etsyImages.length > 0 ? (
+                <div className="grid grid-cols-4 gap-2">
+                  {etsyImages.slice(0, 8).map((im) => {
                     const id = imageId(im);
                     if (!id) return null;
                     const thumb = im.url_75x75 || im.url_570xN || im.url_fullxfull;
                     return (
-                      <label
+                      <div
                         key={id}
-                        className={`flex cursor-pointer flex-col items-center gap-1 rounded-lg border p-2 text-xs transition-colors ${
-                          deleteIds.has(id)
-                            ? "border-red-400 bg-red-50 text-red-700"
-                            : "border-slate-200 text-slate-600 hover:border-slate-300"
-                        }`}
+                        className="aspect-square overflow-hidden rounded-lg bg-white shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/10"
                       >
                         {thumb ? (
-                          <img src={thumb} alt="" className="h-14 w-14 rounded object-cover" />
+                          <img src={thumb} alt="" className="h-full w-full object-cover" />
                         ) : (
-                          <span className="flex h-14 w-14 items-center justify-center rounded bg-slate-100 text-xs text-slate-400">{id}</span>
+                          <div className="flex h-full items-center justify-center text-[10px] text-slate-400">
+                            {id}
+                          </div>
                         )}
-                        <input
-                          type="checkbox"
-                          checked={deleteIds.has(id)}
-                          onChange={() => toggleDelete(id)}
-                          className="sr-only"
-                        />
-                        löschen
-                      </label>
+                      </div>
                     );
                   })}
-                  {!etsyImages.length && (
-                    <span className="text-sm text-slate-400">Keine Bilder geladen.</span>
-                  )}
                 </div>
-              </div>
-
-              <div className="border-t border-slate-200 pt-4">
-                <p className="mb-2 text-sm font-medium text-slate-700">
-                  Neue Mockups (Reihenfolge = Rank nach vorhandenen)
-                </p>
-                <Button
-                  variant="outline"
-                  type="button"
-                  onClick={() => void handleAddMockup()}
-                  disabled={busy}
-                  className="mb-3"
-                >
-                  Mockup erzeugen &amp; hochladen
-                </Button>
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                >
-                  <SortableContext
-                    items={newSlots.map((s) => s.key)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    <div className="space-y-2">
-                      <AnimatePresence initial={false} mode="popLayout">
-                        {newSlots.map((s, i) => (
-                          <SortableSlotRow
-                            key={s.key}
-                            id={s.key}
-                            label={`#${i + 1} — ${s.assetId.slice(0, 8)}…`}
-                            onRemove={() =>
-                              setNewSlots((prev) => prev.filter((x) => x.key !== s.key))
-                            }
-                          />
-                        ))}
-                      </AnimatePresence>
-                    </div>
-                  </SortableContext>
-                </DndContext>
-              </div>
-
-              <Button
-                type="button"
-                onClick={() => void handleSubmitJob()}
-                disabled={busy}
-                className="w-full gap-2 py-3"
-              >
-                {busy ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} strokeWidth={1.75} />}
-                Bulk-Job starten
-              </Button>
+              ) : null}
             </div>
-          )}
-        </Card>
-      </div>
+          </div>
+
+          <div className="space-y-6 lg:col-span-7">
+            <Card padding="lg">
+              <div className="space-y-6">
+                <Select
+                  label="Listing"
+                  value={selectedListingId != null ? String(selectedListingId) : ""}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setSelectedListingId(v ? Number(v) : null);
+                  }}
+                >
+                  <option value="">— wählen —</option>
+                  {listings.map((l) => {
+                    const id = listingId(l);
+                    return (
+                      <option key={id} value={id}>
+                        {l.title || `Listing ${id}`}
+                      </option>
+                    );
+                  })}
+                </Select>
+
+                {!selectedListing ? (
+                  <p className="py-6 text-center text-sm font-medium text-slate-500">
+                    Bitte ein Listing auswählen.
+                  </p>
+                ) : (
+                  <>
+                    <Select
+                      label="Vorlage"
+                      value={templateId}
+                      onChange={(e) => setTemplateId(e.target.value)}
+                    >
+                      {templatesFlat.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </Select>
+
+                    <Select
+                      label="Artwork (Generator)"
+                      value={artworkId}
+                      onChange={(e) => setArtworkId(e.target.value)}
+                    >
+                      <option value="">— wählen —</option>
+                      {artworks.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name}
+                        </option>
+                      ))}
+                    </Select>
+
+                    <div className="border-t border-slate-100 pt-6">
+                      <p className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-700">
+                        Etsy-Bilder entfernen
+                      </p>
+                      <div className="flex max-h-48 flex-wrap gap-2 overflow-y-auto">
+                        {etsyImages.map((im) => {
+                          const id = imageId(im);
+                          if (!id) return null;
+                          const thumb = im.url_75x75 || im.url_570xN || im.url_fullxfull;
+                          return (
+                            <label
+                              key={id}
+                              className={cn(
+                                "flex cursor-pointer flex-col items-center gap-1 rounded-xl p-2 text-xs font-medium transition-colors shadow-[0_2px_8px_rgb(0,0,0,0.04)]",
+                                deleteIds.has(id)
+                                  ? "bg-red-50 text-red-800 ring-1 ring-inset ring-red-500/20"
+                                  : "bg-white text-slate-600 ring-1 ring-slate-900/5 hover:bg-slate-50",
+                              )}
+                            >
+                              {thumb ? (
+                                <img src={thumb} alt="" className="h-14 w-14 rounded-lg object-cover" />
+                              ) : (
+                                <span className="flex h-14 w-14 items-center justify-center rounded-lg bg-slate-100 text-xs text-slate-400">
+                                  {id}
+                                </span>
+                              )}
+                              <input
+                                type="checkbox"
+                                checked={deleteIds.has(id)}
+                                onChange={() => toggleDelete(id)}
+                                className="sr-only"
+                              />
+                              löschen
+                            </label>
+                          );
+                        })}
+                        {!etsyImages.length ? (
+                          <span className="text-sm font-medium text-slate-400">Keine Bilder geladen.</span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="border-t border-slate-100 pt-6">
+                      <p className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-700">
+                        Neue Mockups (Reihenfolge = Rank nach vorhandenen)
+                      </p>
+                      <Button
+                        variant="outline"
+                        type="button"
+                        onClick={() => void handleAddMockup()}
+                        disabled={busy}
+                        className="mb-3"
+                      >
+                        Mockup erzeugen &amp; hochladen
+                      </Button>
+                      <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={handleDragEnd}
+                      >
+                        <SortableContext
+                          items={newSlots.map((s) => s.key)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          <div className="space-y-2">
+                            <AnimatePresence initial={false} mode="popLayout">
+                              {newSlots.map((s, i) => (
+                                <SortableSlotRow
+                                  key={s.key}
+                                  id={s.key}
+                                  label={`#${i + 1} — ${s.assetId.slice(0, 8)}…`}
+                                  onRemove={() =>
+                                    setNewSlots((prev) => prev.filter((x) => x.key !== s.key))
+                                  }
+                                />
+                              ))}
+                            </AnimatePresence>
+                          </div>
+                        </SortableContext>
+                      </DndContext>
+                    </div>
+
+                    <div className="flex justify-end border-t border-slate-100 pt-6">
+                      <Button
+                        type="button"
+                        onClick={() => void handleSubmitJob()}
+                        disabled={busy}
+                        className="min-w-[200px] gap-2 px-8"
+                      >
+                        {busy ? (
+                          <Loader2 className="animate-spin" size={16} aria-hidden />
+                        ) : (
+                          <Send size={16} strokeWidth={1.75} aria-hidden />
+                        )}
+                        Bulk-Job starten
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </Card>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

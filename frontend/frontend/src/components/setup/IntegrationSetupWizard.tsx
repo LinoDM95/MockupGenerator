@@ -46,14 +46,14 @@ const WizardStepContent = ({ copy }: { copy: WizardStepCopy }) => (
       </ul>
     </div>
 
-    <details className="group rounded-lg border border-slate-200 bg-slate-50/80">
+    <details className="group rounded-xl bg-slate-50/50 ring-1 ring-inset ring-slate-900/5">
       <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-slate-800 [&::-webkit-details-marker]:hidden">
         <span className="flex items-center justify-between gap-2">
           {copy.walkthrough.heading}
           <span className="text-slate-400 group-open:rotate-0">▼</span>
         </span>
       </summary>
-      <ol className="space-y-3 border-t border-slate-200 px-4 py-2 pb-4 pl-8 text-sm">
+      <ol className="space-y-3 border-t border-slate-100 px-4 py-2 pb-4 pl-8 text-sm">
         {copy.walkthrough.steps.map((s) => (
           <li key={s.title} className="list-decimal">
             <span className="font-medium text-slate-800">{plain(s.title)}</span>
@@ -150,7 +150,7 @@ export const IntegrationSetupWizard = () => {
 
   return (
     <div className="space-y-8">
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+      <div className="rounded-2xl bg-white p-4 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 sm:p-6">
         <h2 className="text-lg font-semibold text-slate-900">Geführter Einrichtungsassistent</h2>
         <p className="mt-1 text-sm text-slate-500">
           Drei Schritte: Gelato → Gemini → Vertex. Nutze „Weiter“, sobald du den jeweiligen Schritt
@@ -167,10 +167,10 @@ export const IntegrationSetupWizard = () => {
                   type="button"
                   onClick={() => setStep(n)}
                   className={cn(
-                    "flex w-full items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm font-medium transition-colors",
+                    "flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors shadow-[0_2px_8px_rgb(0,0,0,0.04)]",
                     active
-                      ? "border-indigo-500 bg-indigo-50 text-indigo-900"
-                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+                      ? "bg-indigo-50 text-indigo-900 ring-2 ring-indigo-500/30"
+                      : "bg-white text-slate-700 ring-1 ring-slate-900/5 hover:bg-slate-50",
                   )}
                 >
                   <span
@@ -197,7 +197,7 @@ export const IntegrationSetupWizard = () => {
         ) : null}
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+      <div className="rounded-2xl bg-white p-4 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 sm:p-6">
         <h3 className="text-base font-semibold text-slate-900">{plain(copy.title)}</h3>
         <WizardStepContent copy={copy} />
 

@@ -524,7 +524,7 @@ export const AISetup = ({
             </div>
           </div>
 
-          <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50/80">
+          <div className="mb-3 rounded-xl bg-amber-50 ring-1 ring-inset ring-amber-500/20">
             <button
               type="button"
               onClick={() => setVertexHelpOpen((o) => !o)}
@@ -539,7 +539,7 @@ export const AISetup = ({
               )}
             </button>
             {vertexHelpOpen ? (
-              <ol className="list-decimal space-y-2 border-t border-amber-200/80 px-3 py-3 pl-8 text-xs text-amber-950/90">
+              <ol className="list-decimal space-y-2 border-t border-amber-200/50 px-3 py-3 pl-8 text-xs text-amber-950/90">
                 {VERTEX_HELP_STEPS.map((step, i) => (
                   <li key={i} className="leading-relaxed">
                     {step}
@@ -567,7 +567,7 @@ export const AISetup = ({
             onChange={(e) => setVertexJsonDraft(e.target.value)}
             rows={8}
             spellCheck={false}
-            className="mb-4 w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2 font-mono text-xs text-slate-800 outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+            className="mb-4 w-full resize-y rounded-xl bg-white px-3 py-2 font-mono text-xs text-slate-800 shadow-[0_2px_8px_rgb(0,0,0,0.04)] outline-none ring-1 ring-slate-900/5 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
             placeholder='{ "type": "service_account", ... }'
             aria-label="Vertex Service Account JSON"
           />

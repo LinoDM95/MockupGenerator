@@ -1,49 +1,55 @@
 import type { LucideIcon } from "lucide-react";
+import { motion } from "framer-motion";
 
 import { cn } from "../../lib/cn";
 
 export type SubNavTabProps = {
   label: string;
-  /** Mobil-Kurzlabel (optional — sonst überall `label`) */
   shortLabel?: string;
   icon: LucideIcon;
   active: boolean;
   onClick: () => void;
+  disabled?: boolean;
+  title?: string;
+  /** Eindeutig pro Nav (z. B. Workspace vs. Integrationen), damit layoutId nicht kollidiert. */
+  activePillLayoutId?: string;
 };
 
-/**
- * Unter-Navigation im gleichen Rhythmus wie die Hauptnavigation in App.tsx
- * (Icon 18px, stroke 1.75, aktiver Unterstrich).
- */
 export const SubNavTab = ({
   label,
   shortLabel,
   icon: Icon,
   active,
   onClick,
+  disabled = false,
+  title,
+  activePillLayoutId = "sub-nav-active-pill",
 }: SubNavTabProps) => (
   <button
     type="button"
     onClick={onClick}
+    disabled={disabled}
+    title={title}
     className={cn(
-      "relative flex min-w-0 items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-medium transition-all duration-200 sm:gap-2 sm:px-4 sm:text-sm",
-      active
-        ? "text-indigo-600"
-        : "text-slate-500 hover:bg-slate-50 hover:text-slate-800",
+      "relative flex min-w-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-colors sm:px-4",
+      disabled
+        ? "cursor-not-allowed opacity-40"
+        : active
+          ? "text-slate-900"
+          : "text-slate-500 hover:bg-slate-200/50 hover:text-slate-700",
     )}
     aria-current={active ? "page" : undefined}
+    aria-disabled={disabled || undefined}
   >
-    <Icon size={18} strokeWidth={1.75} className="shrink-0" />
-    {shortLabel ? (
-      <>
-        <span className="hidden min-w-0 truncate sm:inline">{label}</span>
-        <span className="truncate sm:hidden">{shortLabel}</span>
-      </>
-    ) : (
-      <span className="min-w-0 truncate">{label}</span>
+    {active && (
+      <motion.div
+        layoutId={activePillLayoutId}
+        className="absolute inset-0 rounded-xl bg-white shadow-sm ring-1 ring-slate-900/5"
+        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+      />
     )}
-    {active ? (
-      <span className="absolute -bottom-px left-2 right-2 h-0.5 rounded-full bg-indigo-600 sm:left-3 sm:right-3" />
-    ) : null}
+    <Icon size={16} strokeWidth={2} className="relative z-10 shrink-0" />
+    <span className="relative z-10 hidden min-w-0 truncate sm:inline">{label}</span>
+    <span className="relative z-10 truncate sm:hidden">{shortLabel ?? label}</span>
   </button>
 );

@@ -3,7 +3,7 @@ import { ArrowRight } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { Button } from "./Button";
 
-type Variant = "amber" | "slate";
+type Variant = "amber" | "slate" | "indigo";
 
 type Props = {
   title: string;
@@ -15,9 +15,9 @@ type Props = {
 };
 
 const variantClass: Record<Variant, string> = {
-  amber:
-    "border-amber-200 bg-amber-50/90 text-amber-950 [&_.callout-desc]:text-amber-900/90",
-  slate: "border-slate-200 bg-slate-50 text-slate-900 [&_.callout-desc]:text-slate-600",
+  amber: "bg-amber-50 ring-1 ring-inset ring-amber-500/20 text-amber-900",
+  slate: "bg-slate-50 ring-1 ring-inset ring-slate-900/5 text-slate-800",
+  indigo: "bg-indigo-50 ring-1 ring-inset ring-indigo-500/20 text-indigo-900",
 };
 
 export const IntegrationMissingCallout = ({
@@ -29,28 +29,34 @@ export const IntegrationMissingCallout = ({
   className,
 }: Props) => (
   <div
-    role="status"
     className={cn(
-      "rounded-xl border px-4 py-3 text-sm shadow-sm",
+      "relative overflow-hidden rounded-2xl p-5 shadow-sm",
       variantClass[variant],
       className,
     )}
+    role="status"
   >
-    <p className="font-medium">{title}</p>
-    <p className="callout-desc mt-1 text-xs leading-relaxed">{description}</p>
-    <Button
-      type="button"
-      variant="outline"
-      className={cn(
-        "mt-3 gap-1.5 text-xs",
-        variant === "amber"
-          ? "border-amber-300 bg-white text-amber-950 hover:bg-amber-100"
-          : "border-slate-200 bg-white text-slate-800 hover:bg-slate-100",
-      )}
-      onClick={onSetup}
-    >
-      {actionLabel}
-      <ArrowRight size={14} aria-hidden />
-    </Button>
+    <div className="relative z-10">
+      <h4 className="text-sm font-bold tracking-tight">{title}</h4>
+      <p className="mt-1 max-w-[90%] text-xs font-medium leading-relaxed opacity-80">
+        {description}
+      </p>
+
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={cn(
+          "mt-4 bg-white/60 shadow-sm ring-1 ring-black/5 hover:bg-white",
+          variant === "amber" && "text-amber-900",
+          variant === "slate" && "text-slate-900",
+          variant === "indigo" && "text-indigo-900",
+        )}
+        onClick={onSetup}
+      >
+        {actionLabel}
+        <ArrowRight size={14} className="ml-1 opacity-70" aria-hidden />
+      </Button>
+    </div>
   </div>
 );

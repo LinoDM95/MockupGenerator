@@ -68,7 +68,7 @@ export interface ArtworkItem {
   file: File;
   /** Volle Auflösung (Blob-URL) – Export / Canvas. */
   url: string;
-  /** Optional: kleines JPEG/Blob-URL nur für UI-Thumbnails (Liste), um Dekodierung zu schonen. */
+  /** Kleines JPEG-Object-URL nur für Listen-Thumbnails (z. B. max. 256px Kante); Export nutzt `file`/`url`. */
   previewUrl?: string;
   name: string;
   setId: string;

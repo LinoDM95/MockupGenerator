@@ -25,6 +25,8 @@ import {
   upscaleImage,
 } from "../../api/upscaler";
 import { ApiError, refreshAccessTokenIfExpiringSoon } from "../../api/client";
+import { useWorkSessionEta } from "../../hooks/useWorkSessionEta";
+import { cn } from "../../lib/cn";
 import { triggerAnchorDownload } from "../../lib/download";
 import { getErrorMessage } from "../../lib/error";
 import { formatUpscaleUserMessage } from "../../lib/upscaleUserMessage";
@@ -34,12 +36,13 @@ import { AppPage } from "../ui/AppPage";
 import { BlockingProgressOverlay } from "../ui/BlockingProgressOverlay";
 import { Button } from "../ui/Button";
 import { Dropzone } from "../ui/Dropzone";
+import { WorkSessionShell } from "../ui/workSession/WorkSessionShell";
 
 const MAX_OUTPUT_PIXELS = 17_000_000;
 const MAX_BATCH_FILES = 50;
 const ALLOWED_EXT = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 
-type ItemStatus = "pending" | "running" | "done" | "error";
+type ItemStatus = "pending" | "running" | "done" | "error" | "cancelled";
 
 type BatchItem = {
   id: string;
@@ -72,11 +75,22 @@ const yieldToMain = () =>
     requestAnimationFrame(() => resolve());
   });
 
+const isAbortError = (e: unknown): boolean =>
+  (e instanceof DOMException && e.name === "AbortError") ||
+  (e instanceof Error && e.name === "AbortError");
+
 export const UpscalerView = () => {
   const activeTab = useAppStore((s) => s.activeTab);
   const workspaceTab = useAppStore((s) => s.workspaceTab);
   const goToIntegrationWizardStep = useAppStore((s) => s.goToIntegrationWizardStep);
   const setEditingSetId = useAppStore((s) => s.setEditingSetId);
+  const setNavigationLocked = useAppStore((s) => s.setNavigationLocked);
+  const openConfirm = useAppStore((s) => s.openConfirm);
+
+  const { recordSample, reset: resetEta, getRemainingLabel } = useWorkSessionEta();
+  const [sessionEtaLabel, setSessionEtaLabel] = useState<string | null>(null);
+  const cancelRequestedRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const [items, setItems] = useState<BatchItem[]>([]);
   const [factor, setFactor] = useState<UpscaleFactor>("x4");
@@ -99,6 +113,9 @@ export const UpscalerView = () => {
 
   const itemsRef = useRef(items);
   itemsRef.current = items;
+
+  /** Nach einem erfolgreichen Lauf soll einmal ZIP automatisch starten (State ist danach committed). */
+  const pendingAutoZipRef = useRef(false);
 
   const revokeAllUrls = useCallback((list: BatchItem[]) => {
     for (const it of list) {
@@ -126,8 +143,15 @@ export const UpscalerView = () => {
     [revokeAllUrls],
   );
 
+  useEffect(() => {
+    if (!isBuildingZip) return;
+    setNavigationLocked(true);
+    return () => setNavigationLocked(false);
+  }, [isBuildingZip, setNavigationLocked]);
+
   const handlePickFiles = useCallback((files: FileList | null) => {
     if (!files?.length) return;
+    pendingAutoZipRef.current = false;
     setGenericError(null);
     setVertexApiGate(null);
 
@@ -187,6 +211,7 @@ export const UpscalerView = () => {
   }, [revokeAllUrls]);
 
   const handleClearSelection = useCallback(() => {
+    pendingAutoZipRef.current = false;
     setItems((prev) => {
       revokeAllUrls(prev);
       return [];
@@ -196,136 +221,8 @@ export const UpscalerView = () => {
     setShowResults(false);
   }, [revokeAllUrls]);
 
-  const handleBatchUpscale = useCallback(async () => {
-    if (!items.length || isProcessing) return;
-    if (!vertexReady) {
-      toast.error(
-        "Bitte zuerst unter Integrationen → Gemini (KI) ein Vertex-Dienstkonto hinterlegen.",
-      );
-      return;
-    }
-
-    setGenericError(null);
-    setVertexApiGate(null);
-
-    const todo = items
-      .map((it, idx) => ({ it, idx }))
-      .filter(({ it }) => it.status === "pending" || it.status === "error");
-
-    if (todo.length === 0) {
-      toast.error("Waehle zuerst Bilder aus oder setze fehlgeschlagene zurueck.");
-      return;
-    }
-
-    setIsProcessing(true);
-    setProgressTotal(todo.length);
-    setProgressIdx(0);
-
-    await refreshAccessTokenIfExpiringSoon();
-
-    let anySuccess = false;
-    let vertexAborted = false;
-    let successInThisRun = 0;
-
-    try {
-      for (let i = 0; i < todo.length; i++) {
-        const { it, idx } = todo[i]!;
-        setProgressIdx(i + 1);
-
-        setItems((prev) => {
-          const next = [...prev];
-          next[idx] = { ...next[idx]!, status: "running" };
-          return next;
-        });
-
-        try {
-          const result = await upscaleImage(it.file, factor);
-          const resultUrl = URL.createObjectURL(result.blob);
-          anySuccess = true;
-          successInThisRun += 1;
-
-          setItems((prev) => {
-            const next = [...prev];
-            const cur = next[idx]!;
-            if (cur.resultUrl) URL.revokeObjectURL(cur.resultUrl);
-            next[idx] = {
-              ...cur,
-              status: "done",
-              originalWidth: result.originalWidth || cur.originalWidth,
-              originalHeight: result.originalHeight || cur.originalHeight,
-              resultUrl,
-              resultBlob: result.blob,
-              upscaledWidth: result.upscaledWidth,
-              upscaledHeight: result.upscaledHeight,
-              errorMessage: undefined,
-            };
-            return next;
-          });
-        } catch (e) {
-          if (e instanceof UpscaleVertexApiNotEnabledError) {
-            vertexAborted = true;
-            setVertexApiGate(e.activationUrl);
-            setItems((prev) => {
-              const next = [...prev];
-              const cur = next[idx]!;
-              next[idx] = {
-                ...cur,
-                status: "error",
-                errorMessage: e.message,
-              };
-              return next;
-            });
-            break;
-          }
-
-          const raw =
-            e instanceof ApiError ? e.getDetail() : getErrorMessage(e);
-          const msg = formatUpscaleUserMessage(raw);
-          setItems((prev) => {
-            const next = [...prev];
-            next[idx] = {
-              ...next[idx]!,
-              status: "error",
-              errorMessage: msg,
-            };
-            return next;
-          });
-          toast.error(`Fehler bei ${it.file.name}: ${msg}`);
-        }
-      }
-
-      if (anySuccess) {
-        setShowResults(true);
-        if (vertexAborted) {
-          toast.error(
-            "Vertex API nicht aktiv — weiter geht es nach Aktivierung. Fertige Bilder kannst du trotzdem laden.",
-          );
-        } else if (todo.length > 1) {
-          const failedInRun = todo.length - successInThisRun;
-          if (failedInRun > 0) {
-            toast.success(
-              `Fertig: ${successInThisRun} von ${todo.length} — fehlgeschlagene kannst du erneut versuchen.`,
-            );
-          } else {
-            toast.success("Alle Bilder verarbeitet.");
-          }
-        } else {
-          toast.success("Bild fertig.");
-        }
-      } else if (!vertexAborted) {
-        toast.error("Kein Bild konnte verarbeitet werden.");
-      }
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [items, factor, isProcessing, vertexReady]);
-
-  const handleDownloadZip = useCallback(async () => {
-    const done = items.filter((it) => it.status === "done" && it.resultBlob);
-    if (!done.length) {
-      toast.error("Keine fertigen Bilder fuer den ZIP-Download.");
-      return;
-    }
+  const buildZipFromDoneList = useCallback(async (done: BatchItem[]) => {
+    if (!done.length) return;
     setIsBuildingZip(true);
     setZipProgress({
       current: 0,
@@ -380,7 +277,221 @@ export const UpscalerView = () => {
         packPercent: null,
       });
     }
-  }, [items]);
+  }, []);
+
+  const handleDownloadZip = useCallback(async () => {
+    const done = items.filter((it) => it.status === "done" && it.resultBlob);
+    if (!done.length) {
+      toast.error("Keine fertigen Bilder fuer den ZIP-Download.");
+      return;
+    }
+    await buildZipFromDoneList(done);
+  }, [items, buildZipFromDoneList]);
+
+  const handleAbortUpscale = useCallback(async () => {
+    const ok = await openConfirm(
+      "Wirklich abbrechen? Bereits fertige Bilder werden als ZIP angeboten, der Rest wird nicht mehr verarbeitet.",
+    );
+    if (!ok) return;
+    cancelRequestedRef.current = true;
+    abortControllerRef.current?.abort();
+  }, [openConfirm]);
+
+  const handleBatchUpscale = useCallback(async () => {
+    if (!items.length || isProcessing) return;
+    if (!vertexReady) {
+      toast.error(
+        "Bitte zuerst unter Integrationen → Gemini (KI) ein Vertex-Dienstkonto hinterlegen.",
+      );
+      return;
+    }
+
+    setGenericError(null);
+    setVertexApiGate(null);
+
+    const todo = items
+      .map((it, idx) => ({ it, idx }))
+      .filter(({ it }) => it.status === "pending" || it.status === "error");
+
+    if (todo.length === 0) {
+      toast.error("Waehle zuerst Bilder aus oder setze fehlgeschlagene zurueck.");
+      return;
+    }
+
+    cancelRequestedRef.current = false;
+    resetEta();
+    setSessionEtaLabel(getRemainingLabel(todo.length));
+    setIsProcessing(true);
+    setNavigationLocked(true);
+    setProgressTotal(todo.length);
+    setProgressIdx(0);
+
+    await refreshAccessTokenIfExpiringSoon();
+
+    let anySuccess = false;
+    let vertexAborted = false;
+    let successInThisRun = 0;
+    let finishedNormally = false;
+
+    try {
+      for (let i = 0; i < todo.length; i++) {
+        const { it, idx } = todo[i]!;
+        setProgressIdx(i + 1);
+        setSessionEtaLabel(getRemainingLabel(Math.max(0, todo.length - i)));
+
+        abortControllerRef.current = new AbortController();
+        const signal = abortControllerRef.current.signal;
+
+        setItems((prev) => {
+          const next = [...prev];
+          next[idx] = { ...next[idx]!, status: "running" };
+          return next;
+        });
+
+        const t0 = performance.now();
+
+        try {
+          const result = await upscaleImage(it.file, factor, { signal });
+          const elapsed = performance.now() - t0;
+          recordSample(elapsed);
+
+          const resultUrl = URL.createObjectURL(result.blob);
+          anySuccess = true;
+          successInThisRun += 1;
+
+          setItems((prev) => {
+            const next = [...prev];
+            const cur = next[idx]!;
+            if (cur.resultUrl) URL.revokeObjectURL(cur.resultUrl);
+            next[idx] = {
+              ...cur,
+              status: "done",
+              originalWidth: result.originalWidth || cur.originalWidth,
+              originalHeight: result.originalHeight || cur.originalHeight,
+              resultUrl,
+              resultBlob: result.blob,
+              upscaledWidth: result.upscaledWidth,
+              upscaledHeight: result.upscaledHeight,
+              errorMessage: undefined,
+            };
+            return next;
+          });
+        } catch (e) {
+          if (isAbortError(e) && cancelRequestedRef.current) {
+            setItems((prev) => {
+              const next = [...prev];
+              for (let k = i; k < todo.length; k++) {
+                const listIdx = todo[k]!.idx;
+                const row = next[listIdx]!;
+                if (row.status === "running" || row.status === "pending") {
+                  if (row.resultUrl) URL.revokeObjectURL(row.resultUrl);
+                  next[listIdx] = {
+                    ...row,
+                    status: "cancelled",
+                    errorMessage: "Abgebrochen",
+                    resultUrl: undefined,
+                    resultBlob: undefined,
+                  };
+                }
+              }
+              return next;
+            });
+            break;
+          }
+
+          if (e instanceof UpscaleVertexApiNotEnabledError) {
+            vertexAborted = true;
+            setVertexApiGate(e.activationUrl);
+            setItems((prev) => {
+              const next = [...prev];
+              const cur = next[idx]!;
+              next[idx] = {
+                ...cur,
+                status: "error",
+                errorMessage: e.message,
+              };
+              return next;
+            });
+            break;
+          }
+
+          const raw =
+            e instanceof ApiError ? e.getDetail() : getErrorMessage(e);
+          const msg = formatUpscaleUserMessage(raw);
+          setItems((prev) => {
+            const next = [...prev];
+            next[idx] = {
+              ...next[idx]!,
+              status: "error",
+              errorMessage: msg,
+            };
+            return next;
+          });
+          toast.error(`Fehler bei ${it.file.name}: ${msg}`);
+        }
+      }
+
+      finishedNormally = !vertexAborted && !cancelRequestedRef.current;
+
+      if (cancelRequestedRef.current && anySuccess) {
+        setIsProcessing(false);
+        setSessionEtaLabel(null);
+        await yieldToMain();
+        const done = itemsRef.current.filter(
+          (row) => row.status === "done" && row.resultBlob,
+        );
+        if (done.length) await buildZipFromDoneList(done);
+        setShowResults(true);
+        toast.success("Vorgang abgebrochen — ZIP mit fertigen Bildern wurde erstellt.");
+      } else if (anySuccess && finishedNormally) {
+        pendingAutoZipRef.current = true;
+        setShowResults(true);
+        if (vertexAborted) {
+          toast.error(
+            "Vertex API nicht aktiv — weiter geht es nach Aktivierung. Fertige Bilder kannst du trotzdem laden.",
+          );
+        } else if (todo.length > 1) {
+          const failedInRun = todo.length - successInThisRun;
+          if (failedInRun > 0) {
+            toast.success(
+              `Fertig: ${successInThisRun} von ${todo.length} — fehlgeschlagene kannst du erneut versuchen.`,
+            );
+          } else {
+            toast.success("Alle Bilder verarbeitet.");
+          }
+        } else {
+          toast.success("Bild fertig.");
+        }
+      } else if (!vertexAborted && !cancelRequestedRef.current) {
+        toast.error("Kein Bild konnte verarbeitet werden.");
+      }
+    } finally {
+      setIsProcessing(false);
+      setNavigationLocked(false);
+      abortControllerRef.current = null;
+      setSessionEtaLabel(null);
+    }
+  }, [
+    items,
+    factor,
+    isProcessing,
+    vertexReady,
+    resetEta,
+    getRemainingLabel,
+    recordSample,
+    buildZipFromDoneList,
+    setNavigationLocked,
+  ]);
+
+  useEffect(() => {
+    if (isProcessing || !showResults || !pendingAutoZipRef.current) return;
+    const done = items.filter(
+      (it) => it.status === "done" && it.resultBlob,
+    );
+    if (done.length === 0) return;
+    pendingAutoZipRef.current = false;
+    void handleDownloadZip();
+  }, [isProcessing, showResults, items, handleDownloadZip]);
 
   const handleDownloadSinglePng = useCallback((it: BatchItem) => {
     if (!it.resultUrl) return;
@@ -413,6 +524,11 @@ export const UpscalerView = () => {
     }
     return it;
   }, [items]);
+
+  const runningItem = useMemo(
+    () => items.find((i) => i.status === "running"),
+    [items],
+  );
 
   // ── Empty: Dropzone ──
   if (items.length === 0) {
@@ -476,6 +592,45 @@ export const UpscalerView = () => {
   // ── Queue + Ergebnis (Einzel: Slider, Mehrfach: Textliste + ZIP) ──
   return (
     <AppPage className="pb-10">
+      {isProcessing ? (
+        <WorkSessionShell
+          title="Upscaler"
+          subtitle="Bilder werden nacheinander hochskaliert — bitte warten oder gezielt abbrechen."
+          message={
+            runningItem
+              ? `Aktuell: ${runningItem.file.name}`
+              : `Schritt ${progressIdx} von ${progressTotal}`
+          }
+          current={progressIdx}
+          total={Math.max(1, progressTotal)}
+          etaLabel={sessionEtaLabel}
+          onAbort={handleAbortUpscale}
+        >
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+            {vertexApiGate ? (
+              <div className="shrink-0">
+                <VertexApiNotEnabledBox activationUrl={vertexApiGate} />
+              </div>
+            ) : null}
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/15 bg-slate-900/70 shadow-xl shadow-indigo-950/25 ring-1 ring-indigo-400/15">
+              <div className="shrink-0 border-b border-white/10 px-4 py-3 sm:px-5">
+                <p className="text-xs font-medium text-indigo-100/70">
+                  Upscale-Faktor (dieser Lauf)
+                </p>
+                <p className="mt-1 text-sm font-semibold text-white">
+                  {factor.toUpperCase()}
+                </p>
+              </div>
+              <div
+                className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]"
+                aria-label="Liste der Bilder in der Verarbeitung"
+              >
+                <UpscalerQueueList items={items} factor={factor} variant="dark" />
+              </div>
+            </div>
+          </div>
+        </WorkSessionShell>
+      ) : null}
       {isBuildingZip ? (
         <BlockingProgressOverlay
           title="ZIP wird erstellt"
@@ -485,7 +640,7 @@ export const UpscalerView = () => {
           packPercent={zipProgress.packPercent}
         />
       ) : null}
-      {vertexApiGate ? (
+      {!isProcessing && vertexApiGate ? (
         <VertexApiNotEnabledBox activationUrl={vertexApiGate} />
       ) : null}
 
@@ -493,7 +648,8 @@ export const UpscalerView = () => {
         <button
           type="button"
           onClick={handleClearSelection}
-          className="flex items-center gap-1.5 text-sm text-slate-500 transition-colors hover:text-slate-800"
+          disabled={isProcessing}
+          className="flex items-center gap-1.5 text-sm text-slate-500 transition-colors hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
         >
           <ArrowLeft size={16} /> Neue Auswahl
         </button>
@@ -505,8 +661,8 @@ export const UpscalerView = () => {
 
       {genericError ? <ErrorBanner message={genericError} /> : null}
 
-      {!showResults ? (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      {!showResults && !isProcessing ? (
+        <div className="overflow-hidden rounded-2xl bg-white shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5">
           <div className="border-b border-slate-100 px-5 py-4">
             <label className="mb-2 block text-xs font-medium text-slate-500">
               Upscale-Faktor (fuer alle)
@@ -517,12 +673,11 @@ export const UpscalerView = () => {
                   key={f}
                   type="button"
                   onClick={() => setFactor(f)}
-                  disabled={isProcessing}
-                  className={`rounded-lg border px-5 py-2.5 text-sm font-semibold transition-all duration-200 ${
+                  className={`rounded-xl px-5 py-2.5 text-sm font-semibold shadow-[0_2px_8px_rgb(0,0,0,0.04)] transition-all duration-200 ring-1 ${
                     factor === f
-                      ? "border-indigo-300 bg-indigo-50 text-indigo-700"
-                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
-                  } disabled:opacity-50`}
+                      ? "bg-indigo-50 text-indigo-700 ring-indigo-500/25"
+                      : "bg-white text-slate-600 ring-slate-900/5 hover:bg-slate-50"
+                  }`}
                 >
                   {f.toUpperCase()}
                 </button>
@@ -530,73 +685,7 @@ export const UpscalerView = () => {
             </div>
           </div>
 
-          <ul className="divide-y divide-slate-100">
-            {items.map((it) => {
-              const mult = parseInt(factor.slice(1), 10);
-              const targetW = it.originalWidth
-                ? it.originalWidth * mult
-                : null;
-              const targetH = it.originalHeight
-                ? it.originalHeight * mult
-                : null;
-              const needsTiling =
-                targetW != null &&
-                targetH != null &&
-                targetW * targetH > MAX_OUTPUT_PIXELS;
-
-              return (
-                <li
-                  key={it.id}
-                  className="flex gap-4 px-5 py-4"
-                >
-                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                    <img
-                      src={it.previewUrl}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-slate-900">
-                      {it.file.name}
-                    </p>
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      {(it.file.size / (1024 * 1024)).toFixed(2)} MB
-                      {it.status === "done" &&
-                      it.upscaledWidth &&
-                      it.upscaledHeight
-                        ? ` → ${it.upscaledWidth}×${it.upscaledHeight}`
-                        : null}
-                    </p>
-                    {needsTiling ? (
-                      <p className="mt-1 text-xs text-amber-600">
-                        Kachelverarbeitung (über 17 MP) – kann länger dauern.
-                      </p>
-                    ) : null}
-                    {it.status === "error" && it.errorMessage ? (
-                      <p className="mt-1 text-xs text-red-600">
-                        {it.errorMessage}
-                      </p>
-                    ) : null}
-                  </div>
-                  <div className="shrink-0 self-center text-xs">
-                    {it.status === "pending" ? (
-                      <span className="text-slate-400">Wartet</span>
-                    ) : null}
-                    {it.status === "running" ? (
-                      <Loader2 className="h-5 w-5 animate-spin text-indigo-500" />
-                    ) : null}
-                    {it.status === "done" ? (
-                      <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                    ) : null}
-                    {it.status === "error" ? (
-                      <AlertCircle className="h-5 w-5 text-red-400" />
-                    ) : null}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+          <UpscalerQueueList items={items} factor={factor} />
 
           {vertexReady === false ? (
             <div className="border-t border-amber-100 bg-amber-50/50 px-5 py-3 text-xs text-amber-950">
@@ -615,40 +704,22 @@ export const UpscalerView = () => {
           ) : null}
 
           <div className="border-t border-slate-100 px-5 py-4">
-            {isProcessing ? (
-              <div className="flex flex-col items-center gap-2">
-                <p className="text-sm text-slate-600">
-                  Fortschritt {progressIdx} / {progressTotal}
-                </p>
-                <div className="h-1.5 w-full max-w-md overflow-hidden rounded-full bg-indigo-100">
-                  <div
-                    className="studio-linear-bar-fill h-full rounded-full bg-indigo-600 transition-all"
-                    style={{
-                      width: progressTotal
-                        ? `${Math.round((progressIdx / progressTotal) * 100)}%`
-                        : "38%",
-                    }}
-                  />
-                </div>
-              </div>
-            ) : (
-              <Button
-                onClick={() => void handleBatchUpscale()}
-                className="w-full"
-                disabled={vertexReady === false || pendingCount === 0}
-              >
-                <Maximize size={16} />
-                {items.length === 1
-                  ? "Upscale starten"
-                  : `Alle hochskalieren (${pendingCount})`}
-              </Button>
-            )}
+            <Button
+              onClick={() => void handleBatchUpscale()}
+              className="w-full"
+              disabled={vertexReady === false || pendingCount === 0}
+            >
+              <Maximize size={16} />
+              {items.length === 1
+                ? "Upscale starten"
+                : `Alle hochskalieren (${pendingCount})`}
+            </Button>
           </div>
         </div>
       ) : null}
 
       {showResults && doneCount > 0 && singlePreviewItem ? (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-2xl bg-white shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
             <h2 className="text-lg font-semibold text-slate-900">Ergebnis</h2>
             <Button variant="outline" onClick={() => setShowResults(false)}>
@@ -675,7 +746,7 @@ export const UpscalerView = () => {
       ) : null}
 
       {showResults && doneCount > 0 && items.length > 1 ? (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-2xl bg-white shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
             <div>
               <h2 className="text-lg font-semibold text-slate-900">Ergebnisse</h2>
@@ -711,9 +782,16 @@ export const UpscalerView = () => {
                       className="h-5 w-5 animate-spin text-indigo-500"
                       aria-hidden
                     />
+                  ) : it.status === "cancelled" ? (
+                    <span
+                      className="text-xs font-medium text-slate-400"
+                      aria-hidden
+                    >
+                      —
+                    </span>
                   ) : (
                     <span
-                      className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-[10px] text-slate-400"
+                      className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] text-slate-400 ring-1 ring-slate-900/10"
                       aria-hidden
                     >
                       ·
@@ -733,6 +811,11 @@ export const UpscalerView = () => {
                   ) : null}
                   {it.status === "error" && it.errorMessage ? (
                     <p className="mt-0.5 text-xs text-red-600">
+                      {it.errorMessage}
+                    </p>
+                  ) : null}
+                  {it.status === "cancelled" && it.errorMessage ? (
+                    <p className="mt-0.5 text-xs text-slate-500">
                       {it.errorMessage}
                     </p>
                   ) : null}
@@ -762,6 +845,136 @@ export const UpscalerView = () => {
   );
 };
 
+const UpscalerQueueList = ({
+  items,
+  factor,
+  variant = "light",
+}: {
+  items: BatchItem[];
+  factor: UpscaleFactor;
+  variant?: "light" | "dark";
+}) => {
+  const dark = variant === "dark";
+  return (
+    <ul
+      className={cn(
+        "divide-y",
+        dark ? "divide-white/10" : "divide-slate-100",
+      )}
+    >
+      {items.map((it) => {
+        const mult = parseInt(factor.slice(1), 10);
+        const targetW = it.originalWidth ? it.originalWidth * mult : null;
+        const targetH = it.originalHeight ? it.originalHeight * mult : null;
+        const needsTiling =
+          targetW != null &&
+          targetH != null &&
+          targetW * targetH > MAX_OUTPUT_PIXELS;
+
+        return (
+          <li key={it.id} className="flex gap-4 px-4 py-4 sm:px-5">
+            <div
+              className={cn(
+                "h-16 w-16 shrink-0 overflow-hidden rounded-lg border",
+                dark
+                  ? "border-white/15 bg-slate-900/60"
+                  : "border-slate-200 bg-slate-50",
+              )}
+            >
+              <img
+                src={it.previewUrl}
+                alt=""
+                className="h-full w-full object-cover"
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p
+                className={cn(
+                  "truncate text-sm font-medium",
+                  dark ? "text-white" : "text-slate-900",
+                )}
+              >
+                {it.file.name}
+              </p>
+              <p
+                className={cn(
+                  "mt-0.5 text-xs",
+                  dark ? "text-indigo-100/75" : "text-slate-500",
+                )}
+              >
+                {(it.file.size / (1024 * 1024)).toFixed(2)} MB
+                {it.status === "done" && it.upscaledWidth && it.upscaledHeight
+                  ? ` → ${it.upscaledWidth}×${it.upscaledHeight}`
+                  : null}
+              </p>
+              {needsTiling ? (
+                <p
+                  className={cn(
+                    "mt-1 text-xs",
+                    dark ? "text-amber-200/90" : "text-amber-600",
+                  )}
+                >
+                  Kachelverarbeitung (über 17 MP) – kann länger dauern.
+                </p>
+              ) : null}
+              {it.status === "error" && it.errorMessage ? (
+                <p
+                  className={cn(
+                    "mt-1 text-xs",
+                    dark ? "text-red-300" : "text-red-600",
+                  )}
+                >
+                  {it.errorMessage}
+                </p>
+              ) : null}
+              {it.status === "cancelled" && it.errorMessage ? (
+                <p
+                  className={cn(
+                    "mt-1 text-xs",
+                    dark ? "text-slate-400" : "text-slate-500",
+                  )}
+                >
+                  {it.errorMessage}
+                </p>
+              ) : null}
+            </div>
+            <div className="shrink-0 self-center text-xs">
+              {it.status === "pending" ? (
+                <span
+                  className={dark ? "text-indigo-200/50" : "text-slate-400"}
+                >
+                  Wartet
+                </span>
+              ) : null}
+              {it.status === "running" ? (
+                <Loader2
+                  className={cn(
+                    "h-5 w-5 animate-spin",
+                    dark ? "text-violet-300" : "text-indigo-500",
+                  )}
+                />
+              ) : null}
+              {it.status === "done" ? (
+                <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+              ) : null}
+              {it.status === "error" ? (
+                <AlertCircle className="h-5 w-5 text-red-400" />
+              ) : null}
+              {it.status === "cancelled" ? (
+                <span
+                  className={dark ? "text-indigo-200/45" : "text-slate-400"}
+                >
+                  —
+                </span>
+              ) : null}
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+};
+
 const VertexApiNotEnabledBox = ({
   activationUrl,
 }: {
@@ -769,7 +982,7 @@ const VertexApiNotEnabledBox = ({
 }) => (
   <div
     role="status"
-    className="rounded-xl border border-indigo-200 bg-indigo-50/90 px-4 py-4 text-sm text-indigo-950 shadow-sm"
+    className="rounded-xl bg-indigo-50 px-4 py-4 text-sm text-indigo-950 ring-1 ring-inset ring-indigo-500/20"
   >
     <p className="font-semibold text-indigo-950">Fast geschafft!</p>
     <p className="mt-2 leading-relaxed text-indigo-900/95">
@@ -838,7 +1051,7 @@ const BeforeAfterSlider = ({
   return (
     <div
       ref={containerRef}
-      className="relative max-h-[70vh] select-none overflow-hidden rounded-xl border border-slate-200 bg-slate-900 shadow-lg"
+      className="relative max-h-[70vh] select-none overflow-hidden rounded-2xl bg-slate-900 shadow-lg ring-1 ring-white/10"
       style={{ cursor: "col-resize" }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -862,7 +1075,7 @@ const BeforeAfterSlider = ({
         style={{ left: `${position}%`, transform: "translateX(-50%)" }}
       >
         <div className="h-full w-0.5 bg-white shadow-[0_0_6px_rgba(0,0,0,0.4)]" />
-        <div className="absolute top-1/2 left-1/2 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-white/90 shadow-lg backdrop-blur-sm">
+        <div className="absolute top-1/2 left-1/2 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-white shadow-lg">
           <svg
             width="16"
             height="16"
@@ -880,10 +1093,10 @@ const BeforeAfterSlider = ({
           </svg>
         </div>
       </div>
-      <div className="pointer-events-none absolute top-3 left-3 rounded-md bg-black/50 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
+      <div className="pointer-events-none absolute top-3 left-3 rounded-md bg-black/60 px-2.5 py-1 text-xs font-medium text-white">
         Original
       </div>
-      <div className="pointer-events-none absolute top-3 right-3 rounded-md bg-black/50 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
+      <div className="pointer-events-none absolute top-3 right-3 rounded-md bg-black/60 px-2.5 py-1 text-xs font-medium text-white">
         Upscaled
       </div>
     </div>

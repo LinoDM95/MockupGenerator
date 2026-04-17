@@ -1,4 +1,14 @@
-import { Loader2 } from "lucide-react";
+import { motion } from "framer-motion";
+import {
+  CheckCircle2,
+  Cloud,
+  Link2,
+  Loader2,
+  Package,
+  Pin,
+  ShoppingBag,
+  Sparkles,
+} from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { ApiError } from "../../api/client";
@@ -17,21 +27,15 @@ import { EtsyIntegrationSetup } from "../etsy/EtsyIntegrationSetup";
 import { GelatoSetup } from "../gelato/GelatoSetup";
 import { MarketingIntegrationSetup } from "../marketing/MarketingIntegrationSetup";
 import { Button } from "../ui/Button";
+import { Card } from "../ui/Card";
 import { Input } from "../ui/Input";
 
 export type HubTabId = "etsy" | "gelato" | "gemini" | "cloudflare_r2" | "pinterest";
 
-const TABS: { id: HubTabId; label: string }[] = [
-  { id: "etsy", label: "1. Etsy" },
-  { id: "gelato", label: "2. Gelato (POD)" },
-  { id: "gemini", label: "3. Gemini (KI)" },
-  { id: "cloudflare_r2", label: "4. Cloudflare R2" },
-  { id: "pinterest", label: "5. Pinterest" },
-];
-
 const R2_GUIDE = {
   title: "Cloudflare R2",
-  tagline: "R2 (S3-kompatibel) für temporäre Uploads und Assets – BYOK mit eigenem Bucket.",
+  tagline:
+    "R2 (S3-kompatibel) für temporäre Uploads und Assets – BYOK mit eigenem Bucket.",
   steps: [
     "Im Cloudflare-Dashboard R2 aktivieren und S3-kompatible Access-/Secret-Keys anlegen.",
     "Endpoint (HTTPS), Bucket-Name und Keys unten eintragen und speichern.",
@@ -42,6 +46,44 @@ const R2_GUIDE = {
     { href: "https://developers.cloudflare.com/r2/api/s3/api/", label: "S3 API für R2" },
   ],
 };
+
+const INTEGRATION_CARDS: {
+  id: HubTabId;
+  title: string;
+  desc: string;
+  icon: typeof ShoppingBag;
+}[] = [
+  {
+    id: "etsy",
+    title: "Etsy Shop",
+    desc: "OAuth-Verbindung für Listing-Entwürfe und Bulk-Uploads.",
+    icon: ShoppingBag,
+  },
+  {
+    id: "gelato",
+    title: "Gelato Print",
+    desc: "API-Anbindung für Produkt-Export und Druck.",
+    icon: Package,
+  },
+  {
+    id: "gemini",
+    title: "Google Gemini",
+    desc: "Eigener API-Key für KI-Listing-Texte.",
+    icon: Sparkles,
+  },
+  {
+    id: "cloudflare_r2",
+    title: "Cloudflare R2",
+    desc: "S3-kompatible Keys für temporäre Uploads und Assets.",
+    icon: Cloud,
+  },
+  {
+    id: "pinterest",
+    title: "Pinterest",
+    desc: "OAuth für Boards, Pins und Marketing-Flows.",
+    icon: Pin,
+  },
+];
 
 const statusField = (tab: HubTabId, s: IntegrationStatusResponse | null): boolean => {
   if (!s) return false;
@@ -157,42 +199,86 @@ export const SetupHub = () => {
   const g = R2_GUIDE;
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(200px,260px)_1fr]">
-      <nav aria-label="Integrationen" className="flex flex-col gap-1">
-        {TABS.map((row) => {
-          const active = tab === row.id;
-          const ok = statusField(row.id, status);
+    <div className="mx-auto max-w-5xl space-y-8 pb-12">
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+          Alle Integrationen
+        </h2>
+        <p className="mt-2 text-sm font-medium text-slate-500">
+          Verwalte Shop-Verbindungen und API-Keys zentral an einem Ort.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        {INTEGRATION_CARDS.map((item, i) => {
+          const ok = statusField(item.id, status);
+          const Icon = item.icon;
+          const selected = tab === item.id;
           return (
-            <button
-              key={row.id}
-              type="button"
-              onClick={() => handleTabChange(row.id)}
-              className={cn(
-                "flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
-                active
-                  ? "bg-indigo-50 text-indigo-900"
-                  : "text-slate-700 hover:bg-slate-100",
-              )}
+            <motion.div
+              key={item.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: i * 0.05 }}
             >
-              <span
+              <Card
+                padding="md"
                 className={cn(
-                  "h-2 w-2 shrink-0 rounded-full",
-                  ok ? "bg-emerald-500" : "bg-slate-300",
+                  "flex h-full flex-col justify-between transition-shadow",
+                  selected && "ring-2 ring-indigo-400/50",
                 )}
-                aria-hidden
-              />
-              <span>{row.label}</span>
-            </button>
+              >
+                <div>
+                  <div className="mb-4 flex items-start justify-between gap-3">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-700 ring-1 ring-inset ring-slate-900/5">
+                      <Icon size={22} strokeWidth={1.5} />
+                    </div>
+                    {loadingStatus ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500 ring-1 ring-inset ring-slate-900/5">
+                        <Loader2 size={12} className="animate-spin" aria-hidden />
+                        …
+                      </span>
+                    ) : ok ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 ring-1 ring-inset ring-emerald-500/20">
+                        <CheckCircle2 size={12} strokeWidth={2.5} aria-hidden />
+                        Verbunden
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500 ring-1 ring-inset ring-slate-900/5">
+                        <Link2 size={12} strokeWidth={2.5} aria-hidden />
+                        Getrennt
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="text-lg font-bold tracking-tight text-slate-900">{item.title}</h3>
+                  <p className="mt-1 text-sm font-medium leading-relaxed text-slate-500">
+                    {item.desc}
+                  </p>
+                </div>
+
+                <div className="mt-6 border-t border-slate-100 pt-4">
+                  <Button
+                    type="button"
+                    variant={ok ? "outline" : "secondary"}
+                    size="sm"
+                    className={cn(
+                      "w-full",
+                      ok && "text-slate-600 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900",
+                    )}
+                    onClick={() => handleTabChange(item.id)}
+                  >
+                    {ok ? "Einstellungen öffnen" : "Jetzt einrichten"}
+                  </Button>
+                </div>
+              </Card>
+            </motion.div>
           );
         })}
-        {loadingStatus ? (
-          <p className="px-3 text-xs text-slate-500">Status wird geladen…</p>
-        ) : null}
-      </nav>
+      </div>
 
-      <div className="min-w-0 rounded-xl border border-slate-200 bg-white shadow-sm">
+      <Card padding="md" className="min-w-0">
         {embedded ? (
-          <div className="min-w-0 p-4 sm:p-6">
+          <div className="min-w-0">
             {tab === "etsy" ? (
               <EtsyIntegrationSetup isConnected={!!status?.etsy} />
             ) : null}
@@ -201,7 +287,7 @@ export const SetupHub = () => {
             {tab === "pinterest" ? <MarketingIntegrationSetup /> : null}
           </div>
         ) : (
-          <div className="p-6">
+          <div>
             <header className="mb-6">
               <h2 className="text-lg font-semibold text-slate-900">
                 {r2Configured ? "Cloudflare R2 – Einstellungen" : g.title}
@@ -321,7 +407,7 @@ export const SetupHub = () => {
             </div>
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 };

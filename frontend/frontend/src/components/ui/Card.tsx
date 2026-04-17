@@ -3,37 +3,42 @@ import type { HTMLAttributes, ReactNode } from "react";
 
 import { cn } from "../../lib/cn";
 
-/** DOM-Attribute ohne Events, die mit Framer Motion kollidieren. */
 type DivProps = Omit<
   HTMLAttributes<HTMLDivElement>,
-  "onAnimationStart" | "onAnimationEnd" | "onDrag" | "onDragStart" | "onDragEnd" | "onDragEnter" | "onDragExit"
+  | "onAnimationStart"
+  | "onAnimationEnd"
+  | "onDrag"
+  | "onDragStart"
+  | "onDragEnd"
+  | "onDragEnter"
+  | "onDragExit"
 >;
 
 type Props = DivProps & {
   children: ReactNode;
-  padding?: "sm" | "md" | "lg";
-  /** `accent`: weiche Ecken + dezenter Indigo-Ring, an Overlay-Karten angelehnt (hell). */
+  padding?: "none" | "sm" | "md" | "lg";
   variant?: "default" | "accent";
-  /** Wenn true: Hover-Lift. Wenn nicht gesetzt: aktiv bei `onClick`, außer `interactive={false}`. */
   interactive?: boolean;
 };
 
 const pad: Record<NonNullable<Props["padding"]>, string> = {
+  none: "p-0",
   sm: "p-5",
   md: "p-6",
   lg: "p-8",
 };
 
 const variantClass: Record<NonNullable<Props["variant"]>, string> = {
-  default: "rounded-xl border border-slate-200 bg-white shadow-sm",
+  default:
+    "relative rounded-2xl border border-transparent bg-white shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5",
   accent:
-    "rounded-2xl border border-slate-200/90 bg-white shadow-md ring-1 ring-indigo-500/10 shadow-indigo-950/[0.04]",
+    "relative rounded-[2rem] border border-transparent bg-white shadow-[0_8px_24px_rgb(0,0,0,0.06)] ring-1 ring-indigo-900/5",
 };
 
 const hoverShadowDefault =
-  "0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.06)";
+  "0 8px 24px rgb(0,0,0,0.06), 0 2px 8px rgb(0,0,0,0.04)";
 const hoverShadowAccent =
-  "0 12px 24px -4px rgb(99 102 241 / 0.12), 0 6px 12px -6px rgb(0 0 0 / 0.06)";
+  "0 12px 32px rgb(99,102,241,0.08), 0 4px 12px rgb(0,0,0,0.04)";
 
 export const Card = ({
   children,
@@ -62,7 +67,12 @@ export const Card = ({
               }
         }
         transition={{ duration: 0.2, ease: "easeOut" }}
-        className={cn(surface, pad[padding], className)}
+        className={cn(
+          surface,
+          pad[padding],
+          "cursor-pointer transition-colors hover:border-indigo-200",
+          className,
+        )}
         {...rest}
       >
         {children}

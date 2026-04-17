@@ -99,9 +99,14 @@ export const ExportProgress = ({ taskIds, onClose }: Props) => {
   const pct = total > 0 ? Math.round(((done + failed) / total) * 100) : 0;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="relative w-full max-w-md rounded-xl border border-slate-200 bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+      <div className="relative w-full max-w-md overflow-hidden rounded-[2rem] bg-white shadow-[0_24px_48px_rgba(0,0,0,0.15)] ring-1 ring-slate-900/5">
+        <div
+          className="pointer-events-none absolute inset-0 rounded-[2rem] shadow-[inset_0_1px_0_rgba(255,255,255,1)]"
+          aria-hidden
+        />
+        <div className="relative">
+          <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
           <h2 className="text-base font-semibold text-slate-900">
             Gelato Export
           </h2>
@@ -113,9 +118,9 @@ export const ExportProgress = ({ taskIds, onClose }: Props) => {
           >
             <X size={18} />
           </button>
-        </div>
+          </div>
 
-        <div className="px-5 py-4">
+          <div className="px-5 py-4">
           <div className="mb-2 flex items-center justify-between text-sm">
             <span className="font-medium text-slate-700">
               {done} von {total} erfolgreich
@@ -133,9 +138,9 @@ export const ExportProgress = ({ taskIds, onClose }: Props) => {
               transition={{ ease: "linear", duration: 0.25 }}
             />
           </div>
-        </div>
+          </div>
 
-        <div className="max-h-64 overflow-y-auto border-t border-slate-100 px-5 py-3">
+          <div className="max-h-64 overflow-y-auto border-t border-slate-100 px-5 py-3">
           <div className="space-y-2">
             {tasks.map((task) => (
               <div
@@ -171,15 +176,16 @@ export const ExportProgress = ({ taskIds, onClose }: Props) => {
               </div>
             )}
           </div>
-        </div>
-
-        {allDone && (
-          <div className="border-t border-slate-200 px-5 py-4">
-            <Button onClick={onClose} className="w-full">
-              <Check size={16} /> Fertig
-            </Button>
           </div>
-        )}
+
+          {allDone ? (
+            <div className="border-t border-slate-200 px-5 py-4">
+              <Button onClick={onClose} className="w-full">
+                <Check size={16} /> Fertig
+              </Button>
+            </div>
+          ) : null}
+        </div>
       </div>
     </div>
   );

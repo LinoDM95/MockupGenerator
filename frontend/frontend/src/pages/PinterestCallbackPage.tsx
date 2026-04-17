@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { marketingOAuthCallback } from "../api/marketing";
 import { toast } from "../lib/toast";
+import { Card } from "../components/ui/Card";
 
 export const PinterestCallbackPage = () => {
   const [params] = useSearchParams();
@@ -44,14 +45,14 @@ export const PinterestCallbackPage = () => {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
-      <div className="max-w-md rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+      <Card padding="lg" className="max-w-md text-center">
         <Loader2
           className="mx-auto mb-4 h-8 w-8 animate-spin text-rose-600"
           strokeWidth={1.75}
         />
         <h1 className="mb-2 text-lg font-semibold text-slate-900">Pinterest OAuth</h1>
         <p className="text-sm text-slate-600">{message}</p>
-      </div>
+      </Card>
     </div>
   );
 };

@@ -360,10 +360,10 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+    <div className="rounded-2xl bg-white p-4 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 md:p-6">
       {saving ? <LinearLoadingBar message="Vorlage wird gespeichert…" /> : null}
       {replacingBg ? <LinearLoadingBar message="Hintergrundbild wird gewechselt…" /> : null}
-      <div className="mb-4 flex flex-col items-start justify-between gap-4 border-b border-slate-200 pb-4 md:flex-row md:items-center">
+      <div className="mb-4 flex flex-col items-start justify-between gap-4 border-b border-slate-100 pb-4 md:flex-row md:items-center">
         <div className="flex w-full items-center gap-3 md:w-auto">
           <button
             type="button"
@@ -385,7 +385,7 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:justify-end">
           <label
-            className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 ${
+            className={`inline-flex cursor-pointer items-center gap-2 rounded-xl bg-white px-3 py-2.5 text-sm font-medium text-slate-700 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 transition-colors hover:bg-slate-50 ${
               saving || replacingBg ? "pointer-events-none opacity-50" : ""
             }`}
             title="Neues JPG/PNG/Webp als Vorlagen-Hintergrund"
@@ -436,7 +436,7 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
         />
 
         <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1 lg:col-span-1">
-          <section className="shrink-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <section className="shrink-0 rounded-2xl bg-white p-4 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5">
             <h3 className="text-sm font-semibold text-slate-900">
               Mockup & Export
             </h3>
@@ -483,7 +483,7 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                   </label>
                 </div>
                 {frameShadowOuterOn ? (
-                  <fieldset className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <fieldset className="space-y-2 rounded-xl bg-slate-50/50 p-3 ring-1 ring-inset ring-slate-900/5">
                     <legend className="px-1 text-xs font-medium text-slate-600">
                       Außen – Seiten
                     </legend>
@@ -523,7 +523,7 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                   </fieldset>
                 ) : null}
                 {frameShadowInnerOn ? (
-                  <fieldset className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <fieldset className="space-y-2 rounded-xl bg-slate-50/50 p-3 ring-1 ring-inset ring-slate-900/5">
                     <legend className="px-1 text-xs font-medium text-slate-600">
                       Innen – Seiten
                     </legend>
@@ -612,7 +612,7 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                 </p>
               </div>
             </div>
-            <div className="mt-4 border-t border-slate-200 pt-4">
+            <div className="mt-4 border-t border-slate-100 pt-4">
               <label className="flex cursor-pointer items-start gap-2.5 text-sm text-slate-800">
                 <input
                   type="checkbox"
@@ -639,10 +639,10 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                       role="listitem"
                       disabled={!previewEndView}
                       onClick={() => setPreviewMotifVariant(i)}
-                      className={`relative aspect-square rounded-lg border-2 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 ${
+                      className={`relative aspect-square rounded-xl transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 ${
                         previewMotifVariant === i
-                          ? "border-indigo-600 shadow-md ring-2 ring-indigo-400/40"
-                          : "border-slate-200 hover:border-slate-300"
+                          ? "shadow-md ring-2 ring-indigo-500 ring-offset-1 ring-offset-white"
+                          : "ring-1 ring-slate-900/10 hover:ring-slate-900/20"
                       }`}
                       style={{ background: previewVariantSwatchStyle(i) }}
                       title={`Motiv ${i + 1}`}
@@ -658,7 +658,7 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
           </section>
 
           {previewEndView ? (
-            <p className="shrink-0 rounded-lg border border-dashed border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-slate-700">
+            <p className="shrink-0 rounded-xl bg-amber-50 px-4 py-3 text-center text-xs font-semibold text-amber-900 ring-1 ring-inset ring-amber-500/20">
               Ebenen und Eigenschaften sind in der Vorschau pausiert – Endansicht ausschalten zum Bearbeiten.
             </p>
           ) : null}

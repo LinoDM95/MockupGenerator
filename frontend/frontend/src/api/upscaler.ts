@@ -56,6 +56,7 @@ const throwUpscaleHttpError = (res: Response, bodyText: string): never => {
 export const upscaleImage = async (
   file: File,
   factor: UpscaleFactor,
+  options?: { signal?: AbortSignal },
 ): Promise<UpscaleResult> => {
   const form = new FormData();
   form.append("image", file);
@@ -64,6 +65,7 @@ export const upscaleImage = async (
   const res = await apiFetch("/api/upscaler/upscale/", {
     method: "POST",
     body: form,
+    signal: options?.signal,
   });
 
   if (!res.ok) {

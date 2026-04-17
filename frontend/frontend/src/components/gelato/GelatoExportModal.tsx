@@ -34,6 +34,7 @@ import { useIntegrationFlags } from "../../hooks/useIntegrationFlags";
 import { useAiActivityStore } from "../../store/aiActivityStore";
 import { useAppStore } from "../../store/appStore";
 import type { ArtworkItem } from "../../types/mockup";
+import { ArtworkListThumbnail } from "../generator/ArtworkListThumbnail";
 import { Button } from "../ui/Button";
 import { IntegrationMissingCallout } from "../ui/IntegrationMissingCallout";
 import { Input } from "../ui/Input";
@@ -811,15 +812,16 @@ export const GelatoExportModal = ({
   }, []);
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="relative flex w-full max-w-4xl flex-col rounded-xl border border-slate-200 bg-white shadow-xl"
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50">
+      <div
+        className="relative flex w-full max-w-4xl flex-col rounded-xl bg-white shadow-[0_12px_40px_rgba(0,0,0,0.12)] ring-1 ring-slate-900/5"
         style={{ maxHeight: "92vh" }}
       >
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 pt-5 pb-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50">
-              <Globe size={20} className="text-indigo-600" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 ring-1 ring-inset ring-indigo-500/20">
+              <Globe size={20} aria-hidden />
             </div>
             <div>
               <h2 className="text-lg font-semibold text-slate-900">Gelato Export</h2>
@@ -884,9 +886,9 @@ export const GelatoExportModal = ({
 
               {/* AI bulk section */}
               {aiConnected && (
-                <div className="rounded-lg border border-dashed border-indigo-300 bg-indigo-50/30 p-4">
-                  <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-indigo-500">
-                    <Sparkles size={14} /> KI für alle Motive
+                <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-inset ring-slate-900/5">
+                  <h3 className="mb-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-600">
+                    <Sparkles size={14} className="text-indigo-600" aria-hidden /> KI für alle Motive
                   </h3>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <Select
@@ -915,7 +917,7 @@ export const GelatoExportModal = ({
                           key={ctx}
                           type="button"
                           onClick={() => setAiContext(ctx)}
-                          className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs text-slate-600 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+                          className="rounded-full bg-white px-2.5 py-0.5 text-xs font-medium text-slate-600 shadow-[0_1px_2px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/10 transition-colors hover:bg-slate-100 hover:text-slate-900"
                         >
                           {ctx.length > 30 ? `${ctx.slice(0, 28)}…` : ctx}
                         </button>
@@ -948,7 +950,7 @@ export const GelatoExportModal = ({
               {aiFailureHint && (
                 <div
                   role="status"
-                  className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-950"
+                  className="flex gap-2 rounded-lg bg-amber-50 px-3 py-2.5 text-sm text-amber-950 ring-1 ring-inset ring-amber-500/20"
                 >
                   <AlertCircle
                     className="mt-0.5 h-4 w-4 shrink-0 text-amber-600"
@@ -970,7 +972,7 @@ export const GelatoExportModal = ({
                     return (
                       <div
                         key={art.id}
-                        className="relative rounded-lg border border-slate-200 bg-white transition-shadow hover:shadow-sm"
+                        className="relative rounded-lg bg-white shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 transition-shadow hover:shadow-sm"
                       >
                         {/* Compact header row */}
                         <button
@@ -982,15 +984,11 @@ export const GelatoExportModal = ({
                           <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-slate-100 text-xs font-medium text-slate-500">
                             {idx + 1}
                           </span>
-                          <div className="h-10 w-10 shrink-0 overflow-hidden rounded border border-slate-200 bg-slate-50">
-                            <img
-                              src={art.previewUrl ?? art.url}
-                              className="h-full w-full object-cover"
-                              alt=""
-                              loading="lazy"
-                              decoding="async"
-                            />
-                          </div>
+                          <ArtworkListThumbnail
+                            previewUrl={art.previewUrl}
+                            variant="light"
+                            className="h-10 w-10 rounded border border-slate-200"
+                          />
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-medium text-slate-700">
                               {metadataList[idx]?.title || art.name}
@@ -998,7 +996,7 @@ export const GelatoExportModal = ({
                             {hasMeta && !isExpanded && (
                               <p className="text-xs text-slate-400">
                                 <span
-                                  className="inline cursor-default transition-colors hover:text-indigo-500"
+                                  className="inline cursor-default transition-colors hover:text-slate-700"
                                   onMouseEnter={(e) => handlePreviewEnter(idx, e)}
                                   onMouseLeave={handlePreviewLeave}
                                 >
@@ -1008,7 +1006,7 @@ export const GelatoExportModal = ({
                                   {metadataList[idx]?.tags && metadataList[idx]?.description ? " · " : ""}
                                   {metadataList[idx]?.description ? "Beschreibung vorhanden" : ""}
                                   {!isMobile && (
-                                    <span className="ml-1 text-[10px] font-medium text-indigo-400">↗ Vorschau</span>
+                                    <span className="ml-1 text-[10px] font-medium text-slate-500">↗ Vorschau</span>
                                   )}
                                 </span>
                               </p>
@@ -1025,7 +1023,7 @@ export const GelatoExportModal = ({
                                 void openAiPopup(idx);
                               }}
                               disabled={isAiBusy}
-                              className="flex shrink-0 items-center gap-1.5 rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-600 transition-all duration-200 hover:bg-indigo-100 disabled:opacity-50"
+                              className="flex shrink-0 items-center gap-1.5 rounded-lg bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-[0_1px_2px_rgb(0,0,0,0.04)] ring-1 ring-inset ring-slate-900/5 transition-all duration-200 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-50 [&_svg]:text-indigo-600"
                               aria-label={`KI-Metadaten für ${art.name} generieren`}
                             >
                               <Sparkles size={14} />
@@ -1048,11 +1046,12 @@ export const GelatoExportModal = ({
                                 value={metadataList[idx]?.title ?? ""}
                                 onChange={(e) => updateMeta(idx, "title", e.target.value)}
                                 placeholder="Titel eingeben…"
-                                className={`w-full rounded-md border px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 ${
+                                className={cn(
+                                  "w-full rounded-xl px-3 py-2 text-sm text-slate-800 shadow-[0_2px_8px_rgb(0,0,0,0.04)] outline-none transition-all duration-200 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/10",
                                   !metadataList[idx]?.title?.trim()
-                                    ? "border-red-300 bg-red-50/50"
-                                    : "border-slate-200 bg-white"
-                                }`}
+                                    ? "bg-red-50/50 ring-1 ring-red-300"
+                                    : "bg-white ring-1 ring-slate-900/5",
+                                )}
                               />
                             </div>
                             <div>
@@ -1062,7 +1061,7 @@ export const GelatoExportModal = ({
                                 onChange={(e) => updateMeta(idx, "description", e.target.value)}
                                 placeholder="Produktbeschreibung…"
                                 rows={5}
-                                className="w-full resize-y rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+                                className="w-full resize-y rounded-xl bg-white px-3 py-2 text-sm text-slate-800 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 outline-none transition-all duration-200 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/10"
                               />
                             </div>
                             <div>
@@ -1072,7 +1071,7 @@ export const GelatoExportModal = ({
                                 value={metadataList[idx]?.tags ?? ""}
                                 onChange={(e) => updateMeta(idx, "tags", e.target.value)}
                                 placeholder="tag1, tag2, tag3, …"
-                                className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition-colors focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+                                className="w-full rounded-xl bg-white px-3 py-2 text-sm text-slate-800 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 outline-none transition-all duration-200 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/10"
                               />
                             </div>
                           </div>
@@ -1086,7 +1085,7 @@ export const GelatoExportModal = ({
           ) : (
             /* Step 2: Summary */
             <div className="space-y-5">
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <div className="rounded-lg bg-slate-50 p-4 ring-1 ring-inset ring-slate-900/5">
                 <h3 className="mb-3 text-sm font-semibold text-slate-900">
                   Zusammenfassung
                 </h3>
@@ -1102,7 +1101,7 @@ export const GelatoExportModal = ({
                 </dl>
               </div>
 
-              <div className="flex items-center gap-2.5 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+              <div className="flex items-center gap-2.5 rounded-lg bg-slate-50 px-4 py-3 ring-1 ring-inset ring-slate-900/5">
                 <Truck size={16} className="shrink-0 text-slate-400" />
                 <div>
                   <span className="text-sm font-medium text-slate-500">Versand</span>
@@ -1110,7 +1109,7 @@ export const GelatoExportModal = ({
                 </div>
               </div>
 
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+              <div className="rounded-lg bg-amber-50 p-4 ring-1 ring-inset ring-amber-500/25">
                 <div className="flex items-start gap-3">
                   <Package size={18} className="mt-0.5 shrink-0 text-amber-600" />
                   <div className="text-sm text-amber-800">
@@ -1123,7 +1122,7 @@ export const GelatoExportModal = ({
                 </div>
               </div>
 
-              <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-white p-4 transition-colors hover:bg-slate-50">
+              <label className="flex cursor-pointer items-center gap-3 rounded-lg bg-white p-4 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 transition-colors hover:bg-slate-50">
                 <input
                   type="checkbox"
                   checked={downloadZip}
@@ -1185,7 +1184,7 @@ export const GelatoExportModal = ({
           onMouseLeave={handlePanelLeave}
         >
           <div
-            className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white/95 shadow-2xl backdrop-blur-sm"
+            className="flex flex-col overflow-hidden rounded-xl bg-white shadow-[0_12px_40px_rgba(0,0,0,0.12)] ring-1 ring-slate-900/5"
             style={{ maxHeight: "60vh" }}
           >
             <div className="flex shrink-0 items-center gap-3 border-b border-slate-100 px-4 py-3">
@@ -1239,16 +1238,16 @@ export const GelatoExportModal = ({
 
       {/* Single-artwork AI popup */}
       {aiPopupIdx !== null && artworks[aiPopupIdx] && (
-        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/30 backdrop-blur-[2px]">
+        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/50">
           <div
             className={cn(
-              "w-full rounded-xl border border-slate-200 bg-white p-5 shadow-2xl",
+              "w-full rounded-xl bg-white p-5 shadow-[0_12px_40px_rgba(0,0,0,0.12)] ring-1 ring-slate-900/5",
               aiExpertMode ? "max-w-lg" : "max-w-sm",
             )}
           >
             <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50">
-                <Sparkles size={18} className="text-indigo-600" />
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 ring-1 ring-inset ring-indigo-500/20">
+                <Sparkles size={18} aria-hidden />
               </div>
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-slate-900">
@@ -1289,7 +1288,7 @@ export const GelatoExportModal = ({
                       key={ctx}
                       type="button"
                       onClick={() => setAiPopupContext(ctx)}
-                      className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs text-slate-600 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+                      className="rounded-full bg-white px-2.5 py-0.5 text-xs font-medium text-slate-600 shadow-[0_1px_2px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/10 transition-colors hover:bg-slate-100 hover:text-slate-900"
                     >
                       {ctx.length > 30 ? `${ctx.slice(0, 28)}…` : ctx}
                     </button>
@@ -1297,7 +1296,7 @@ export const GelatoExportModal = ({
                 </div>
               )}
               {aiConnected && (
-                <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2.5 text-left">
+                <label className="flex cursor-pointer items-start gap-2.5 rounded-xl bg-slate-50 px-3 py-2.5 text-left ring-1 ring-inset ring-slate-900/5">
                   <input
                     type="checkbox"
                     checked={aiExpertMode}
@@ -1310,8 +1309,8 @@ export const GelatoExportModal = ({
                   <span className="text-xs leading-snug text-slate-700">
                     <span className="font-medium">Expert-Modus (Multi-Agent)</span>
                     <span className="mt-0.5 block text-slate-500">
-                      Trend-Scout, Kritiker und Editor nacheinander — War Room hier, Verlauf unten rechts
-                      unter „KI“. Standard kommt aus{" "}
+                      Trend-Scout, Kritiker und Editor nacheinander — War Room hier, Verlauf unten links
+                      unter „KI Logbuch“. Standard kommt aus{" "}
                       <span className="font-medium text-slate-600">Integrationen → Gemini (KI)</span>{" "}
                       (Multi-Agent Listing).
                     </span>

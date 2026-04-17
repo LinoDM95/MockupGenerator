@@ -11,7 +11,6 @@ import { getErrorMessage } from "../../lib/error";
 import { toast } from "../../lib/toast";
 import { useAppStore } from "../../store/appStore";
 import { Button } from "../ui/Button";
-import { Card } from "../ui/Card";
 import { IntegrationMissingCallout } from "../ui/IntegrationMissingCallout";
 
 /**
@@ -58,7 +57,7 @@ export const MarketingIntegrationSetup = () => {
   const showPinterestMissing = !flagsLoading && !pinterestOk;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {showPinterestMissing ? (
         <IntegrationMissingCallout
           title="Pinterest ist nicht verbunden"
@@ -67,59 +66,64 @@ export const MarketingIntegrationSetup = () => {
           onSetup={() => void handleConnect()}
         />
       ) : null}
-      <div className="flex flex-wrap items-start justify-between gap-4">
+
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-3">
-          <div className="rounded-lg bg-rose-50 p-2.5">
-            <Megaphone className="text-rose-600" size={22} strokeWidth={1.75} />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600 ring-1 ring-inset ring-rose-500/20">
+            <Megaphone size={20} strokeWidth={1.75} aria-hidden />
           </div>
           <div>
-            <h2 className="text-xl font-semibold text-slate-900">
+            <h3 className="text-base font-bold tracking-tight text-slate-900">
               {connected === true ? "Pinterest – Einstellungen" : "Pinterest verbinden"}
-            </h2>
+            </h3>
             {connected === true ? (
-              <p className="mt-1 max-w-xl text-sm text-slate-500">
+              <p className="mt-1 max-w-xl text-sm font-medium leading-relaxed text-slate-500">
                 Konto-Verbindung verwalten. Boards und Pins unter{" "}
-                <span className="font-medium text-slate-700">Verbreiten</span>.
+                <span className="font-semibold text-slate-700">Verbreiten</span>.
               </p>
             ) : (
-              <p className="mt-1 max-w-xl text-sm text-slate-500">
+              <p className="mt-1 max-w-xl text-sm font-medium leading-relaxed text-slate-500">
                 Verknüpfe dein Pinterest-Konto per OAuth (App-ID und Redirect-URI in der
-                Pinterest Developer Console wie in der <code className="text-xs">.env</code>{" "}
-                hinterlegt). Danach kannst du unter{" "}
-                <span className="font-medium text-slate-700">Verbreiten</span> Boards wählen
+                Pinterest Developer Console wie in der{" "}
+                <code className="text-xs">.env</code> hinterlegt). Danach kannst du unter{" "}
+                <span className="font-semibold text-slate-700">Verbreiten</span> Boards wählen
                 und Pins veröffentlichen.
               </p>
             )}
             {connected === true ? (
-              <p className="mt-2 text-sm font-medium text-emerald-700">Status: verbunden</p>
+              <p className="mt-2 text-sm font-semibold text-emerald-700">Status: verbunden</p>
             ) : null}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" onClick={() => void handleConnect()} className="gap-2">
-            <Link2 size={16} strokeWidth={1.75} />
+          <Button
+            type="button"
+            onClick={() => void handleConnect()}
+            className="gap-2 bg-rose-600 text-white hover:bg-rose-700"
+          >
+            <Link2 size={16} strokeWidth={1.75} aria-hidden />
             Pinterest verknüpfen
           </Button>
           <Button variant="outline" type="button" onClick={() => void handleDisconnect()}>
-            <LogOut size={16} strokeWidth={1.75} /> Trennen
+            <LogOut size={16} strokeWidth={1.75} aria-hidden /> Trennen
           </Button>
         </div>
       </div>
 
-      <Card className="border-rose-100 bg-rose-50/40">
-        <p className="text-sm text-rose-950">
-          <span className="font-semibold">Pins und Veröffentlichungs-Warteschlange</span>{" "}
+      <div className="rounded-xl bg-slate-50 px-4 py-3 ring-1 ring-inset ring-slate-900/5">
+        <p className="text-sm font-medium text-slate-600">
+          <span className="font-bold text-slate-900">Pins und Veröffentlichungs-Warteschlange</span>{" "}
           findest du unter{" "}
           <button
             type="button"
-            className="font-medium text-rose-800 underline decoration-rose-300 underline-offset-2 hover:text-rose-950"
+            className="text-indigo-600 hover:text-indigo-800 hover:underline"
             onClick={() => setActiveTab("marketing")}
           >
             Verbreiten
           </button>{" "}
           in der Hauptnavigation.
         </p>
-      </Card>
+      </div>
     </div>
   );
 };

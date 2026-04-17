@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { Archive, Globe, Loader2, Package, Trash2 } from "lucide-react";
+import { Globe, Loader2, Package, Plus, X, Zap } from "lucide-react";
 
 import {
   templateSetHasTemplates,
@@ -8,10 +8,12 @@ import {
 import { useAppStore } from "../../store/appStore";
 import type { ArtworkItem, TemplateSet } from "../../types/mockup";
 import { Button } from "../ui/Button";
-import { IntegrationMissingCallout } from "../ui/IntegrationMissingCallout";
 import { Card } from "../ui/Card";
+import { Dropzone } from "../ui/Dropzone";
+import { EmptyState } from "../ui/EmptyState";
+import { IntegrationMissingCallout } from "../ui/IntegrationMissingCallout";
 import { Select } from "../ui/Select";
-import { ArtworkUploader } from "./ArtworkUploader";
+import { cn } from "../../lib/cn";
 
 type Progress = {
   current: number;
@@ -32,7 +34,7 @@ type Props = {
   onClearAll: () => void;
   isGenerating: boolean;
   progress: Progress;
-  /** Fortschritt laeuft im Vollbild-Overlay — hier nur Kurzhinweis */
+  /** Fortschritt läuft im Vollbild-Overlay — hier nur Kurzhinweis */
   inlineProgressMinimal?: boolean;
   onGenerate: () => void;
   gelatoConnected?: boolean;
@@ -59,162 +61,204 @@ export const BatchQueue = ({
   const goToIntegrationWizardStep = useAppStore((s) => s.goToIntegrationWizardStep);
   const zipReason = zipBlockReason(artworks, templateSets);
   const zipDisabled = zipReason !== "ok";
-  const zipPrimaryLabel =
-    zipReason === "missing_set"
-      ? "Sets für alle wählen!"
-      : zipReason === "no_templates"
-        ? "Set braucht Vorlagen!"
-        : "ZIP-Datei generieren";
 
   return (
-    <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-      <div className="relative z-10 space-y-6 lg:col-span-1">
-        <ArtworkUploader onFiles={onFiles} />
-        {artworks.length > 0 && (
-          <Card>
-            <h2 className="mb-4 text-sm font-semibold text-slate-900">
-              Auf alle anwenden
-            </h2>
-            <div className="space-y-4">
-              <Select
-                label="Set für alle Motive"
-                value={globalSetId}
-                onChange={(e) => onGlobalSetId(e.target.value)}
-              >
-                <option value="">-- Bitte wählen --</option>
-                {templateSets.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} ({s.templates.length} Vorlagen)
-                  </option>
-                ))}
-              </Select>
-              <p className="text-xs text-slate-500">
-                Rahmen pro Vorlage legst du im Vorlagen-Studio unter „Vorlage bearbeiten" fest.
-              </p>
-              <Button type="button" className="w-full" onClick={onApplyGlobal}>
-                Auf alle {artworks.length} Motive anwenden
-              </Button>
-            </div>
-          </Card>
-        )}
+    <div className="space-y-8">
+      <div className="flex flex-col gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900">Motive verarbeiten</h2>
+          <p className="mt-1 text-sm font-medium text-slate-500">
+            {artworks.length === 0
+              ? "Noch keine Designs — starte mit einem Upload."
+              : `${artworks.length} Design${artworks.length === 1 ? "" : "s"} bereit zum Export`}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={artworks.length === 0}
+            onClick={onClearAll}
+          >
+            Liste leeren
+          </Button>
+          <Button
+            type="button"
+            disabled={zipDisabled || artworks.length === 0}
+            onClick={onGenerate}
+            className="gap-2 shadow-lg shadow-indigo-200/60"
+          >
+            <Zap size={16} fill="currentColor" className="shrink-0" aria-hidden />
+            Mockups generieren
+          </Button>
+        </div>
       </div>
 
-      <div className="relative flex min-h-[min(560px,70vh)] flex-col lg:col-span-2">
-        {artworks.length === 0 ? (
-          <div className="flex min-h-[400px] flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-white p-12 text-center">
-            <Package size={56} className="mb-4 text-slate-300" strokeWidth={1} />
-            <h3 className="mb-1 text-lg font-semibold text-slate-800">
-              Keine Motive in der Warteschlange
-            </h3>
-            <p className="text-sm text-slate-500">
-              Lade Motive hoch, um loszulegen.
-            </p>
-          </div>
-        ) : (
-          <div className="flex min-h-[420px] flex-1 flex-col gap-4">
-            <div className="flex shrink-0 items-end justify-between">
-              <h3 className="text-lg font-semibold text-slate-900">
-                Warteschlange ({artworks.length})
+      {artworks.length === 0 ? (
+        <EmptyState
+          icon={Package}
+          title="Noch keine Motive"
+          desc="Lade eine oder mehrere Bilddateien hoch, um Mockups im Raster zu erstellen und als ZIP zu exportieren."
+          action={
+            <Dropzone
+              title="Motive hinzufügen"
+              description="PNG, JPG, WebP — mehrere Dateien möglich."
+              icon={<Plus className="h-8 w-8 text-slate-400" strokeWidth={1.5} aria-hidden />}
+              multiple
+              accept="image/*"
+              onPickFiles={onFiles}
+              onChange={(e) => {
+                onFiles(e.target.files);
+                e.target.value = "";
+              }}
+              className="min-h-[200px]"
+            />
+          }
+        />
+      ) : (
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(260px,300px)_1fr]">
+          <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
+            <Card padding="md">
+              <h3 className="mb-4 text-sm font-bold tracking-tight text-slate-900">
+                Auf alle anwenden
               </h3>
-              <button
-                type="button"
-                onClick={onClearAll}
-                className="text-sm font-medium text-red-500 transition-colors hover:text-red-700"
-              >
-                Alle entfernen
-              </button>
-            </div>
+              <div className="space-y-4">
+                <Select
+                  label="Set für alle Motive"
+                  value={globalSetId}
+                  onChange={(e) => onGlobalSetId(e.target.value)}
+                >
+                  <option value="">— Bitte wählen —</option>
+                  {templateSets.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.templates.length} Vorlagen)
+                    </option>
+                  ))}
+                </Select>
+                <p className="text-xs font-medium text-slate-500">
+                  Rahmen pro Vorlage legst du im Vorlagen-Studio unter „Vorlage bearbeiten“ fest.
+                </p>
+                <Button type="button" className="w-full" onClick={onApplyGlobal}>
+                  Auf alle {artworks.length} Motive anwenden
+                </Button>
+              </div>
+            </Card>
+          </aside>
 
-            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overflow-x-hidden pr-1">
+          <div className="min-w-0 space-y-6">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               <AnimatePresence initial={false} mode="popLayout">
-                {artworks.map((art, index) => (
-                  <motion.div
-                    key={art.id}
-                    layout
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{
-                      opacity: 0,
-                      height: 0,
-                      marginTop: 0,
-                      marginBottom: 0,
-                      paddingTop: 0,
-                      paddingBottom: 0,
-                    }}
-                    transition={{ duration: 0.2, layout: { duration: 0.2, ease: "easeOut" } }}
-                    className="overflow-hidden"
-                  >
-                    <div className="flex flex-col items-center gap-4 rounded-xl border border-slate-200 bg-white p-3 transition-shadow duration-200 hover:shadow-sm sm:flex-row">
-                      <div className="flex w-full items-center gap-3 sm:w-auto">
-                        <span className="w-6 text-center text-sm font-medium text-slate-400">
-                          {index + 1}
-                        </span>
-                        <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                {artworks.map((art, index) => {
+                  const preview = art.previewUrl || art.url;
+                  const ready = Boolean(art.previewUrl);
+                  return (
+                    <motion.div
+                      key={art.id}
+                      layout
+                      initial={{ opacity: 0, scale: 0.98 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <Card padding="sm" className="group flex h-full flex-col">
+                        <div className="relative aspect-square overflow-hidden rounded-xl bg-slate-100 ring-1 ring-inset ring-slate-900/5">
                           <img
-                            src={art.previewUrl ?? art.url}
-                            className="h-full w-full object-cover"
+                            src={preview}
                             alt=""
-                            loading="lazy"
-                            decoding="async"
+                            className="h-full w-full object-cover"
                           />
+                          <button
+                            type="button"
+                            onClick={() => onRemoveArtwork(art.id)}
+                            className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-slate-400 opacity-0 shadow-sm ring-1 ring-slate-900/5 transition-all hover:text-red-600 group-hover:opacity-100"
+                            aria-label={`${art.name} entfernen`}
+                          >
+                            <X size={16} strokeWidth={2} aria-hidden />
+                          </button>
+                          <span className="pointer-events-none absolute bottom-2 left-2 rounded-md bg-white/90 px-1.5 py-0.5 text-[10px] font-bold text-slate-500 ring-1 ring-slate-900/10">
+                            {index + 1}
+                          </span>
                         </div>
-                        <div className="min-w-0 flex-1 sm:w-48">
+                        <div className="mt-3 min-w-0 flex-1">
                           <input
                             type="text"
                             value={art.name}
                             onChange={(e) => onUpdateArtwork(art.id, "name", e.target.value)}
-                            className="w-full truncate border-b border-transparent bg-transparent text-sm font-medium text-slate-800 outline-none transition-colors focus:border-indigo-400"
+                            className="w-full border-0 bg-transparent p-0 text-sm font-bold text-slate-900 outline-none ring-0 placeholder:text-slate-400 focus:text-indigo-600"
+                            aria-label="Dateiname"
                           />
+                          <div className="mt-2 flex items-center gap-2">
+                            <span
+                              className={cn(
+                                "h-1.5 w-1.5 shrink-0 rounded-full",
+                                ready ? "bg-emerald-500" : "bg-indigo-500",
+                              )}
+                              aria-hidden
+                            />
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                              {ready ? "Bereit für Mockup" : "Vorschau wird erstellt"}
+                            </span>
+                          </div>
+                          <div className="mt-3">
+                            <Select
+                              label=""
+                              value={art.setId}
+                              onChange={(e) => onUpdateArtwork(art.id, "setId", e.target.value)}
+                              className={cn(
+                                "!py-2 text-xs",
+                                !templateSetHasTemplates(art.setId, templateSets)
+                                  ? "border-red-300 bg-red-50"
+                                  : "",
+                              )}
+                              aria-label={`Set für ${art.name}`}
+                            >
+                              <option value="" disabled>
+                                — Set wählen —
+                              </option>
+                              {templateSets.map((s) => (
+                                <option key={s.id} value={s.id}>
+                                  {s.name} ({s.templates.length})
+                                </option>
+                              ))}
+                            </Select>
+                          </div>
                         </div>
-                      </div>
-
-                      <div className="flex w-full flex-1 flex-col gap-2 sm:w-auto sm:flex-row">
-                        <Select
-                          value={art.setId}
-                          onChange={(e) => onUpdateArtwork(art.id, "setId", e.target.value)}
-                          className={
-                            !templateSetHasTemplates(art.setId, templateSets)
-                              ? "border-red-300 bg-red-50"
-                              : ""
-                          }
-                        >
-                          <option value="" disabled>
-                            -- Set wählen --
-                          </option>
-                          {templateSets.map((s) => (
-                            <option key={s.id} value={s.id}>
-                              {s.name} ({s.templates.length} Vorlagen)
-                            </option>
-                          ))}
-                        </Select>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => onRemoveArtwork(art.id)}
-                        className="ml-auto rounded-lg p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500 sm:ml-0"
-                        aria-label="Entfernen"
-                      >
-                        <Trash2 size={16} strokeWidth={1.75} />
-                      </button>
-                    </div>
-                  </motion.div>
-                ))}
+                      </Card>
+                    </motion.div>
+                  );
+                })}
               </AnimatePresence>
+
+              <div className="min-h-[200px] sm:aspect-square sm:min-h-0">
+                <Dropzone
+                  title="Mehr Motive"
+                  description="Ziehen oder klicken"
+                  icon={<Plus className="h-8 w-8 text-slate-400" strokeWidth={1.5} aria-hidden />}
+                  multiple
+                  accept="image/*"
+                  onPickFiles={onFiles}
+                  onChange={(e) => {
+                    onFiles(e.target.files);
+                    e.target.value = "";
+                  }}
+                  className="h-full min-h-[200px]"
+                />
+              </div>
             </div>
 
-            <div className="mt-auto w-full shrink-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:max-w-[420px] sm:self-end">
+            <div className="rounded-2xl bg-white p-4 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 sm:max-w-lg sm:p-5">
               {isGenerating ? (
                 inlineProgressMinimal ? (
-                  <div className="flex min-w-[260px] items-center gap-3 text-sm text-slate-600">
-                    <Loader2 className="shrink-0 animate-spin text-indigo-600" size={18} />
-                    <span>Fortschritt siehe Vollbildanzeige …</span>
+                  <div className="flex min-w-[260px] items-center gap-3 text-sm font-medium text-slate-600">
+                    <Loader2 className="shrink-0 animate-spin text-indigo-600" size={18} aria-hidden />
+                    <span>Fortschritt siehe Warte-Bereich (unten) …</span>
                   </div>
                 ) : (
                   <div className="flex min-w-[300px] flex-col gap-3">
                     <div className="flex items-center justify-between text-sm font-semibold text-indigo-700">
                       <div className="flex items-center gap-2">
-                        <Loader2 className="animate-spin" size={16} /> Verarbeite…
+                        <Loader2 className="animate-spin" size={16} aria-hidden />
+                        Verarbeite…
                       </div>
                       <span>
                         {progress.current} / {progress.total}
@@ -230,20 +274,14 @@ export const BatchQueue = ({
                         transition={{ ease: "linear", duration: 0.25 }}
                       />
                     </div>
-                    <p className="truncate text-xs text-slate-500">{progress.message}</p>
+                    <p className="truncate text-xs font-medium text-slate-500">{progress.message}</p>
                   </div>
                 )
               ) : (
                 <div className="flex flex-col gap-2">
-                  <Button
-                    type="button"
-                    disabled={zipDisabled}
-                    onClick={onGenerate}
-                    className="w-full gap-3 py-3 text-base font-semibold"
-                  >
-                    <Archive size={20} strokeWidth={1.75} />
-                    {zipPrimaryLabel}
-                  </Button>
+                  <p className="text-xs font-medium text-slate-500">
+                    ZIP startest du oben mit „Mockups generieren“. Hier optional: Gelato-Export.
+                  </p>
                   {gelatoConnected && onGelatoExport ? (
                     <Button
                       type="button"
@@ -252,7 +290,7 @@ export const BatchQueue = ({
                       onClick={onGelatoExport}
                       className="w-full gap-3 py-3 text-base font-semibold"
                     >
-                      <Globe size={20} strokeWidth={1.75} />
+                      <Globe size={20} strokeWidth={1.75} aria-hidden />
                       Zu Gelato exportieren
                     </Button>
                   ) : null}
@@ -268,8 +306,8 @@ export const BatchQueue = ({
               )}
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

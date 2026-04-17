@@ -2,7 +2,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import type { ReactNode } from "react";
 
 import { cn } from "../../lib/cn";
-
 import { Button } from "./Button";
 
 type Props = {
@@ -17,7 +16,7 @@ type Props = {
   className?: string;
 };
 
-const quick = { duration: 0.15, ease: "easeOut" } as const;
+const appleEase: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
 export const Modal = ({
   isOpen,
@@ -35,34 +34,36 @@ export const Modal = ({
       <motion.div
         key="modal-overlay"
         role="presentation"
-        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        transition={{ duration: 0.15 }}
+        transition={{ duration: 0.3, ease: appleEase }}
       >
         <motion.div
           role="dialog"
           aria-modal="true"
           aria-labelledby="modal-title"
           className={cn(
-            "w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl",
+            "relative w-full max-w-md overflow-hidden rounded-[2rem] bg-white p-8 shadow-[0_24px_48px_rgba(0,0,0,0.15)] ring-1 ring-slate-900/5",
             className,
           )}
-          initial={{ opacity: 0, scale: 0.96 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.96 }}
-          transition={quick}
+          initial={{ opacity: 0, scale: 0.95, y: 10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.98, y: -10 }}
+          transition={{ duration: 0.4, ease: appleEase }}
           onClick={(e) => e.stopPropagation()}
         >
-          <h3 id="modal-title" className="mb-2 text-lg font-semibold text-slate-900">
+          <h3 id="modal-title" className="mb-2 text-xl font-bold tracking-tight text-slate-900">
             {title}
           </h3>
           {message ? (
-            <p className="mb-4 whitespace-pre-wrap text-sm text-slate-600">{message}</p>
+            <p className="mb-6 whitespace-pre-wrap text-sm font-medium leading-relaxed text-slate-500">
+              {message}
+            </p>
           ) : null}
           {children}
-          <div className="mt-6 flex justify-end gap-3">
+          <div className="mt-8 flex justify-end gap-3">
             <Button variant="outline" type="button" onClick={onCancel}>
               {cancelLabel}
             </Button>

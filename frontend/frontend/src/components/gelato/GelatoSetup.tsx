@@ -466,9 +466,11 @@ export const GelatoSetup = ({ hubSettingsMode = false }: GelatoSetupProps) => {
           </h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {templates.map((tpl) => (
-              <div
+              <Card
                 key={tpl.id}
-                className="group overflow-hidden rounded-xl border border-slate-200 bg-white transition-shadow duration-200 hover:shadow-md"
+                padding="none"
+                interactive
+                className="group flex flex-col overflow-hidden"
               >
                 {tpl.preview_url ? (
                   <div className="aspect-[4/3] overflow-hidden bg-slate-100">
@@ -498,7 +500,7 @@ export const GelatoSetup = ({ hubSettingsMode = false }: GelatoSetupProps) => {
                     {tpl.gelato_template_id}
                   </p>
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         </div>

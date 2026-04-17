@@ -10,29 +10,18 @@ import {
 import { Button } from "../ui/Button";
 
 const kindLabel = (k: AiActivityKind): string => {
-  switch (k) {
-    case "standard":
-      return "Standard";
-    case "expert":
-      return "Expert";
-    case "grounding":
-      return "Suche";
-    default:
-      return "Info";
-  }
+  if (k === "standard") return "Standard";
+  if (k === "expert") return "Expert";
+  if (k === "grounding") return "Suche";
+  return "Info";
 };
 
 const kindStyle = (k: AiActivityKind): string => {
-  switch (k) {
-    case "expert":
-      return "border-indigo-500/40 bg-indigo-950/50 text-indigo-100";
-    case "grounding":
-      return "border-emerald-500/40 bg-emerald-950/40 text-emerald-100";
-    case "standard":
-      return "border-slate-600/60 bg-slate-900/80 text-slate-100";
-    default:
-      return "border-slate-700 bg-slate-900/70 text-slate-200";
-  }
+  if (k === "expert") return "bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-500/20";
+  if (k === "grounding")
+    return "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-500/20";
+  if (k === "standard") return "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-900/5";
+  return "bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-900/5";
 };
 
 const formatTime = (at: number): string => {
@@ -48,23 +37,28 @@ const formatTime = (at: number): string => {
 };
 
 const EntryRow = ({ entry }: { entry: AiActivityEntry }) => (
-  <li className="border-b border-slate-800/80 py-2.5 last:border-0">
-    <div className="flex flex-wrap items-center gap-2">
+  <li className="group flex flex-col gap-1.5 border-b border-slate-100 py-3 last:border-0">
+    <div className="flex items-center justify-between gap-2">
       <span
         className={cn(
-          "rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide",
+          "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest",
           kindStyle(entry.kind),
         )}
       >
         {kindLabel(entry.kind)}
       </span>
-      <time className="text-[10px] text-slate-500" dateTime={new Date(entry.at).toISOString()}>
+      <time
+        className="text-[10px] font-medium text-slate-400"
+        dateTime={new Date(entry.at).toISOString()}
+      >
         {formatTime(entry.at)}
       </time>
     </div>
-    <p className="mt-1 text-xs font-medium text-slate-100">{entry.title}</p>
+    <div className="text-xs font-medium leading-relaxed text-slate-700">
+      <span className="font-semibold text-slate-900">{entry.title}</span>
+    </div>
     {entry.detail ? (
-      <p className="mt-1 max-h-32 overflow-y-auto whitespace-pre-wrap text-[11px] leading-relaxed text-slate-400">
+      <p className="mt-1 max-h-32 overflow-y-auto whitespace-pre-wrap text-[11px] leading-relaxed text-slate-500">
         {entry.detail}
       </p>
     ) : null}
@@ -73,51 +67,53 @@ const EntryRow = ({ entry }: { entry: AiActivityEntry }) => (
 
 export const AIActivityPanel = () => {
   const entries = useAiActivityStore((s) => s.entries);
-  const panelOpen = useAiActivityStore((s) => s.panelOpen);
-  const setPanelOpen = useAiActivityStore((s) => s.setPanelOpen);
-  const togglePanel = useAiActivityStore((s) => s.togglePanel);
   const clearAiLogs = useAiActivityStore((s) => s.clearAiLogs);
+  const panelOpen = useAiActivityStore((s) => s.panelOpen);
+  const togglePanel = useAiActivityStore((s) => s.togglePanel);
 
   return (
-    <div className="pointer-events-none fixed bottom-0 right-0 z-[300] flex flex-col items-end p-4 sm:p-5">
+    <div className="pointer-events-none fixed bottom-6 left-6 z-[100] flex flex-col items-start gap-3">
       <AnimatePresence>
         {panelOpen ? (
           <motion.aside
-            initial={{ opacity: 0, y: 16, scale: 0.98 }}
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 12, scale: 0.98 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            className="pointer-events-auto mb-2 w-[min(100vw-2rem,22rem)] overflow-hidden rounded-xl border border-slate-700 bg-slate-950 shadow-2xl"
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className="pointer-events-auto flex w-[22rem] flex-col overflow-hidden rounded-[2rem] bg-white shadow-[0_12px_40px_rgba(0,0,0,0.12)] ring-1 ring-slate-900/5"
             aria-label="KI-Aktivität"
           >
-            <div className="flex items-center justify-between gap-2 border-b border-slate-800 px-3 py-2.5">
-              <div className="flex items-center gap-2 min-w-0">
-                <MessageSquare className="h-4 w-4 shrink-0 text-indigo-400" aria-hidden />
-                <span className="truncate text-sm font-semibold text-slate-100">KI-Aktivität</span>
-              </div>
-              <div className="flex shrink-0 items-center gap-1">
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-5 py-4">
+              <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900">
+                <MessageSquare size={16} className="text-indigo-600" aria-hidden />
+                KI-Aktivität
+              </h3>
+              <div className="flex items-center gap-1">
+                {entries.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => clearAiLogs()}
+                    className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-200 hover:text-red-600"
+                    title="Verlauf leeren"
+                    aria-label="Verlauf leeren"
+                  >
+                    <Trash2 size={14} strokeWidth={2} aria-hidden />
+                  </button>
+                ) : null}
                 <button
                   type="button"
-                  onClick={() => clearAiLogs()}
-                  className="rounded-md p-1.5 text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-300"
-                  aria-label="Protokoll leeren"
-                >
-                  <Trash2 size={14} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPanelOpen(false)}
-                  className="rounded-md p-1.5 text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-300"
+                  onClick={() => togglePanel()}
+                  className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-900"
                   aria-label="Panel schließen"
                 >
-                  <X size={16} />
+                  <X size={16} strokeWidth={2} aria-hidden />
                 </button>
               </div>
             </div>
-            <ul className="max-h-[min(50vh,320px)] overflow-y-auto px-3 py-1">
+            <ul className="max-h-[320px] overflow-y-auto px-5 py-2">
               {entries.length === 0 ? (
-                <li className="py-8 text-center text-xs text-slate-500">
-                  Noch keine Einträge. Starte eine KI-Generierung (z. B. Gelato-Export → KI).
+                <li className="py-10 text-center text-xs font-medium text-slate-400">
+                  Noch keine Einträge. Starte eine KI-Generierung.
                 </li>
               ) : (
                 entries.map((e) => <EntryRow key={e.id} entry={e} />)
@@ -131,15 +127,15 @@ export const AIActivityPanel = () => {
         type="button"
         variant="outline"
         className={cn(
-          "pointer-events-auto h-11 gap-2 rounded-full border-slate-600 bg-slate-900/95 px-4 text-slate-100 shadow-lg backdrop-blur-sm hover:bg-slate-800",
-          entries.length > 0 && "border-indigo-500/50 ring-1 ring-indigo-500/20",
+          "pointer-events-auto h-12 rounded-full border-slate-200 bg-white px-5 text-slate-700 shadow-md transition-all hover:border-slate-300 hover:bg-slate-50",
+          entries.length > 0 && "ring-2 ring-indigo-500/20",
         )}
         onClick={() => togglePanel()}
         aria-expanded={panelOpen}
-        aria-label={panelOpen ? "KI-Aktivität ausblenden" : "KI-Aktivität anzeigen"}
+        aria-label={panelOpen ? "KI-Logbuch ausblenden" : "KI-Logbuch anzeigen"}
       >
-        {panelOpen ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
-        <span className="text-sm font-medium">KI</span>
+        {panelOpen ? <PanelRightClose size={18} aria-hidden /> : <PanelRightOpen size={18} aria-hidden />}
+        KI Logbuch
         {entries.length > 0 ? (
           <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-indigo-600 px-1 text-[10px] font-bold text-white">
             {entries.length > 99 ? "99+" : entries.length}

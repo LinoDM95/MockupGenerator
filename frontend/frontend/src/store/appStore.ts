@@ -84,6 +84,10 @@ interface AppState {
   globalSetId: string;
   setGlobalSetId: (id: string) => void;
 
+  /** True während Batch-Jobs (Generator, Upscaler): Header/Unter-Tabs nicht wechseln. */
+  navigationLocked: boolean;
+  setNavigationLocked: (locked: boolean) => void;
+
   dialog: DialogState;
   openPrompt: (title: string, defaultValue?: string) => Promise<string | null>;
   openConfirm: (message: string) => Promise<boolean>;
@@ -181,6 +185,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   globalSetId: "",
   setGlobalSetId: (id) => set({ globalSetId: id }),
+
+  navigationLocked: false,
+  setNavigationLocked: (locked) => set({ navigationLocked: locked }),
 
   dialog: emptyDialog(),
   openPrompt: (title, defaultValue = "") =>

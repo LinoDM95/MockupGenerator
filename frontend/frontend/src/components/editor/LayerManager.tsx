@@ -26,7 +26,7 @@ export const LayerManager = ({
   onDuplicate,
   onDelete,
 }: Props) => (
-  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+  <div className="rounded-xl bg-slate-50/50 p-3 ring-1 ring-inset ring-slate-900/5">
     <h3 className="mb-2 px-1 text-sm font-semibold text-slate-800">
       Ebenen ({editingTemplate.elements.length})
     </h3>

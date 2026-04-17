@@ -12,7 +12,7 @@ type Props = {
 
 export const Toolbar = ({ isDrawMode, onToggleDrawMode, onAddElement, disabled = false }: Props) => (
   <div
-    className={`mb-4 flex flex-wrap items-center gap-2 overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-2 ${
+    className={`mb-4 flex flex-wrap items-center gap-2 overflow-x-auto rounded-xl bg-white p-2 shadow-sm ring-1 ring-slate-900/5 ${
       disabled ? "pointer-events-none opacity-45" : ""
     }`}
     aria-disabled={disabled || undefined}

@@ -1,3 +1,4 @@
+import { LayoutGroup } from "framer-motion";
 import { LayoutGrid, Wand2 } from "lucide-react";
 
 import { useAppStore } from "../store/appStore";
@@ -18,25 +19,29 @@ export const IntegrationsView = () => {
             Geführter Assistent (Gelato → Gemini → Vertex) oder alle Bereiche einzeln.
           </p>
         </div>
-        <nav
-          className="flex w-full flex-wrap items-center justify-end gap-0.5 sm:w-auto sm:gap-1"
-          aria-label="Integrationsmodus"
-        >
-          <SubNavTab
-            label="Geführter Assistent"
-            shortLabel="Assistent"
-            icon={Wand2}
-            active={mode === "wizard"}
-            onClick={() => setIntegrationsPanelMode("wizard")}
-          />
-          <SubNavTab
-            label="Alle Integrationen"
-            shortLabel="Alle"
-            icon={LayoutGrid}
-            active={mode === "all"}
-            onClick={() => setIntegrationsPanelMode("all")}
-          />
-        </nav>
+        <LayoutGroup>
+          <nav
+            className="flex w-full flex-wrap items-center justify-end gap-0.5 sm:w-auto sm:gap-1"
+            aria-label="Integrationsmodus"
+          >
+            <SubNavTab
+              label="Geführter Assistent"
+              shortLabel="Assistent"
+              icon={Wand2}
+              active={mode === "wizard"}
+              activePillLayoutId="integrations-sub-nav-pill"
+              onClick={() => setIntegrationsPanelMode("wizard")}
+            />
+            <SubNavTab
+              label="Alle Integrationen"
+              shortLabel="Alle"
+              icon={LayoutGrid}
+              active={mode === "all"}
+              activePillLayoutId="integrations-sub-nav-pill"
+              onClick={() => setIntegrationsPanelMode("all")}
+            />
+          </nav>
+        </LayoutGroup>
       </div>
       {mode === "wizard" ? <IntegrationSetupWizard /> : <SetupHub />}
     </div>

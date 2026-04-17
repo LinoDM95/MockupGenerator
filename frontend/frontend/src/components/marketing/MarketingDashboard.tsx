@@ -1,4 +1,14 @@
-import { Check, ChevronDown, ImagePlus, Loader2 } from "lucide-react";
+import {
+  ArrowDownToLine,
+  Check,
+  CheckCircle2,
+  ImagePlus,
+  Loader2,
+  Megaphone,
+  Send,
+  Webhook,
+} from "lucide-react";
+import { motion } from "framer-motion";
 import {
   useCallback,
   useEffect,
@@ -21,7 +31,13 @@ import { cn } from "../../lib/cn";
 import { getErrorMessage } from "../../lib/error";
 import { toast } from "../../lib/toast";
 import { useAppStore } from "../../store/appStore";
+import { Button } from "../ui/Button";
+import { Card } from "../ui/Card";
+import { Input } from "../ui/Input";
+import { Select } from "../ui/Select";
 import { IntegrationMissingCallout } from "../ui/IntegrationMissingCallout";
+
+const MARKETING_WEBHOOK_STORAGE_KEY = "ce_marketing_webhook_url";
 
 type RowStatus = "draft" | "loading" | "success" | "error";
 
@@ -39,13 +55,7 @@ type MarketingRow = {
 
 const nextRowId = () => `m_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
-const ALLOWED_EXT = new Set([
-  ".jpg",
-  ".jpeg",
-  ".png",
-  ".webp",
-  ".gif",
-]);
+const ALLOWED_EXT = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif"]);
 
 const statusLabel: Record<RowStatus, string> = {
   draft: "Entwurf",
@@ -65,6 +75,16 @@ export const MarketingDashboard = () => {
   const [boardId, setBoardId] = useState("");
   const [boardsLoaded, setBoardsLoaded] = useState(false);
   const [queueRunning, setQueueRunning] = useState(false);
+  const [webhookUrl, setWebhookUrl] = useState("");
+
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem(MARKETING_WEBHOOK_STORAGE_KEY);
+      if (v) setWebhookUrl(v);
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -88,9 +108,7 @@ export const MarketingDashboard = () => {
   }, []);
 
   const updateRow = useCallback((id: string, patch: Partial<MarketingRow>) => {
-    setRows((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, ...patch } : r)),
-    );
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   }, []);
 
   const removeRow = useCallback((id: string) => {
@@ -100,6 +118,15 @@ export const MarketingDashboard = () => {
       return prev.filter((r) => r.id !== id);
     });
   }, []);
+
+  const handleSaveWebhook = useCallback(() => {
+    try {
+      localStorage.setItem(MARKETING_WEBHOOK_STORAGE_KEY, webhookUrl.trim());
+      toast.success("Webhook-URL im Browser gespeichert.");
+    } catch {
+      toast.error("Speichern nicht möglich.");
+    }
+  }, [webhookUrl]);
 
   const uploadFiles = useCallback(
     async (files: File[]) => {
@@ -175,8 +202,7 @@ export const MarketingDashboard = () => {
       try {
         const result = await generateListing(row.file, "", "social_caption");
         const title = result.titles[0]?.trim() ?? "";
-        const tagLine =
-          result.tags?.length > 0 ? `\n\n${result.tags.join(" ")}` : "";
+        const tagLine = result.tags?.length > 0 ? `\n\n${result.tags.join(" ")}` : "";
         const caption = `${result.description || ""}${tagLine}`.trim();
         updateRow(id, {
           title: title || row.title,
@@ -196,14 +222,46 @@ export const MarketingDashboard = () => {
     [rows, updateRow],
   );
 
+  const handlePublishOne = useCallback(
+    async (id: string) => {
+      if (!boardId.trim()) {
+        toast.error("Bitte ein Pinterest-Board wählen.");
+        return;
+      }
+      const row = rows.find((r) => r.id === id);
+      if (!row?.publicUrl) return;
+      if (!row.title.trim() || !row.destinationUrl.trim()) {
+        toast.error("Titel und Etsy-Ziel-URL sind erforderlich.");
+        return;
+      }
+      updateRow(id, { rowStatus: "loading", errorMessage: "" });
+      try {
+        await publishSingleSocialPost({
+          image_url: row.publicUrl,
+          title: row.title.trim(),
+          caption: row.caption,
+          destination_url: row.destinationUrl.trim(),
+          platform: "pinterest",
+          board_id: boardId.trim(),
+        });
+        updateRow(id, { rowStatus: "success", errorMessage: "" });
+        toast.success("Zu Pinterest veröffentlicht.");
+      } catch (e) {
+        const msg = e instanceof ApiError ? e.getDetail() : getErrorMessage(e);
+        updateRow(id, { rowStatus: "error", errorMessage: msg });
+        toast.error(msg);
+      }
+    },
+    [boardId, rows, updateRow],
+  );
+
   const handlePublishAll = useCallback(async () => {
     if (!boardId.trim()) {
       toast.error("Bitte ein Pinterest-Board wählen.");
       return;
     }
     const targets = rows.filter(
-      (r) =>
-        (r.rowStatus === "draft" || r.rowStatus === "error") && r.publicUrl,
+      (r) => (r.rowStatus === "draft" || r.rowStatus === "error") && r.publicUrl,
     );
     if (targets.length === 0) {
       toast.error("Keine Zeilen zum Veröffentlichen (Entwurf/Fehler mit gültigem Upload).");
@@ -233,8 +291,7 @@ export const MarketingDashboard = () => {
         });
         updateRow(row.id, { rowStatus: "success", errorMessage: "" });
       } catch (e) {
-        const msg =
-          e instanceof ApiError ? e.getDetail() : getErrorMessage(e);
+        const msg = e instanceof ApiError ? e.getDetail() : getErrorMessage(e);
         updateRow(row.id, { rowStatus: "error", errorMessage: msg });
       }
     }
@@ -244,127 +301,242 @@ export const MarketingDashboard = () => {
 
   const canPublish =
     Boolean(boardId.trim()) &&
-    rows.some(
-      (r) =>
-        (r.rowStatus === "draft" || r.rowStatus === "error") && r.publicUrl,
-    );
+    rows.some((r) => (r.rowStatus === "draft" || r.rowStatus === "error") && r.publicUrl);
+
+  const pendingQueueCount = rows.filter(
+    (r) => r.rowStatus === "draft" || r.rowStatus === "loading" || r.rowStatus === "error",
+  ).length;
 
   return (
-    <div className="space-y-8">
+    <div className="mx-auto max-w-5xl space-y-8 pb-12">
       <div>
-        <h1 className="text-lg font-semibold text-slate-900">Verbreiten</h1>
-        <p className="mt-0.5 text-sm text-slate-500">
-          Mockups nach R2 laden, KI-Captions erzeugen und einzeln zu Pinterest posten.
-          Pinterest zuerst unter{" "}
-          <span className="font-medium text-slate-600">Integrationen → Pinterest</span>{" "}
-          verknüpfen.
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+          Verbreiten &amp; Marketing
+        </h1>
+        <p className="mt-2 text-sm font-medium text-slate-500">
+          Mockups nach R2 laden, optional per Webhook an Make.com anbinden, KI-Captions erzeugen und zu
+          Pinterest posten. Pinterest zuerst unter{" "}
+          <span className="font-medium text-slate-600">Integrationen → Pinterest</span> verknüpfen.
         </p>
       </div>
 
-      {!integrationFlagsLoading && !pinterestConnected ? (
-        <IntegrationMissingCallout
-          title="Pinterest ist nicht verbunden"
-          description="Verknüpfe dein Pinterest-Konto unter Integrationen, um Boards zu laden und Pins zu veröffentlichen."
-          actionLabel="Pinterest einrichten"
-          onSetup={() => goToIntegration("pinterest")}
-        />
-      ) : null}
-
-      <section
-        className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
-        aria-labelledby={dropId}
-      >
-        <h2 id={dropId} className="text-sm font-semibold text-slate-800">
-          Setup
-        </h2>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                fileInputRef.current?.click();
-              }
-            }}
-            onDrop={handleDrop}
-            onDragOver={handleDragOver}
-            onClick={() => fileInputRef.current?.click()}
-            className={cn(
-              "flex min-h-[140px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-200 bg-slate-50/80 px-4 py-8 text-center transition-colors hover:border-indigo-300 hover:bg-indigo-50/40",
-            )}
-          >
-            <ImagePlus className="mb-2 text-slate-400" size={32} strokeWidth={1.5} />
-            <span className="text-sm font-medium text-slate-700">
-              Bilder hierher ziehen
-            </span>
-            <span className="mt-1 text-xs text-slate-500">
-              oder klicken — mehrere Dateien möglich
-            </span>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              multiple
-              className="sr-only"
-              aria-label="Bilder auswählen"
-              onChange={handleFileInput}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-5">
+        <div className="space-y-6 lg:col-span-3">
+          {!integrationFlagsLoading && !pinterestConnected ? (
+            <IntegrationMissingCallout
+              title="Pinterest ist nicht verbunden"
+              description="Verknüpfe dein Pinterest-Konto unter Integrationen, um Boards zu laden und Pins zu veröffentlichen."
+              actionLabel="Pinterest einrichten"
+              onSetup={() => goToIntegration("pinterest")}
             />
-          </div>
+          ) : null}
 
-          <div className="flex flex-col justify-center gap-2">
-            <label htmlFor="marketing-board" className="text-xs font-medium text-slate-600">
-              Pinterest-Board
-            </label>
-            <div className="relative">
-              <select
-                id="marketing-board"
-                value={boardId}
-                onChange={(e) => setBoardId(e.target.value)}
-                disabled={!boardsLoaded || boards.length === 0}
+          <Card variant="accent" padding="lg">
+            <div className="mb-6 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 ring-1 ring-inset ring-indigo-500/20">
+                <Webhook size={20} strokeWidth={2} aria-hidden />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold tracking-tight text-slate-900">Webhook-Anbindung</h2>
+                <p className="text-xs font-medium text-slate-500">Make.com, n8n oder Zapier</p>
+              </div>
+            </div>
+
+            <div className="space-y-5">
+              <Input
+                label="Webhook URL"
+                name="marketing_webhook"
+                placeholder="https://hook.eu1.make.com/..."
+                value={webhookUrl}
+                onChange={(e) => setWebhookUrl(e.target.value)}
+                autoComplete="off"
+              />
+              <div className="flex justify-end">
+                <Button type="button" size="sm" onClick={handleSaveWebhook}>
+                  Speichern
+                </Button>
+              </div>
+            </div>
+
+            <div className="mt-8 rounded-xl bg-slate-50 px-4 py-4 ring-1 ring-inset ring-slate-900/5">
+              <h3 className="text-sm font-bold tracking-tight text-slate-900">1-Klick Pinterest Setup</h3>
+              <p className="mt-1 text-xs font-medium leading-relaxed text-slate-600">
+                Lade die Vorlage (JSON) herunter, importiere sie in Make, verbinde Pinterest und trage die
+                Webhook-URL von oben ein.
+              </p>
+              <a
+                href="/marketing-make-blueprint.json"
+                download="creative-engine-make-blueprint.json"
                 className={cn(
-                  "w-full appearance-none rounded-lg border border-slate-200 bg-white py-2.5 pl-3 pr-9 text-sm text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20",
-                  (!boardsLoaded || boards.length === 0) && "opacity-60",
+                  "mt-4 inline-flex h-8 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-3 text-xs font-semibold tracking-wide text-slate-700 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 transition-all duration-200 ease-out hover:bg-slate-50 focus:outline-none focus-visible:ring-4 focus-visible:ring-indigo-500/30 active:scale-[0.97]",
                 )}
               >
-                <option value="">
-                  {boardsLoaded && boards.length === 0
-                    ? "Keine Boards — Pinterest verbinden"
-                    : "Board wählen…"}
-                </option>
-                {boards.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-slate-400"
-                aria-hidden
-              />
+                <ArrowDownToLine size={14} aria-hidden />
+                Blueprint (.json) laden
+              </a>
             </div>
-            {!boardsLoaded && (
-              <p className="text-xs text-slate-500">Boards werden geladen…</p>
-            )}
-          </div>
+          </Card>
+
+          <Card padding="md">
+            <h2 id={dropId} className="text-sm font-semibold text-slate-900">
+              Bilder &amp; Board
+            </h2>
+            <p className="mt-1 text-xs font-medium text-slate-500">
+              Upload und Pinterest-Board für die Beiträge unten.
+            </p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    fileInputRef.current?.click();
+                  }
+                }}
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onClick={() => fileInputRef.current?.click()}
+                className={cn(
+                  "flex min-h-[140px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center ring-1 ring-inset ring-slate-900/5 transition-all duration-200 hover:border-slate-300 hover:bg-slate-50/80",
+                )}
+              >
+                <ImagePlus className="mb-2 text-slate-400" size={32} strokeWidth={1.5} aria-hidden />
+                <span className="text-sm font-semibold text-slate-700">Bilder hierher ziehen</span>
+                <span className="mt-1 text-xs font-medium text-slate-500">
+                  oder klicken — mehrere Dateien möglich
+                </span>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  multiple
+                  className="sr-only"
+                  aria-label="Bilder auswählen"
+                  onChange={handleFileInput}
+                />
+              </div>
+
+              <div className="flex flex-col justify-center gap-2">
+                <Select
+                  id="marketing-board"
+                  label="Pinterest-Board"
+                  value={boardId}
+                  onChange={(e) => setBoardId(e.target.value)}
+                  disabled={!boardsLoaded || boards.length === 0}
+                  className={cn(
+                    (!boardsLoaded || boards.length === 0) && "cursor-not-allowed opacity-50",
+                  )}
+                >
+                  <option value="">
+                    {boardsLoaded && boards.length === 0
+                      ? "Keine Boards — Pinterest verbinden"
+                      : "Board wählen…"}
+                  </option>
+                  {boards.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </Select>
+                {!boardsLoaded ? (
+                  <p className="text-xs font-medium text-slate-500">Boards werden geladen…</p>
+                ) : null}
+              </div>
+            </div>
+          </Card>
         </div>
-      </section>
+
+        <div className="lg:col-span-2">
+          <Card padding="md" className="h-full">
+            <div className="mb-6 flex items-center justify-between gap-2">
+              <h2 className="text-base font-bold tracking-tight text-slate-900">Warteschlange</h2>
+              <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-600">
+                {pendingQueueCount} anstehend
+              </span>
+            </div>
+
+            {rows.length === 0 ? (
+              <p className="text-sm font-medium text-slate-500">
+                Noch keine Beiträge — Bilder links hinzufügen, dann erscheinen sie hier.
+              </p>
+            ) : (
+              <div className="max-h-[min(420px,50vh)] space-y-3 overflow-y-auto pr-1">
+                {rows.map((job, i) => {
+                  const done = job.rowStatus === "success";
+                  const canSend =
+                    !done &&
+                    job.publicUrl &&
+                    !queueRunning &&
+                    job.rowStatus !== "loading";
+                  return (
+                    <motion.div
+                      key={job.id}
+                      initial={{ opacity: 0, x: 10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.05 }}
+                      className="group flex items-center justify-between gap-2 rounded-xl bg-slate-50/50 p-3 ring-1 ring-inset ring-slate-900/5 transition-colors hover:bg-slate-100/70"
+                    >
+                      <div className="flex min-w-0 flex-1 items-center gap-3">
+                        <div
+                          className={cn(
+                            "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset",
+                            done
+                              ? "bg-emerald-50 text-emerald-600 ring-emerald-500/20"
+                              : "bg-white text-slate-400 ring-slate-900/10",
+                          )}
+                        >
+                          {done ? (
+                            <CheckCircle2 size={14} strokeWidth={2.5} aria-hidden />
+                          ) : (
+                            <Megaphone size={14} strokeWidth={2} aria-hidden />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-bold text-slate-700">{job.title}</p>
+                          <p className="text-xs font-medium text-slate-400">
+                            {statusLabel[job.rowStatus]}
+                            {job.rowStatus === "loading" ? " …" : ""}
+                          </p>
+                        </div>
+                      </div>
+                      {canSend ? (
+                        <button
+                          type="button"
+                          className="hidden shrink-0 rounded-lg bg-white p-1.5 text-slate-400 ring-1 ring-slate-900/5 hover:text-indigo-600 group-hover:block"
+                          title="Jetzt zu Pinterest posten"
+                          onClick={() => void handlePublishOne(job.id)}
+                        >
+                          <Send size={14} strokeWidth={2} aria-hidden />
+                        </button>
+                      ) : null}
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+        </div>
+      </div>
 
       {rows.length > 0 && (
-        <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-100 px-4 py-3 sm:px-5">
-            <h2 className="text-sm font-semibold text-slate-800">Beiträge</h2>
+        <Card padding="none" className="overflow-hidden shadow-[0_2px_8px_rgb(0,0,0,0.04)]">
+          <div className="border-b border-slate-100 px-5 py-3 sm:px-6">
+            <h2 className="text-sm font-bold tracking-tight text-slate-900">Beiträge bearbeiten</h2>
+            <p className="mt-0.5 text-xs font-medium text-slate-500">
+              Titel, Caption und Etsy-URL pro Zeile — dann veröffentlichen.
+            </p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-100 text-xs text-slate-500">
-                  <th className="px-3 py-2 font-medium sm:px-4">Vorschau</th>
-                  <th className="px-3 py-2 font-medium sm:px-4">Titel</th>
-                  <th className="px-3 py-2 font-medium sm:px-4">Caption</th>
-                  <th className="px-3 py-2 font-medium sm:px-4">Etsy-URL</th>
-                  <th className="px-3 py-2 font-medium sm:px-4">Status</th>
-                  <th className="px-3 py-2 font-medium sm:px-4">Aktionen</th>
+                <tr className="border-b border-slate-100 text-xs font-bold tracking-wide text-slate-500">
+                  <th className="px-3 py-2 font-bold sm:px-4">Vorschau</th>
+                  <th className="px-3 py-2 font-bold sm:px-4">Titel</th>
+                  <th className="px-3 py-2 font-bold sm:px-4">Caption</th>
+                  <th className="px-3 py-2 font-bold sm:px-4">Etsy-URL</th>
+                  <th className="px-3 py-2 font-bold sm:px-4">Status</th>
+                  <th className="px-3 py-2 font-bold sm:px-4">Aktionen</th>
                 </tr>
               </thead>
               <tbody>
@@ -374,28 +546,24 @@ export const MarketingDashboard = () => {
                       <img
                         src={row.previewUrl}
                         alt=""
-                        className="h-16 w-16 rounded-md object-cover ring-1 ring-slate-200"
+                        className="h-16 w-16 rounded-lg object-cover ring-1 ring-slate-900/10"
                       />
                     </td>
                     <td className="px-3 py-3 sm:px-4">
                       <input
                         type="text"
                         value={row.title}
-                        onChange={(e) =>
-                          updateRow(row.id, { title: e.target.value })
-                        }
-                        className="w-full min-w-[8rem] rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                        onChange={(e) => updateRow(row.id, { title: e.target.value })}
+                        className="w-full min-w-[8rem] rounded-xl bg-white px-2 py-1.5 text-sm font-medium text-slate-900 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/10"
                         disabled={row.rowStatus === "loading"}
                       />
                     </td>
                     <td className="px-3 py-3 sm:px-4">
                       <textarea
                         value={row.caption}
-                        onChange={(e) =>
-                          updateRow(row.id, { caption: e.target.value })
-                        }
+                        onChange={(e) => updateRow(row.id, { caption: e.target.value })}
                         rows={3}
-                        className="w-full min-w-[12rem] resize-y rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                        className="w-full min-w-[12rem] resize-y rounded-xl bg-white px-2 py-1.5 text-sm font-medium text-slate-900 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/10"
                         disabled={row.rowStatus === "loading"}
                       />
                     </td>
@@ -403,56 +571,49 @@ export const MarketingDashboard = () => {
                       <input
                         type="url"
                         value={row.destinationUrl}
-                        onChange={(e) =>
-                          updateRow(row.id, { destinationUrl: e.target.value })
-                        }
+                        onChange={(e) => updateRow(row.id, { destinationUrl: e.target.value })}
                         placeholder="https://…"
-                        className="w-full min-w-[10rem] rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                        className="w-full min-w-[10rem] rounded-xl bg-white px-2 py-1.5 text-sm font-medium text-slate-900 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/10"
                         disabled={row.rowStatus === "loading"}
                       />
                     </td>
                     <td className="px-3 py-3 sm:px-4">
                       <span
                         className={cn(
-                          "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
-                          row.rowStatus === "draft" && "bg-slate-100 text-slate-700",
-                          row.rowStatus === "loading" &&
-                            "bg-indigo-50 text-indigo-700",
+                          "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold",
+                          row.rowStatus === "draft" && "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-900/5",
+                          row.rowStatus === "loading" && "bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-500/15",
                           row.rowStatus === "success" &&
-                            "bg-emerald-50 text-emerald-800",
-                          row.rowStatus === "error" && "bg-red-50 text-red-800",
+                            "bg-emerald-50 text-emerald-800 ring-1 ring-inset ring-emerald-500/20",
+                          row.rowStatus === "error" && "bg-red-50 text-red-800 ring-1 ring-inset ring-red-500/15",
                         )}
                       >
                         {row.rowStatus === "loading" && (
                           <Loader2 className="size-3.5 animate-spin" aria-hidden />
                         )}
-                        {row.rowStatus === "success" && (
-                          <Check className="size-3.5" aria-hidden />
-                        )}
+                        {row.rowStatus === "success" && <Check className="size-3.5" aria-hidden />}
                         {statusLabel[row.rowStatus]}
                       </span>
-                      {row.errorMessage && (
-                        <p className="mt-1 max-w-[14rem] text-xs text-red-600">
+                      {row.errorMessage ? (
+                        <p className="mt-1 max-w-[14rem] text-xs font-medium text-red-600">
                           {row.errorMessage}
                         </p>
-                      )}
+                      ) : null}
                     </td>
                     <td className="px-3 py-3 sm:px-4">
                       <div className="flex flex-col gap-2">
                         <button
                           type="button"
                           onClick={() => void handleAiCaption(row.id)}
-                          disabled={
-                            row.rowStatus === "loading" || queueRunning
-                          }
-                          className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-800 transition-colors hover:bg-indigo-100 disabled:opacity-50"
+                          disabled={row.rowStatus === "loading" || queueRunning}
+                          className="rounded-xl bg-white px-2.5 py-1.5 text-xs font-semibold text-indigo-700 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-indigo-500/20 transition-colors hover:bg-indigo-50 disabled:opacity-50"
                         >
                           KI-Caption
                         </button>
                         <button
                           type="button"
                           onClick={() => removeRow(row.id)}
-                          className="text-xs text-slate-500 underline hover:text-slate-800"
+                          className="text-left text-xs font-medium text-slate-500 underline hover:text-slate-800"
                         >
                           Entfernen
                         </button>
@@ -464,29 +625,26 @@ export const MarketingDashboard = () => {
             </table>
           </div>
 
-          <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-            <p className="text-xs text-slate-500">
+          <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <p className="text-xs font-medium text-slate-500">
               Veröffentlichung nacheinander — bei Fehler geht es mit der nächsten Zeile weiter.
             </p>
-            <button
+            <Button
               type="button"
               onClick={() => void handlePublishAll()}
               disabled={queueRunning || !canPublish}
-              className={cn(
-                "inline-flex items-center justify-center rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50",
-              )}
             >
               {queueRunning ? (
                 <>
-                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
                   Warteschlange…
                 </>
               ) : (
                 "Alle zu Pinterest veröffentlichen"
               )}
-            </button>
+            </Button>
           </div>
-        </section>
+        </Card>
       )}
     </div>
   );

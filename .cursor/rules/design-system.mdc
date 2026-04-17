@@ -1,0 +1,61 @@
+---
+description: Calm Premium – einheitliche UI-Oberflächen (Tailwind, Komponenten, Do/Don't)
+globs: frontend/**/*.{ts,tsx,css}
+alwaysApply: true
+---
+
+# Design-System: Calm Premium (App-UI)
+
+Gilt für die **eingeloggte App** (`src/components/`, `src/pages/` außer bewusster Landing-Ausnahme). Ziel: ruhige Farben, **100 % lesbare** Flächen, **Hairline-Ringe** statt harter Rahmen, konsistente Primitives.
+
+## Surfaces
+
+- **Primär:** `bg-white` für Karten, Modals, schwebende Panels, Toasts.
+- **Eingebettet / sekundär:** `bg-slate-50` oder `bg-slate-50/50` für Gruppen innerhalb einer Seite.
+- **Dichte UI (z. B. „Terminal“):** `bg-slate-900` mit heller Typo – nur wo semantisch passend.
+- **Kein** `backdrop-blur` auf **Toasts**, **Floating-Panels** oder **Karten-Inhalten** (Text soll gestochen scharf bleiben). **Ausnahme:** Vollflächige **Modal-Overlays** dürfen `backdrop-blur-sm` nutzen (siehe `Modal.tsx`).
+
+## Abgrenzung (Rings statt Borders)
+
+- Karten und Panel-Container: **`ring-1 ring-slate-900/5`**, nicht `border border-slate-200` als Standard.
+- **Eingelassene** Workspace-Bereiche (Ebenen, Gruppen): **`ring-1 ring-inset ring-slate-900/5`** ggf. mit `bg-slate-50/50`.
+- Semantische Akzent-Ringe sparsam: z. B. `ring-amber-500/20` nur für echte Warnungen, nicht für reine Info-Boxen.
+
+## Schatten (kanonisch, nicht beliebig mischen)
+
+- **Card (Standard):** `shadow-[0_2px_8px_rgb(0,0,0,0.04)]` – in `Card` variant `default` bereits gesetzt.
+- **Card accent / Hero-Karten:** siehe `Card` variant `accent`.
+- **Modals / große Dialoge:** `shadow-[0_24px_48px_rgba(0,0,0,0.15)]` + `rounded-[2rem]` wo vorgesehen.
+- **Schwebende kleine Flächen:** z. B. `shadow-[0_12px_40px_rgba(0,0,0,0.12)]` – sparsam, ein Muster pro Kontext.
+
+## Typografie
+
+- Fließtext und UI-Labels: **`font-medium`** wo Lesbarkeit zählt.
+- Überschriften: **`font-bold` oder `font-semibold`** + **`tracking-tight`**.
+- Meta-Labels (Schritte, Tags): **`text-[10px] font-bold uppercase tracking-widest`**.
+
+## Komponenten-Pflicht
+
+- Neue **Flächen** bevorzugt über **`Card`** (`padding`, `variant`, `interactive`).
+- **Buttons** nur **`Button`** (`src/components/ui/Button.tsx`).
+- **Formfelder** über **`Input`** / **`Select`** – gleicher Fokus wie in `Input.tsx` (`focus:ring-4 focus:ring-indigo-500/10`). Abweichungen nur mit kurzer Begründung (z. B. native color picker).
+
+## Callouts & Infoboxen
+
+- **`IntegrationMissingCallout`:** `variant="slate"` für neutrale Hinweise; **`amber`** / **`indigo`** nur wenn Warnung bzw. KI/Integrations-Kontext klar ist.
+- **Reine Navigations-/Info-Hinweise** (kein Fehler): einheitlich z. B.  
+  `rounded-xl bg-slate-50 px-4 py-3 ring-1 ring-inset ring-slate-900/5 text-slate-600`  
+  (siehe Etsy-Integrations-Info-Box).
+
+## Review-Checkliste (kurz)
+
+1. Karte/Panel: **Ring** statt **border-slate-200**?
+2. Statt freiem `div`: **`Card`** wo es eine Kachel ist?
+3. Formularfeld: **`Input`/`Select`** statt Roh-`<input>` mit eigenen Klassen?
+4. Fokus: **indigo ring-4 /10** wie `Input`?
+5. Kein **Blur** auf Toast/Panel-Inhalt?
+6. Schatten: eines der **kanonischen** Muster oben?
+
+## Ausnahme: Marketing-Landing
+
+Die **`LandingPage`** darf bewusst **kampagnisierter** (stärkere Kontraste, eigene Sektionen) wirken; sie muss nicht jedes Card-Token der App-Shell spiegeln. Änderungen dort sind opt-in und separat zu reviewen.

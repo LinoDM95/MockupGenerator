@@ -284,7 +284,7 @@ export const TemplatesStudio = () => {
           </label>
         </div>
         {!currentSet || currentSet.templates.length === 0 ? (
-          <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 py-12 text-center">
+          <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 py-12 text-center ring-1 ring-inset ring-slate-900/5">
             <LayoutTemplate className="mx-auto mb-3 text-slate-300" size={48} strokeWidth={1} />
             <p className="font-medium text-slate-600">Dieses Set ist noch leer.</p>
             <p className="mt-1 text-sm text-slate-400">
@@ -297,19 +297,21 @@ export const TemplatesStudio = () => {
               const phCount = tpl.elements.filter((e) => e.type === "placeholder").length;
               const designCount = tpl.elements.length - phCount;
               return (
-                <div
+                <Card
                   key={tpl.id}
+                  padding="none"
+                  interactive
                   role="button"
                   tabIndex={0}
                   onClick={() => editTemplate(tpl)}
                   onKeyDown={(ev) => {
                     if (ev.key === "Enter" || ev.key === " ") editTemplate(tpl);
                   }}
-                  className="group relative cursor-pointer overflow-hidden rounded-xl border border-slate-200 bg-white transition-all duration-200 hover:border-indigo-300 hover:shadow-md"
+                  className="group relative flex flex-col overflow-hidden"
                 >
-                  <div className="relative flex h-40 items-center justify-center overflow-hidden border-b border-slate-200 bg-slate-100 p-2">
+                  <div className="relative flex h-40 items-center justify-center overflow-hidden border-b border-slate-100 bg-slate-100 p-2">
                     <div
-                      className="relative flex max-h-full max-w-full items-center justify-center shadow-sm"
+                      className="relative flex max-h-full max-w-full items-center justify-center"
                       style={{ aspectRatio: `${tpl.width}/${tpl.height}` }}
                     >
                       <img src={tpl.bgImage} alt="" className="block max-h-full max-w-full object-contain" crossOrigin="anonymous" />
@@ -343,7 +345,7 @@ export const TemplatesStudio = () => {
                   <div className="absolute top-2 right-2 flex gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                     <button
                       type="button"
-                      className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-500 shadow-sm transition-colors hover:text-indigo-600"
+                      className="rounded-lg bg-white p-1.5 text-slate-500 ring-1 ring-slate-900/5 transition-colors hover:bg-slate-50 hover:text-indigo-600"
                       onClick={(ev) => {
                         ev.stopPropagation();
                         handleRenameTemplate(tpl.id, tpl.name);
@@ -353,7 +355,7 @@ export const TemplatesStudio = () => {
                     </button>
                     <button
                       type="button"
-                      className="rounded-md bg-red-500/90 p-1.5 text-white shadow-sm transition-colors hover:bg-red-600"
+                      className="rounded-lg bg-red-600 p-1.5 text-white ring-1 ring-red-700/20 transition-colors hover:bg-red-700"
                       onClick={(ev) => {
                         ev.stopPropagation();
                         void handleDeleteTemplate(tpl.id);
@@ -362,7 +364,7 @@ export const TemplatesStudio = () => {
                       <Trash2 size={14} strokeWidth={1.75} />
                     </button>
                   </div>
-                </div>
+                </Card>
               );
             })}
           </div>
@@ -379,7 +381,7 @@ export const TemplatesStudio = () => {
           Deine Vorlagen-Sets
         </h2>
         <div className="flex flex-wrap gap-3">
-          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50">
+          <label className="flex cursor-pointer items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 transition-colors hover:bg-slate-50">
             <UploadCloud size={18} strokeWidth={1.75} /> Set importieren
             <input
               type="file"
@@ -395,7 +397,7 @@ export const TemplatesStudio = () => {
       </div>
 
       {templateSets.length === 0 ? (
-        <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 py-16 text-center">
+        <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 py-16 text-center ring-1 ring-inset ring-slate-900/5">
           <Folder className="mx-auto mb-3 text-slate-300" size={48} strokeWidth={1} />
           <h3 className="mb-1 text-lg font-semibold text-slate-800">Noch keine Sets vorhanden</h3>
           <p className="text-sm text-slate-500">
@@ -405,24 +407,26 @@ export const TemplatesStudio = () => {
       ) : (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {templateSets.map((set) => (
-            <div
+            <Card
               key={set.id}
+              padding="sm"
+              interactive
               role="button"
               tabIndex={0}
               onClick={() => setEditingSetId(set.id)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") setEditingSetId(set.id);
               }}
-              className="group relative cursor-pointer rounded-xl border border-slate-200 bg-white p-5 transition-all duration-200 hover:border-indigo-300 hover:shadow-md"
+              className="group relative flex flex-col justify-between"
             >
               <div className="mb-4 flex items-start justify-between">
-                <div className="rounded-lg bg-indigo-50 p-3 text-indigo-600">
+                <div className="rounded-xl bg-indigo-50 p-3 text-indigo-600 ring-1 ring-inset ring-indigo-500/20">
                   <Folder size={22} strokeWidth={1.75} />
                 </div>
                 <div className="flex gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                   <button
                     type="button"
-                    className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-400 shadow-sm transition-colors hover:text-emerald-600"
+                    className="rounded-lg bg-white p-1.5 text-slate-400 ring-1 ring-slate-900/5 transition-colors hover:bg-slate-50 hover:text-emerald-600"
                     title="Export"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -433,7 +437,7 @@ export const TemplatesStudio = () => {
                   </button>
                   <button
                     type="button"
-                    className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-400 shadow-sm transition-colors hover:text-indigo-600"
+                    className="rounded-lg bg-white p-1.5 text-slate-400 ring-1 ring-slate-900/5 transition-colors hover:bg-slate-50 hover:text-indigo-600"
                     onClick={(e) => {
                       e.stopPropagation();
                       void handleRenameSet(set.id, set.name);
@@ -443,7 +447,7 @@ export const TemplatesStudio = () => {
                   </button>
                   <button
                     type="button"
-                    className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-400 shadow-sm transition-colors hover:text-indigo-600"
+                    className="rounded-lg bg-white p-1.5 text-slate-400 ring-1 ring-slate-900/5 transition-colors hover:bg-slate-50 hover:text-indigo-600"
                     title="Duplizieren"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -482,7 +486,7 @@ export const TemplatesStudio = () => {
                   </button>
                   <button
                     type="button"
-                    className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-400 shadow-sm transition-colors hover:text-red-500"
+                    className="rounded-lg bg-white p-1.5 text-slate-400 ring-1 ring-slate-900/5 transition-colors hover:bg-slate-50 hover:text-red-600"
                     onClick={(e) => {
                       e.stopPropagation();
                       void handleDeleteSet(set.id);
@@ -497,7 +501,7 @@ export const TemplatesStudio = () => {
                 <span>{set.templates.length} Vorlagen</span>
                 <ChevronRight size={16} className="text-slate-400 transition-colors group-hover:text-indigo-500" />
               </p>
-            </div>
+            </Card>
           ))}
         </div>
       )}

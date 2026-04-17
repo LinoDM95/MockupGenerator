@@ -32,6 +32,8 @@ import {
   Zap,
 } from "lucide-react";
 
+const appleEase: [number, number, number, number] = [0.22, 1, 0.36, 1];
+
 /* ------------------------------------------------------------------ */
 /*  Helper: fade-in on scroll                                          */
 /* ------------------------------------------------------------------ */
@@ -50,12 +52,12 @@ const FadeIn = ({
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, y: reduceMotion ? 0 : 32 }}
-      animate={inView ? { opacity: 1, y: 0 } : {}}
+      initial={{ opacity: 0, y: reduceMotion ? 0 : 32, filter: "blur(4px)" }}
+      animate={inView ? { opacity: 1, y: 0, filter: "blur(0px)" } : {}}
       transition={{
-        duration: reduceMotion ? 0.2 : 0.6,
+        duration: reduceMotion ? 0.2 : 0.8,
         delay: reduceMotion ? 0 : delay,
-        ease: [0.25, 0.46, 0.45, 0.94],
+        ease: appleEase,
       }}
       className={className}
     >
@@ -82,41 +84,50 @@ const MOCKUP_COLORS = [
   "bg-lime-400",
 ];
 
+const bentoCardClass =
+  "group relative flex h-full flex-col overflow-hidden rounded-[2rem] bg-white/70 p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 backdrop-blur-md transition-all duration-500 hover:-translate-y-1 hover:bg-white hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)]";
+
+const bentoCardInnerLight =
+  "pointer-events-none absolute inset-0 rounded-[2rem] shadow-[inset_0_1px_0_rgba(255,255,255,1)]";
+
+const primaryCtaClass =
+  "group relative inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-8 py-4 text-base font-semibold tracking-wide text-white shadow-lg transition-all duration-300 hover:bg-indigo-600 hover:shadow-[0_0_40px_-10px_rgba(79,70,229,0.6)]";
+
+const secondaryCtaClass =
+  "inline-flex items-center gap-2 rounded-2xl bg-white px-8 py-4 text-base font-semibold tracking-wide text-slate-800 shadow-[0_2px_10px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 transition-all duration-300 hover:bg-slate-50";
+
 const Hero = () => {
   const reduceMotion = useReducedMotion();
   return (
-  <section className="relative overflow-hidden">
-    {/* Soft mesh gradient background */}
-    <div className="pointer-events-none absolute inset-0 -z-10">
-      <div className="absolute -top-24 left-1/2 h-[600px] w-[900px] -translate-x-1/2 rounded-full bg-indigo-100/60 blur-3xl" />
-      <div className="absolute top-40 -right-40 h-[400px] w-[400px] rounded-full bg-violet-100/40 blur-3xl" />
-      <div className="absolute -bottom-20 -left-32 h-[350px] w-[500px] rounded-full bg-sky-100/40 blur-3xl" />
-    </div>
+  <section className="relative overflow-hidden bg-[#FAFAFA] pb-24 pt-32">
+    <div
+      className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]"
+      aria-hidden
+    />
+    <div className="pointer-events-none absolute left-1/2 top-0 -z-10 h-[800px] w-[800px] -translate-x-1/2 -translate-y-[30%] rounded-full bg-indigo-500/15 blur-[120px] mix-blend-multiply" />
 
-    <div className="mx-auto max-w-7xl px-4 pb-24 pt-20 sm:px-6 sm:pt-28 lg:px-8 lg:pt-36">
+    <div className="relative z-10 mx-auto max-w-5xl px-4 text-center sm:px-6 lg:px-8">
       <div className="text-center">
         <motion.div
           initial={{ opacity: 0, y: reduceMotion ? 0 : 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: reduceMotion ? 0.2 : 0.5 }}
-          className="mx-auto mb-6 flex w-fit max-w-[95vw] flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-full border border-indigo-200 bg-indigo-50 px-4 py-1.5 text-xs font-medium text-indigo-700 sm:text-sm"
+          className="mx-auto mb-8 flex w-fit items-center gap-2 rounded-full border border-indigo-200/50 bg-indigo-50/50 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-indigo-700 backdrop-blur-sm"
         >
-          <Zap size={14} className="shrink-0" />
-          <span className="text-center">
-            Erstellen · Verbreiten · Automatisieren · Integrationen
-          </span>
+          <Sparkles size={14} className="shrink-0 text-indigo-500" strokeWidth={2} />
+          Die Engine
         </motion.div>
 
         <motion.h1
           initial={{ opacity: 0, y: reduceMotion ? 0 : 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: reduceMotion ? 0.2 : 0.7, delay: reduceMotion ? 0 : 0.1 }}
-          className="text-5xl font-bold tracking-tight text-slate-900 sm:text-6xl lg:text-7xl"
+          className="text-6xl font-bold tracking-tighter text-slate-900 sm:text-7xl lg:text-[5.5rem] leading-[1.05]"
         >
-          Die komplette Print-on-Demand-Pipeline
+          Die komplette Print-Pipeline.
           <br />
-          <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
-            von Motiv bis Etsy-Entwurf.
+          <span className="bg-gradient-to-br from-indigo-500 via-violet-600 to-fuchsia-600 bg-clip-text text-transparent drop-shadow-sm">
+            Motiv rein. Etsy raus.
           </span>
         </motion.h1>
 
@@ -124,20 +135,23 @@ const Hero = () => {
           initial={{ opacity: 0, y: reduceMotion ? 0 : 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: reduceMotion ? 0.2 : 0.6, delay: reduceMotion ? 0 : 0.25 }}
-          className="mx-auto mt-6 max-w-2xl text-lg text-slate-600 sm:text-xl"
+          className="mx-auto mt-8 max-w-2xl text-lg font-medium leading-relaxed text-slate-500 sm:text-xl"
         >
-          Vorlagen im Studio anlegen, Motive im Generator einspielen, Mockups automatisch
-          erzeugen, Listing-Texte mit oder ohne KI schreiben — dann nach Gelato und als
-          Etsy-Entwurf. Ein durchgängiger Kernablauf; weitere Funktionen in der App
-          ergänzen ihn.
+          Vorlagen anlegen, Mockups rendern, KI-Texte generieren und direkt als Etsy-Entwurf
+          veröffentlichen. Ein nahtloser Prozess in einer einzigen Engine.
         </motion.p>
 
         <motion.div
           initial={{ opacity: 0, y: reduceMotion ? 0 : 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: reduceMotion ? 0.2 : 0.55, delay: reduceMotion ? 0 : 0.35 }}
-          className="mx-auto mt-8 max-w-2xl rounded-2xl border border-indigo-100/90 bg-indigo-50/50 px-4 py-4 text-left shadow-sm sm:px-6 sm:py-5"
+          className="relative mx-auto mt-8 max-w-2xl rounded-2xl border border-slate-200/60 bg-white/70 px-4 py-4 text-left shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 backdrop-blur-md sm:px-6 sm:py-5"
         >
+          <div
+            className="pointer-events-none absolute inset-0 rounded-2xl shadow-[inset_0_1px_0_rgba(255,255,255,1)]"
+            aria-hidden
+          />
+          <div className="relative">
           <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-indigo-900">
             <Key size={16} className="shrink-0 text-indigo-600" strokeWidth={2} aria-hidden />
             Kostenlos starten · KI mit eigenen API-Keys
@@ -187,6 +201,7 @@ const Hero = () => {
               </span>
             </li>
           </ul>
+          </div>
         </motion.div>
 
         <motion.div
@@ -195,21 +210,15 @@ const Hero = () => {
           transition={{ duration: reduceMotion ? 0.2 : 0.5, delay: reduceMotion ? 0 : 0.4 }}
           className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row"
         >
-          <Link
-            to="/login"
-            className="group inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-indigo-500/25 transition-all duration-200 hover:bg-indigo-700 hover:shadow-xl hover:shadow-indigo-500/30"
-          >
+          <Link to="/login" className={primaryCtaClass}>
             Kostenlos starten
             <ArrowRight
               size={18}
-              className="transition-transform duration-200 group-hover:translate-x-0.5"
+              className="transition-transform duration-300 group-hover:translate-x-1"
             />
           </Link>
-          <a
-            href="#how-it-works"
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-6 py-3.5 text-base font-semibold text-slate-700 transition-all duration-200 hover:bg-slate-50"
-          >
-            So funktioniert&apos;s
+          <a href="#four-pillars" className={secondaryCtaClass}>
+            Plattform entdecken
           </a>
         </motion.div>
       </div>
@@ -225,7 +234,12 @@ const Hero = () => {
         }}
         className="mx-auto mt-20 max-w-4xl"
       >
-        <div className="relative rounded-2xl border border-slate-200/60 bg-white/60 p-6 shadow-xl shadow-slate-200/40 backdrop-blur-md sm:p-10">
+        <div className="relative overflow-hidden rounded-[2.5rem] border border-white/40 bg-white/50 p-6 shadow-[0_20px_60px_rgb(0,0,0,0.05)] ring-1 ring-slate-900/5 backdrop-blur-xl sm:p-10">
+          <div
+            className="pointer-events-none absolute inset-0 rounded-[2rem] shadow-[inset_0_1px_0_rgba(255,255,255,1)]"
+            aria-hidden
+          />
+          <div className="relative z-10">
           {/* Source design file */}
           <motion.div
             initial={{ x: -60, opacity: 0 }}
@@ -277,6 +291,7 @@ const Hero = () => {
               <p className="text-xs text-emerald-600">Generated</p>
             </div>
           </motion.div>
+          </div>
         </div>
       </motion.div>
     </div>
@@ -343,8 +358,10 @@ const PillarCard = ({
         delay: reduceMotion ? 0 : index * 0.08,
         ease: [0.25, 0.46, 0.45, 0.94],
       }}
-      className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white/70 p-6 shadow-sm backdrop-blur-md transition-all duration-300 hover:shadow-lg"
+      className={bentoCardClass}
     >
+      <div className={bentoCardInnerLight} aria-hidden />
+      <div className="relative z-10">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 transition-transform duration-200 group-hover:scale-[1.03]">
           <Icon size={18} strokeWidth={1.75} />
@@ -353,8 +370,9 @@ const PillarCard = ({
           {chip}
         </span>
       </div>
-      <h3 className="mb-2 text-lg font-bold text-slate-900">{title}</h3>
-      <p className="text-sm leading-relaxed text-slate-600">{description}</p>
+      <h3 className="mb-2 text-lg font-semibold tracking-tight text-slate-900">{title}</h3>
+      <p className="text-sm leading-relaxed text-slate-500">{description}</p>
+      </div>
     </motion.div>
   );
 };
@@ -367,10 +385,10 @@ const FourPillars = () => (
         <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-indigo-600">
           Die Plattform
         </p>
-        <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+        <h2 className="text-4xl font-semibold tracking-[-0.03em] text-slate-900 sm:text-5xl">
           Vier Bereiche in der App
         </h2>
-        <p className="mx-auto mt-3 max-w-2xl text-lg text-slate-600">
+        <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-slate-500">
           Dieselbe Struktur wie in der App: vier Bereiche für Erstellen, Sichtbarkeit,
           Automatisierung und technische Anbindungen.
         </p>
@@ -424,9 +442,19 @@ const steps = [
 
 const StepVisualUpload = () => (
   <div className="relative mx-auto w-full max-w-sm">
-    <div className="rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-      <Upload className="mx-auto mb-3 text-slate-400" size={32} strokeWidth={1.5} />
-      <p className="text-sm font-medium text-slate-600">Dateien hierher ziehen</p>
+    <div
+      className="absolute inset-0 -z-10 rounded-[2rem] bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:16px_16px] opacity-70"
+      aria-hidden
+    />
+    <div className="relative rounded-2xl border border-slate-200/60 bg-white/70 p-8 text-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 backdrop-blur-md">
+      <div
+        className="pointer-events-none absolute inset-0 rounded-2xl shadow-[inset_0_1px_0_rgba(255,255,255,1)]"
+        aria-hidden
+      />
+      <div className="relative rounded-xl border-2 border-dashed border-indigo-200/80 bg-indigo-50/30 px-6 py-8">
+        <Upload className="mx-auto mb-3 text-indigo-400" size={32} strokeWidth={1.5} />
+        <p className="text-sm font-medium text-slate-600">Dateien hierher ziehen</p>
+      </div>
     </div>
     {[0, 1, 2].map((i) => (
       <motion.div
@@ -435,16 +463,16 @@ const StepVisualUpload = () => (
         whileInView={{ opacity: 1, y: 0, x: 0 }}
         transition={{ delay: 0.3 + i * 0.15, duration: 0.5 }}
         viewport={{ once: true }}
-        className="mt-3 flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm"
+        className="relative mt-3 flex items-center gap-3 overflow-hidden rounded-xl border border-slate-200/70 bg-white/90 px-3 py-2.5 shadow-[0_4px_20px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 backdrop-blur-sm"
       >
-        <div className={`h-8 w-8 rounded ${["bg-rose-400", "bg-amber-400", "bg-sky-400"][i]}`} />
-        <div>
-          <p className="text-sm font-medium text-slate-800">
+        <div className={`h-8 w-8 shrink-0 rounded-md ${["bg-rose-400", "bg-amber-400", "bg-sky-400"][i]}`} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-slate-800">
             design-{String(i + 1).padStart(2, "0")}.png
           </p>
           <p className="text-xs text-slate-500">2.4 MB</p>
         </div>
-        <Check className="ml-auto text-emerald-500" size={16} />
+        <Check className="ml-auto shrink-0 text-emerald-500" size={16} />
       </motion.div>
     ))}
   </div>
@@ -452,9 +480,13 @@ const StepVisualUpload = () => (
 
 const StepVisualTemplate = () => (
   <div className="relative mx-auto w-full max-w-sm">
-    <div className="mb-4 flex items-center gap-3 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3">
-      <Layers className="text-indigo-600" size={20} strokeWidth={1.75} />
-      <span className="text-sm font-semibold text-indigo-800">Vorlage aus Vorlagen-Studio</span>
+    <div className="relative mb-4 flex items-center gap-3 overflow-hidden rounded-2xl border border-indigo-200/50 bg-gradient-to-r from-indigo-50/90 to-white/80 px-4 py-3 shadow-[0_4px_24px_rgb(79,70,229,0.08)] ring-1 ring-indigo-900/5">
+      <div
+        className="pointer-events-none absolute inset-0 rounded-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]"
+        aria-hidden
+      />
+      <Layers className="relative shrink-0 text-indigo-600" size={20} strokeWidth={1.75} />
+      <span className="relative text-sm font-semibold text-indigo-900">Vorlage aus Vorlagen-Studio</span>
     </div>
     <div className="grid grid-cols-3 gap-2">
       {Array.from({ length: 6 }).map((_, i) => (
@@ -464,10 +496,10 @@ const StepVisualTemplate = () => (
           whileInView={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.2 + i * 0.08, duration: 0.35 }}
           viewport={{ once: true }}
-          className="aspect-[3/4] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
+          className="aspect-[3/4] overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_4px_16px_rgb(0,0,0,0.05)] ring-1 ring-slate-900/5 transition-transform duration-300 hover:-translate-y-0.5"
         >
           <div className="h-2/3 bg-slate-100" />
-          <div className={`h-1/3 ${MOCKUP_COLORS[i] ?? "bg-slate-200"} opacity-70`} />
+          <div className={`h-1/3 ${MOCKUP_COLORS[i] ?? "bg-slate-200"} opacity-80`} />
         </motion.div>
       ))}
     </div>
@@ -485,7 +517,7 @@ const StepVisualTemplate = () => (
 
 const StepVisualListingText = () => (
   <div className="relative mx-auto w-full max-w-sm space-y-3">
-    <div className="rounded-xl border border-indigo-200 bg-indigo-50/90 px-4 py-3">
+    <div className="rounded-2xl border border-indigo-200/50 bg-indigo-50/80 px-4 py-3 shadow-[0_4px_20px_rgb(79,70,229,0.07)] ring-1 ring-indigo-900/5 backdrop-blur-sm">
       <div className="flex items-center gap-2 text-xs font-semibold text-indigo-950">
         <Users size={16} strokeWidth={1.75} className="shrink-0 text-indigo-600" aria-hidden />
         Multi-Agent Listing
@@ -495,7 +527,7 @@ const StepVisualListingText = () => (
         aktuellen Trends und Markt-Statistiken.
       </p>
     </div>
-    <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="space-y-3 rounded-2xl border border-slate-200/70 bg-white/95 p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5">
       <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
         Titel · Tags · Beschreibung
       </p>
@@ -523,22 +555,58 @@ const StepVisualListingText = () => (
   </div>
 );
 
-const StepVisualPublish = () => (
+const StepVisualPublish = () => {
+  const reduceMotion = useReducedMotion();
+  return (
   <div className="relative mx-auto w-full max-w-sm space-y-4">
-    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="mb-2 flex items-center justify-between">
-        <span className="text-sm font-medium text-slate-700">Export &amp; Etsy-Entwurf…</span>
-        <span className="text-xs font-semibold text-indigo-600">100%</span>
+    <div className="relative overflow-hidden rounded-[2rem] border border-white/[0.08] bg-black/45 p-5 shadow-[0_24px_48px_rgba(0,0,0,0.35)] ring-1 ring-white/10 backdrop-blur-xl">
+      <div
+        className="pointer-events-none absolute inset-0 rounded-[2rem] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]"
+        aria-hidden
+      />
+      <div className="relative z-10 mb-4 flex items-center gap-3">
+        <div className="grid grid-cols-2 gap-1 rounded-xl border border-white/10 bg-white/5 p-1.5">
+          {[0, 1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="h-2 w-2 rounded-sm bg-gradient-to-br from-indigo-400/90 to-violet-500/80 shadow-sm"
+            />
+          ))}
+        </div>
+        <div>
+          <p className="text-sm font-medium text-white">Export &amp; Etsy</p>
+          <p className="text-[10px] uppercase tracking-widest text-indigo-200/55">
+            Liquid Pipeline
+          </p>
+        </div>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+      <div className="relative z-10 mb-1 flex items-center justify-between text-xs">
+        <span className="font-medium text-indigo-100/90">Fortschritt</span>
+        <span className="font-mono tabular-nums text-violet-200">100%</span>
+      </div>
+      <div className="relative z-10 h-2.5 w-full overflow-hidden rounded-full bg-black/60 ring-1 ring-inset ring-white/10">
+        {!reduceMotion ? (
+          <motion.div
+            className="absolute inset-y-0 left-0 h-full w-2/5 rounded-full bg-gradient-to-r from-transparent via-cyan-400/80 to-transparent blur-[2px]"
+            animate={{ x: ["-120%", "220%"] }}
+            transition={{ duration: 1.6, repeat: Infinity, ease: "linear" }}
+          />
+        ) : null}
         <motion.div
+          className="relative z-[1] h-full rounded-full bg-gradient-to-r from-indigo-600 via-violet-500 to-fuchsia-500 shadow-[0_0_14px_rgba(139,92,246,0.65)]"
           initial={{ width: "0%" }}
           whileInView={{ width: "100%" }}
-          transition={{ duration: 1.5, delay: 0.3, ease: "easeInOut" }}
+          transition={{
+            duration: 1.5,
+            delay: 0.35,
+            ease: [0.22, 1, 0.36, 1] as [number, number, number, number],
+          }}
           viewport={{ once: true }}
-          className="h-full rounded-full bg-indigo-600"
         />
       </div>
+      <p className="relative z-10 mt-3 text-[11px] leading-relaxed text-indigo-200/55">
+        Export &amp; Etsy-Entwurf — gleicher Fokus wie im App-Wartebereich.
+      </p>
     </div>
     {[
       { title: "Gelato", sub: "Produkt, Bilder, Tags, Beschreibung" },
@@ -567,10 +635,16 @@ const StepVisualPublish = () => (
       veröffentlichen.
     </p>
   </div>
-);
+  );
+};
 
 const StepVisualAfterFlow = () => (
-  <div className="mx-auto w-full max-w-md rounded-xl border border-violet-200/80 bg-gradient-to-br from-violet-50/90 to-white p-6 shadow-sm">
+  <div className="relative mx-auto w-full max-w-md overflow-hidden rounded-[2rem] border border-violet-200/50 bg-gradient-to-br from-violet-50/95 to-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.05)] ring-1 ring-slate-900/5">
+    <div
+      className="pointer-events-none absolute inset-0 rounded-[2rem] shadow-[inset_0_1px_0_rgba(255,255,255,1)]"
+      aria-hidden
+    />
+    <div className="relative z-10">
     <div className="mb-3 flex flex-wrap items-center gap-2 text-violet-900">
       <Rocket size={18} strokeWidth={1.75} aria-hidden />
       <span className="text-sm font-semibold">Automatisieren</span>
@@ -601,6 +675,7 @@ const StepVisualAfterFlow = () => (
         </motion.div>
       ))}
     </div>
+    </div>
   </div>
 );
 
@@ -620,16 +695,20 @@ const HowItWorks = () => {
   const progressHeight = useTransform(scrollYProgress, [0, 1], ["0%", "100%"]);
 
   return (
-    <section id="how-it-works" ref={containerRef} className="relative bg-slate-50 py-24 lg:py-32">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <section id="how-it-works" ref={containerRef} className="relative overflow-hidden bg-slate-50 py-24 lg:py-32">
+      <div
+        className="pointer-events-none absolute inset-0 opacity-40 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]"
+        aria-hidden
+      />
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <FadeIn className="mb-16 text-center">
           <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-indigo-600">
             So funktioniert&apos;s
           </p>
-          <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
+          <h2 className="text-4xl font-semibold tracking-[-0.03em] text-slate-900 sm:text-5xl lg:text-6xl">
             Vier Schritte — vom Motiv zum Etsy-Entwurf
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-lg text-slate-600">
+          <p className="mx-auto mt-5 max-w-2xl text-lg leading-relaxed text-slate-500">
             Der gesamte Kernablauf der Plattform an einem Ort: Kurztexte links, Beispiele
             rechts — von Rohmotiv bis Gelato und Etsy-Entwurf.
           </p>
@@ -656,8 +735,10 @@ const HowItWorks = () => {
                       </div>
                       <span className="text-sm font-bold text-slate-400">{step.num}</span>
                     </div>
-                    <h3 className="mb-3 text-2xl font-bold text-slate-900">{step.title}</h3>
-                    <p className="max-w-md text-base text-slate-600 leading-relaxed">
+                    <h3 className="mb-3 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+                      {step.title}
+                    </h3>
+                    <p className="max-w-md text-base leading-relaxed text-slate-500">
                       {step.description}
                     </p>
                   </FadeIn>
@@ -677,10 +758,10 @@ const HowItWorks = () => {
               <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-indigo-600">
                 Noch mehr
               </p>
-              <h3 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+              <h3 className="text-3xl font-semibold tracking-[-0.03em] text-slate-900 sm:text-4xl">
                 Automatisierungs-Pipeline
               </h3>
-              <p className="mx-auto mt-3 max-w-2xl text-base text-slate-600">
+              <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-slate-500">
                 Zusätzlich zum manuellen Kern-Workflow: eine experimentelle Pipeline für
                 viele Motive auf einmal — mit klaren Etappen und Fortschritt pro Motiv.
               </p>
@@ -705,10 +786,10 @@ const ExtraModules = () => (
         <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-indigo-600">
           Optional
         </p>
-        <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+        <h2 className="text-4xl font-semibold tracking-[-0.03em] text-slate-900 sm:text-5xl">
           Zusatzmodule — einzeln nutzbar
         </h2>
-        <p className="mx-auto mt-3 max-w-2xl text-lg text-slate-600">
+        <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-slate-500">
           <span className="font-medium text-slate-800">
             KI-Upscaler (Vertex, BYOK) und Verbreiten (Pinterest)
           </span>{" "}
@@ -720,33 +801,43 @@ const ExtraModules = () => (
       </FadeIn>
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         <FadeIn>
-          <div className="flex h-full flex-col rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-8 shadow-sm">
+          <div className={`${bentoCardClass} bg-gradient-to-br from-slate-50/95 to-white`}>
+            <div className={bentoCardInnerLight} aria-hidden />
+            <div className="relative z-10 flex h-full flex-col">
             <div className="mb-4 inline-flex w-fit items-center gap-2 rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-900">
               <Maximize size={14} strokeWidth={1.75} aria-hidden />
               KI-Upscaler
             </div>
-            <h3 className="text-xl font-bold text-slate-900">Vertex · Bildqualität hochfahren</h3>
-            <p className="mt-3 flex-1 text-sm leading-relaxed text-slate-600">
+            <h3 className="text-xl font-semibold tracking-tight text-slate-900">
+              Vertex · Bildqualität hochfahren
+            </h3>
+            <p className="mt-3 flex-1 text-sm leading-relaxed text-slate-500">
               Eigenes Google-Cloud-Dienstkonto (BYOK): API-Key eintragen und nutzen —{" "}
               <strong className="font-semibold text-slate-800">kein Abo der App</strong> für den
               Upscaler. Motive vor dem Export oder für den Druck hochskalieren; im Generator
               nutzt du parallel KI für Texte/Tags ebenfalls mit eigenem Key (Gemini).
             </p>
+            </div>
           </div>
         </FadeIn>
         <FadeIn delay={0.08}>
-          <div className="flex h-full flex-col rounded-2xl border border-rose-200/80 bg-gradient-to-br from-rose-50/80 to-white p-8 shadow-sm">
+          <div className={`${bentoCardClass} border-rose-100/50 bg-gradient-to-br from-rose-50/85 to-white`}>
+            <div className={bentoCardInnerLight} aria-hidden />
+            <div className="relative z-10 flex h-full flex-col">
             <div className="mb-4 inline-flex w-fit items-center gap-2 rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-900">
               <Megaphone size={14} strokeWidth={1.75} aria-hidden />
               Verbreiten · Marketing
             </div>
-            <h3 className="text-xl font-bold text-slate-900">Pinterest &amp; Sichtbarkeit</h3>
-            <p className="mt-3 flex-1 text-sm leading-relaxed text-slate-600">
+            <h3 className="text-xl font-semibold tracking-tight text-slate-900">
+              Pinterest &amp; Sichtbarkeit
+            </h3>
+            <p className="mt-3 flex-1 text-sm leading-relaxed text-slate-500">
               <strong className="font-semibold text-slate-800">Kostenpflichtiger Marketing-Bereich:</strong>{" "}
               Pinterest verbinden, Boards wählen, Pins mit KI-Captions aus der Warteschlange
               posten — Reichweite neben Etsy (Bereich „Verbreiten“), unabhängig vom kostenlosen
               Haupt-Tool.
             </p>
+            </div>
           </div>
         </FadeIn>
       </div>
@@ -764,24 +855,26 @@ const BentoGrid = () => (
         <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-indigo-600">
           Features
         </p>
-        <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
+        <h2 className="text-4xl font-semibold tracking-[-0.03em] text-slate-900 sm:text-5xl lg:text-6xl">
           Alles im Überblick
         </h2>
-        <p className="mx-auto mt-4 max-w-2xl text-lg text-slate-600">
+        <p className="mx-auto mt-5 max-w-2xl text-lg leading-relaxed text-slate-500">
           Funktionen und Anbindungen im Überblick — ohne den Ablauf von oben zu wiederholen.
         </p>
       </FadeIn>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <FadeIn>
-          <div className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/60 p-8 shadow-sm backdrop-blur-md transition-all duration-300 hover:shadow-lg">
+          <div className={bentoCardClass}>
+            <div className={bentoCardInnerLight} aria-hidden />
+            <div className="relative z-10 flex h-full flex-col">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
               <Layers size={14} strokeWidth={1.75} /> Erstellen
             </div>
-            <h3 className="mb-2 text-xl font-bold text-slate-900">
+            <h3 className="mb-2 text-xl font-semibold tracking-tight text-slate-900">
               Generator, Vorlagen-Studio, Etsy
             </h3>
-            <p className="mb-6 flex-1 text-sm leading-relaxed text-slate-600">
+            <p className="mb-6 flex-1 text-sm leading-relaxed text-slate-500">
               Mockups aus Vorlagen erzeugen, Sets im Vorlagen-Studio pflegen und Etsy-Listings
               bearbeiten — der zentrale Arbeitsbereich für deinen Shop.
             </p>
@@ -799,18 +892,21 @@ const BentoGrid = () => (
                 </motion.div>
               ))}
             </div>
+            </div>
           </div>
         </FadeIn>
 
         <FadeIn delay={0.08}>
-          <div className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/60 p-8 shadow-sm backdrop-blur-md transition-all duration-300 hover:shadow-lg">
+          <div className={bentoCardClass}>
+            <div className={bentoCardInnerLight} aria-hidden />
+            <div className="relative z-10 flex h-full flex-col">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-800">
               <Megaphone size={14} strokeWidth={1.75} /> Verbreiten
             </div>
-            <h3 className="mb-2 text-xl font-bold text-slate-900">
+            <h3 className="mb-2 text-xl font-semibold tracking-tight text-slate-900">
               Verbreiten
             </h3>
-            <p className="mb-6 flex-1 text-sm leading-relaxed text-slate-600">
+            <p className="mb-6 flex-1 text-sm leading-relaxed text-slate-500">
               <strong className="font-semibold text-slate-800">Kostenpflichtiger Marketing-Bereich:</strong>{" "}
               Pinterest anbinden, Boards wählen und Pins mit KI-Captions aus der Warteschlange
               — für Reichweite neben Etsy.
@@ -819,11 +915,14 @@ const BentoGrid = () => (
               <Sparkles size={18} className="text-rose-600" strokeWidth={1.75} />
               <span className="text-sm font-medium text-rose-900">KI · Captions &amp; Queue</span>
             </div>
+            </div>
           </div>
         </FadeIn>
 
         <FadeIn delay={0.05}>
-          <div className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/60 p-8 shadow-sm backdrop-blur-md transition-all duration-300 hover:shadow-lg">
+          <div className={bentoCardClass}>
+            <div className={bentoCardInnerLight} aria-hidden />
+            <div className="relative z-10 flex h-full flex-col">
             <div className="mb-4 flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-2 rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-800">
                 <Rocket size={14} strokeWidth={1.75} /> Automatisieren
@@ -832,10 +931,10 @@ const BentoGrid = () => (
                 Kostenpflichtig · Vorschau
               </span>
             </div>
-            <h3 className="mb-2 text-xl font-bold text-slate-900">
+            <h3 className="mb-2 text-xl font-semibold tracking-tight text-slate-900">
               Pipeline: mehrere Motive, klare Etappen
             </h3>
-            <p className="mb-6 flex-1 text-sm leading-relaxed text-slate-600">
+            <p className="mb-6 flex-1 text-sm leading-relaxed text-slate-500">
               Experimenteller Lauf mit Phasen wie Upscale, SEO, Mockups und Gelato —{" "}
               <strong className="font-semibold text-slate-800">kostenpflichtiger Bereich</strong>;
               Status pro Motiv, nicht produktionsreif, aber transparenter Überblick.
@@ -854,18 +953,21 @@ const BentoGrid = () => (
                 </motion.span>
               ))}
             </div>
+            </div>
           </div>
         </FadeIn>
 
         <FadeIn delay={0.12}>
-          <div className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/60 p-8 shadow-sm backdrop-blur-md transition-all duration-300 hover:shadow-lg">
+          <div className={bentoCardClass}>
+            <div className={bentoCardInnerLight} aria-hidden />
+            <div className="relative z-10 flex h-full flex-col">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-900">
               <Link2 size={14} strokeWidth={1.75} /> Integrationen
             </div>
-            <h3 className="mb-2 text-xl font-bold text-slate-900">
+            <h3 className="mb-2 text-xl font-semibold tracking-tight text-slate-900">
               Etsy, Gelato, KI, Pinterest
             </h3>
-            <p className="mb-6 flex-1 text-sm leading-relaxed text-slate-600">
+            <p className="mb-6 flex-1 text-sm leading-relaxed text-slate-500">
               OAuth für Etsy und Pinterest, Gelato-Store und API, Gemini für Texte sowie
               Vertex für den Upscaler (BYOK) — zentral konfiguriert.
             </p>
@@ -889,20 +991,22 @@ const BentoGrid = () => (
                 </motion.span>
               ))}
             </div>
+            </div>
           </div>
         </FadeIn>
 
         <FadeIn delay={0.06} className="md:col-span-2">
-          <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white/60 p-8 shadow-sm backdrop-blur-md transition-all duration-300 hover:shadow-lg">
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:items-center">
+          <div className={bentoCardClass}>
+            <div className={bentoCardInnerLight} aria-hidden />
+            <div className="relative z-10 grid grid-cols-1 gap-8 md:grid-cols-2 md:items-center">
               <div>
                 <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">
                   <BarChart3 size={14} strokeWidth={1.75} /> Etsy Analytics
                 </div>
-                <h3 className="mb-2 text-xl font-bold text-slate-900">
+                <h3 className="mb-2 text-xl font-semibold tracking-tight text-slate-900">
                   Nischen &amp; Listings
                 </h3>
-                <p className="max-w-md text-sm leading-relaxed text-slate-600">
+                <p className="max-w-md text-sm leading-relaxed text-slate-500">
                   Listings analysieren, Tags und Trends im Blick — ergänzend zu
                   Erstellung und Verbreitung.
                 </p>
@@ -993,33 +1097,33 @@ const Marquee = () => (
 /*  SECTION 5 — Final CTA                                              */
 /* ------------------------------------------------------------------ */
 const FinalCTA = () => (
-  <section className="relative overflow-hidden py-24 lg:py-32">
-    <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-br from-indigo-50 via-white to-slate-50" />
-    <div className="pointer-events-none absolute -top-32 left-1/2 -z-10 h-[500px] w-[700px] -translate-x-1/2 rounded-full bg-indigo-100/50 blur-3xl" />
+  <section className="relative overflow-hidden bg-[#FAFAFA] py-24 lg:py-32">
+    <div
+      className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"
+      aria-hidden
+    />
+    <div className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[480px] w-[640px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-indigo-500/15 blur-[100px]" />
 
-    <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
+    <div className="relative z-10 mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
       <FadeIn>
-        <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
+        <h2 className="text-4xl font-semibold tracking-[-0.04em] text-slate-900 sm:text-5xl lg:text-6xl">
           Schluss mit manuellen Mockups.
           <br />
-          <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
+          <span className="bg-gradient-to-br from-indigo-500 via-violet-600 to-fuchsia-600 bg-clip-text text-transparent">
             Starte jetzt.
           </span>
         </h2>
-        <p className="mx-auto mt-6 max-w-xl text-lg text-slate-600">
+        <p className="mx-auto mt-8 max-w-xl text-lg leading-relaxed text-slate-500">
           Motive, Vorlagen-Mockups, Listing-Texte mit oder ohne KI (eigene API-Keys), Gelato-Export
           und Etsy-Listing-Entwurf — der Kern kostenlos; KI-Upscaler &amp; Co. per BYOK ohne
           App-Abo. Marketing &amp; Automatisierung kostenpflichtig.
         </p>
         <div className="mt-10">
-          <Link
-            to="/login"
-            className="group inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-8 py-4 text-lg font-semibold text-white shadow-lg shadow-indigo-500/25 transition-all duration-200 hover:bg-indigo-700 hover:shadow-xl hover:shadow-indigo-500/30"
-          >
+          <Link to="/login" className={`${primaryCtaClass} text-lg`}>
             Kostenlos starten
             <ArrowRight
               size={20}
-              className="transition-transform duration-200 group-hover:translate-x-0.5"
+              className="transition-transform duration-300 group-hover:translate-x-1"
             />
           </Link>
         </div>
@@ -1032,14 +1136,14 @@ const FinalCTA = () => (
 /*  SECTION 6 — Footer                                                 */
 /* ------------------------------------------------------------------ */
 const Footer = () => (
-  <footer className="border-t border-slate-200 bg-white py-8">
-    <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-      <span className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-        <Zap size={16} className="text-indigo-600" strokeWidth={2} />
-        Mockup Generator Pro
+  <footer className="border-t border-slate-200/60 bg-[#FAFAFA] py-12">
+    <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6 lg:px-8">
+      <span className="flex items-center gap-2 text-base font-bold tracking-tight text-slate-900">
+        <Zap size={18} className="text-indigo-600" fill="currentColor" strokeWidth={2} />
+        Creative Engine
       </span>
-      <p className="text-xs text-slate-500">
-        &copy; {new Date().getFullYear()} Mockup Generator Pro. All rights reserved.
+      <p className="text-sm font-medium text-slate-400">
+        &copy; {new Date().getFullYear()} Alle Rechte vorbehalten.
       </p>
     </div>
   </footer>
@@ -1049,30 +1153,31 @@ const Footer = () => (
 /*  PAGE                                                               */
 /* ------------------------------------------------------------------ */
 export const LandingPage = () => (
-  <div className="min-h-screen bg-white">
-    {/* Navbar */}
-    <header className="sticky top-0 z-50 border-b border-slate-200/60 bg-white/80 backdrop-blur-lg">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <span className="flex items-center gap-2 text-base font-semibold tracking-tight text-slate-900">
-          <Zap size={20} className="text-indigo-600" strokeWidth={2} />
-          Mockup Generator Pro
+  <div className="min-h-screen bg-[#FAFAFA] font-sans">
+    <header className="fixed inset-x-0 top-4 z-50 px-4 sm:px-6">
+      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between rounded-full border border-white/40 bg-white/70 px-4 shadow-[0_8px_30px_rgb(0,0,0,0.06)] ring-1 ring-slate-900/5 backdrop-blur-xl sm:px-6">
+        <span className="flex items-center gap-2 text-sm font-bold tracking-tight text-slate-900">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 shadow-inner">
+            <Zap size={16} className="text-white" fill="currentColor" />
+          </span>
+          Creative Engine
         </span>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <a
             href="#how-it-works"
-            className="hidden text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 sm:inline"
+            className="hidden text-sm font-semibold text-slate-600 transition-colors hover:text-indigo-600 sm:inline"
           >
             So funktioniert&apos;s
           </a>
           <a
             href="#four-pillars"
-            className="hidden text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 sm:inline"
+            className="hidden text-sm font-semibold text-slate-600 transition-colors hover:text-indigo-600 sm:inline"
           >
             Bereiche
           </a>
           <Link
             to="/login"
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-indigo-700"
+            className="rounded-full bg-slate-900 px-5 py-2 text-xs font-bold text-white shadow-md ring-1 ring-inset ring-white/15 transition-all hover:scale-[1.02] hover:bg-indigo-600"
           >
             Anmelden
           </Link>

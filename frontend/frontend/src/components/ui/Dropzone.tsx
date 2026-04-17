@@ -72,23 +72,23 @@ export const Dropzone = ({
       onDragOver={handleDragOver}
       onDrop={handleDrop}
       className={cn(
-        "flex w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-8 transition-[background-color,border-color,box-shadow] duration-200 ease-out",
+        "flex w-full cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-all duration-200 ease-out",
         isDragging
-          ? "border-indigo-500 bg-indigo-50/90 shadow-sm ring-2 ring-indigo-200/60 hover:border-indigo-500 hover:bg-indigo-50/90"
-          : "border-slate-300 bg-slate-50 hover:border-indigo-400 hover:bg-slate-100",
+          ? "border-indigo-500 bg-indigo-50"
+          : "border-slate-300 bg-slate-50 hover:border-indigo-400 hover:bg-slate-100/50",
         className,
       )}
     >
       <motion.span
-        className="inline-flex shrink-0"
         animate={{ scale: isDragging ? 1.1 : 1 }}
-        transition={{ type: "spring", stiffness: 400, damping: 22 }}
+        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+        className="mb-3 text-slate-400"
       >
         {icon}
       </motion.span>
-      <div className="mt-2 text-center text-sm text-slate-600">{title}</div>
+      <div className="text-sm font-bold text-slate-700">{title}</div>
       {description ? (
-        <p className="mt-1 max-w-md px-4 text-center text-xs text-slate-400">{description}</p>
+        <p className="mt-1 max-w-sm text-xs font-medium text-slate-500">{description}</p>
       ) : null}
       <input id={fid} className="sr-only" {...inputProps} type="file" />
     </label>

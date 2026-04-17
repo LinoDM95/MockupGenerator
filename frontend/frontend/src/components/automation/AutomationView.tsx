@@ -253,7 +253,7 @@ function RunDashboard({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/50 p-6 shadow-sm">
+      <div className="rounded-2xl bg-gradient-to-b from-white to-slate-50/50 p-6 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold text-slate-900">
@@ -405,7 +405,7 @@ function RunDashboard({
         </div>
       ) : null}
 
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="rounded-2xl bg-white p-4 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
           Motive im Detail
         </p>
@@ -414,10 +414,10 @@ function RunDashboard({
             <li
               key={t.id}
               className={cn(
-                "rounded-xl border p-3 transition-colors",
+                "rounded-xl p-3 transition-colors ring-1 ring-inset",
                 t.status === "error"
-                  ? "border-red-200 bg-red-50/30"
-                  : "border-slate-200 bg-slate-50/50",
+                  ? "bg-red-50/30 ring-red-500/20"
+                  : "bg-slate-50/50 ring-slate-900/5",
               )}
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
@@ -588,7 +588,7 @@ export const AutomationView = () => {
     <AppPage>
       <div
         role="status"
-        className="rounded-xl border border-dashed border-amber-300/80 bg-amber-50/90 px-4 py-3 text-center text-sm text-amber-950 shadow-sm"
+        className="rounded-xl bg-amber-50 px-4 py-3 text-center text-sm text-amber-950 ring-1 ring-inset ring-amber-500/20"
       >
         <p className="font-semibold">Automation — Vorschau, nicht produktionsreif</p>
         <p className="mt-1 text-xs text-amber-900/90">
@@ -612,7 +612,7 @@ export const AutomationView = () => {
       {templateSets.length === 0 ? (
         <div
           role="status"
-          className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-950"
+          className="rounded-xl bg-amber-50 px-4 py-4 text-sm text-amber-950 ring-1 ring-inset ring-amber-500/20"
         >
           <p className="font-medium">Keine Vorlagen-Sets</p>
           <p className="mt-1 text-xs text-amber-900/90">
@@ -637,7 +637,7 @@ export const AutomationView = () => {
       {!jobId ? (
         <form
           onSubmit={handleSubmit}
-          className="space-y-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+          className="space-y-5 rounded-2xl bg-white p-6 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5"
         >
           <p className="text-sm font-medium text-slate-800">Voreinstellungen</p>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -645,7 +645,7 @@ export const AutomationView = () => {
               <span className="font-medium text-slate-700">KI-Modell (SEO)</span>
               <select
                 name="ai_model_name"
-                className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-xl bg-white px-3 py-2 text-sm shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5"
                 defaultValue={MODEL_OPTIONS[0]!.value}
                 required
               >
@@ -660,7 +660,7 @@ export const AutomationView = () => {
               <span className="font-medium text-slate-700">Upscale-Faktor</span>
               <select
                 name="upscale_factor"
-                className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-xl bg-white px-3 py-2 text-sm shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5"
                 defaultValue="4"
                 required
               >
@@ -676,7 +676,7 @@ export const AutomationView = () => {
                 name="mockup_set"
                 value={mockupSetId}
                 onChange={(e) => setMockupSetId(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-xl bg-white px-3 py-2 text-sm shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5"
                 required
                 disabled={templateSets.length === 0}
               >
@@ -694,7 +694,7 @@ export const AutomationView = () => {
               <span className="font-medium text-slate-700">Gelato-Profil</span>
               <select
                 name="gelato_profile"
-                className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-xl bg-white px-3 py-2 text-sm shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5"
                 defaultValue={GELATO_PRESETS[0]!.value}
                 required
               >
@@ -759,7 +759,7 @@ export const AutomationView = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white p-12 text-slate-600"
+            className="flex items-center justify-center gap-2 rounded-2xl bg-white p-12 text-slate-600 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5"
           >
             <Loader2 className="h-6 w-6 animate-spin text-violet-500" />
             Job wird geladen…

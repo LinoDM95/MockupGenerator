@@ -29,67 +29,69 @@ export const ExpertDebateConsole = ({
 }: Props) => {
   return (
     <div
-      className="mt-3 rounded-lg border border-slate-800 bg-slate-950 px-3 py-2.5 font-mono text-[11px] leading-relaxed text-slate-200 shadow-inner"
+      className="mt-4 overflow-hidden rounded-xl bg-slate-900 font-mono text-xs leading-relaxed text-slate-300 shadow-inner ring-1 ring-inset ring-slate-900/50"
       aria-live="polite"
     >
-      <div className="mb-2 flex items-center justify-between gap-2 border-b border-slate-800 pb-2 text-[10px] uppercase tracking-wider text-slate-500">
-        <span>War Room</span>
+      <div className="flex items-center justify-between border-b border-slate-800 bg-slate-950/50 px-4 py-2.5">
+        <span className="font-semibold tracking-wide text-slate-400">Multi-Agent Engine</span>
         {currentStepLabel ? (
-          <span className="normal-case text-indigo-300">{currentStepLabel}</span>
+          <span className="rounded-full bg-indigo-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-indigo-400">
+            {currentStepLabel}
+          </span>
         ) : null}
       </div>
+
       {fallbackBanner ? (
-        <div
-          role="status"
-          className="mb-2 rounded border border-amber-700/60 bg-amber-950/80 px-2 py-1.5 text-amber-100"
-        >
+        <div className="border-b border-amber-900/30 bg-amber-500/10 px-4 py-2 text-amber-200/90">
           {fallbackBanner}
         </div>
       ) : null}
-      <ul className="space-y-3">
+
+      <div className="space-y-3 p-4">
         {phases.map((phase) => (
-          <li key={phase.key} className="border-l-2 border-slate-700 pl-2.5">
-            <div className="flex items-center gap-2 text-slate-300">
-              <span className="text-slate-500">
-                {phase.status === "pending" && "○"}
+          <div
+            key={phase.key}
+            className={phase.status === "pending" ? "opacity-40" : "opacity-100"}
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-4 w-4 shrink-0 items-center justify-center">
+                {phase.status === "pending" && (
+                  <span className="h-1.5 w-1.5 rounded-full bg-slate-600" />
+                )}
                 {phase.status === "running" && (
-                  <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-indigo-400" aria-hidden />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-400" aria-hidden />
                 )}
                 {phase.status === "done" && (
-                  <Check className="h-3.5 w-3.5 shrink-0 text-emerald-400" aria-hidden />
+                  <Check className="h-4 w-4 text-emerald-400" aria-hidden />
                 )}
               </span>
               <span
                 className={
-                  phase.status === "running"
-                    ? "font-medium text-indigo-200"
-                    : phase.status === "done"
-                      ? "text-slate-200"
-                      : "text-slate-500"
+                  phase.status === "running" ? "font-semibold text-white" : "font-medium"
                 }
               >
                 {phase.label}
               </span>
             </div>
+
             <AnimatePresence mode="wait">
               {(phase.status === "running" || phase.status === "done") && (
                 <motion.div
-                  key={phase.thought ?? phase.status}
-                  initial={{ opacity: 0, y: 4 }}
+                  initial={{ opacity: 0, y: 2 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.2 }}
-                  className="mt-1.5 whitespace-pre-wrap text-slate-400"
+                  className="ml-6 mt-1.5 border-l-2 border-slate-700/50 pl-3 text-[11px] text-slate-400"
                 >
                   {phase.status === "running" && !phase.thought
                     ? RUNNING_HINT[phase.key]
-                    : phase.thought ?? ""}
+                    : (phase.thought ?? "")}
                 </motion.div>
               )}
             </AnimatePresence>
-          </li>
+          </div>
         ))}
-      </ul>
+      </div>
     </div>
   );
 };
