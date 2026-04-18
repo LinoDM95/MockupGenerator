@@ -1,0 +1,49 @@
+{
+  "version": 2,
+  "models": [
+    {
+      "id": "realesrgan-x4plus",
+      "label": "Real-ESRGAN x4+",
+      "description": "Standard fuer echte Fotos und gemischte Motive. Offizielles GAN-Modell mit starker Schaerfung — oft die beste Wahl fuer Landschaften und Alltagsbilder.",
+      "quality_summary": "Sehr hohe Schaerfe und Details bei Fotos; kann bei glatten Flaechen leichte GAN-typische Textur zeigen.",
+      "quality_tier": 5,
+      "speed": "mittel",
+      "tags": ["Fotos", "Allgemein", "Empfehlung"],
+      "download_url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-windows.zip",
+      "ncnn_model_name": "realesrgan-x4plus"
+    },
+    {
+      "id": "realesrnet-x4plus",
+      "label": "Real-ESRNet x4+",
+      "description": "MSE-trainiertes Netz (ohne GAN-Verlust). Wirkt bei manchen Motiven natuerlicher und weniger ueberschaerft als x4+ — gut zum Vergleich bei Portraits oder schnoedem JPEG-Blocking.",
+      "quality_summary": "Aehnlich hohe Detailguete wie x4+, oft etwas weicher / weniger kuenstliche Kanten.",
+      "quality_tier": 4,
+      "speed": "mittel",
+      "tags": ["Fotos", "Natuerlicher Look"],
+      "download_url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.1/RealESRGAN-ncnn-vulkan-20210725-windows.zip",
+      "ncnn_model_name": "realesrnet-x4plus"
+    },
+    {
+      "id": "realesrgan-x4plus-anime",
+      "label": "Real-ESRGAN x4+ Anime (Still)",
+      "description": "Fuer Anime- und Manga-Illustrationen (Einzelbilder). Fokus auf klare Kanten und saubere Flaechen; nicht fuer Live-Action-Fotos gedacht.",
+      "quality_summary": "Hohe wahrgenommene Schaerfe auf Linien und Flachfarben; fuer Fotorealismus ungeeignet.",
+      "quality_tier": 5,
+      "speed": "mittel",
+      "tags": ["Anime", "Illustration"],
+      "download_url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-windows.zip",
+      "ncnn_model_name": "realesrgan-x4plus-anime"
+    },
+    {
+      "id": "realesr-animevideov3",
+      "label": "Real-ESRGAN Anime Video v3",
+      "description": "Optimiert fuer Anime-Video-Frames und viele Anime-Stile. Schneller als die Still-Modelle; etwas Kompromiss bei feinsten Details gegenueber x4+ Anime.",
+      "quality_summary": "Schneller Lauf, solide Qualitaet fuer Clips und Screens — etwas weniger max. Details als Anime-Still.",
+      "quality_tier": 4,
+      "speed": "schnell",
+      "tags": ["Anime", "Video", "Schnell"],
+      "download_url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-windows.zip",
+      "ncnn_model_name": "realesr-animevideov3"
+    }
+  ]
+}

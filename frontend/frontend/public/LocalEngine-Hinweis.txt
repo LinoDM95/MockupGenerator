@@ -1,0 +1,10 @@
+MockupLocalEngine.exe wird hier nicht ins Git eingecheckt (große Binärdatei).
+
+Nach dem Build aus dem Repo-Root:
+  python companion_app/build_exe.py
+kopiert automatisch nach public/.
+
+Oder manuell im Ordner frontend/frontend:
+  npm run sync:local-engine
+
+Die Local Engine lauscht auf Port 8001 (Django nutzt 8000).

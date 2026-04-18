@@ -12,7 +12,7 @@ set "BACKEND=%ROOT%backend"
 set "FRONTEND=%ROOT%frontend\frontend"
 set "APP_URL=http://localhost:5173/?launcher=batch"
 
-REM Ports: 8000 = Django, 5173 = Vite (siehe vite.config proxy)
+REM Ports: 8000 = Django, 5173 = Vite (vite.config proxy), 8001 = Mockup Local Engine
 call :port_listening 8000
 if errorlevel 1 (
   echo Starte Backend - Port 8000 ist frei.
@@ -38,11 +38,24 @@ if errorlevel 1 (
   echo Vite laeuft bereits auf Port 5173 - kein neuer Start.
 )
 
+call :port_listening 8001
+if errorlevel 1 (
+  if exist "%ROOT%MockupLocalEngine.exe" (
+    echo Starte Mockup Local Engine - Port 8001 ist frei.
+    start "" /D "%ROOT%" "%ROOT%MockupLocalEngine.exe"
+    set "STARTED_SERVER=1"
+  ) else (
+    echo Hinweis: MockupLocalEngine.exe nicht im Projektordner - lokalen Upscaler ggf. manuell starten.
+  )
+) else (
+  echo Local Engine laeuft bereits auf Port 8001 - kein neuer Start.
+)
+
 if defined STARTED_SERVER (
-  echo Warte kurz, bis Vite und/oder Django hochgefahren sind...
+  echo Warte kurz, bis Dienste hochgefahren sind...
   timeout /t 4 /nobreak >nul
 ) else (
-  echo Beide Server laufen schon - oeffne nur den Browser.
+  echo Kein neuer Server gestartet - oeffne nur den Browser.
   timeout /t 1 /nobreak >nul
 )
 

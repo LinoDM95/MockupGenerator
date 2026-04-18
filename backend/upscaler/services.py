@@ -11,13 +11,14 @@ from urllib.parse import quote
 
 from PIL import Image as PILImage
 
+from upscaler.limits import MAX_OUTPUT_PIXELS
+
 logger = logging.getLogger(__name__)
 
 _DEFAULT_VERTEX_LOCATION = "us-central1"
 # Vertex AI / Prediction API require OAuth scope; bare SA creds alone are rejected.
 _CLOUD_PLATFORM_SCOPE = "https://www.googleapis.com/auth/cloud-platform"
 
-MAX_OUTPUT_PIXELS = 17_000_000
 OVERLAP_SRC = 64
 VALID_FACTORS: dict[str, int] = {"x2": 2, "x4": 4}
 # Mindest-Skalierung vor Tiling (isotrop), um API-Kacheln zu sparen; zu starke Reduktion vermeiden.

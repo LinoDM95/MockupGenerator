@@ -34,11 +34,31 @@ backend/venv/
 
 # --- Frontend (Vite/React unter frontend/frontend/) ---
 frontend/frontend/node_modules/
+# Large binary: copy from repo dist/ after PyInstaller (see companion_app/build_exe.py)
+frontend/frontend/public/MockupLocalEngine.exe
 frontend/frontend/dist/
 frontend/frontend/dist-ssr/
 frontend/frontend/.vite/
 frontend/frontend/coverage/
 frontend/frontend/.turbo/
+
+# --- Companion App (PyInstaller, repo root) ---
+/build/
+/dist/
+/MockupLocalEngine.exe
+/MockupLocalEngine.spec
+companion_app/__pycache__/
+companion_app/**/*.py[cod]
+companion_app/.active_model.json
+companion_app/MockupLocalEngine_new.exe
+# Heruntergeladene ncnn-Gewichte / Install-Marken (siehe Katalog-Install)
+companion_app/models/*.bin
+companion_app/models/*.param
+companion_app/models/.installed_*
+# Von offizieller ncnn-vulkan Windows-ZIP ins companion_app/ extrahiert
+companion_app/realesrgan-ncnn-vulkan.exe
+companion_app/vcomp140.dll
+companion_app/vcomp140d.dll
 
 # --- Logs ---
 *.log

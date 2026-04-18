@@ -73,6 +73,13 @@ export const upscaleImage = async (
     throwUpscaleHttpError(res, text);
   }
 
+  return parseUpscaleImageResponse(res);
+};
+
+/** Shared by Django upscale and Local Companion (same PNG + dimension headers). */
+export const parseUpscaleImageResponse = async (
+  res: Response,
+): Promise<UpscaleResult> => {
   const originalWidth = Number(res.headers.get("X-Original-Width") || 0);
   const originalHeight = Number(res.headers.get("X-Original-Height") || 0);
   const upscaledWidth = Number(res.headers.get("X-Upscaled-Width") || 0);

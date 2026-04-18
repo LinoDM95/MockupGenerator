@@ -1,0 +1,485 @@
+"""
+Local Companion API — run with:
+
+  uvicorn companion_app.main:app --host 127.0.0.1 --port 8001
+
+Port 8001 avoids clashing with Django (runserver on 8000). Override: COMPANION_PORT env.
+
+(from repository root). Frozen build: MockupLocalEngine.exe (see build_exe.py).
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import os
+import subprocess
+import sys
+import threading
+from io import BytesIO
+from urllib.parse import urlparse
+
+import httpx
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
+from PIL import Image as PILImage
+from pydantic import BaseModel
+
+from companion_app import model_store, tile_progress
+from companion_app.local_services import UpscaleError, upscale_image_local
+from companion_app.paths import companion_dir
+from companion_app.version_info import engine_version_string
+
+logger = logging.getLogger(__name__)
+
+# Gleiche Quelle wie Frontend: companion_app/ENGINE_VERSION (eine Zeile).
+CURRENT_VERSION = engine_version_string()
+
+# Django uses 8000 — Companion must use another port so /status hits FastAPI, not Django.
+COMPANION_PORT = int(os.environ.get("COMPANION_PORT", "8001"))
+
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+MAX_IMAGE_SIZE = 10 * 1024 * 1024
+VALID_FACTORS = {"x2", "x4"}
+VALID_PARALLEL_TILES = frozenset({"1", "2", "auto"})
+_EXE_NAME = "MockupLocalEngine.exe"
+_NEW_EXE_NAME = "MockupLocalEngine_new.exe"
+
+
+def _update_allowed_hosts() -> set[str]:
+    out = {"localhost", "127.0.0.1"}
+    extra = os.environ.get("COMPANION_UPDATE_ALLOWED_HOSTS", "").strip()
+    if extra:
+        out |= {h.strip().lower() for h in extra.split(",") if h.strip()}
+    return out
+
+
+def _validate_update_download_url(raw: str) -> str:
+    """Mitigiert SSRF: nur erlaubte Hosts, Pfad endet auf MockupLocalEngine.exe."""
+    url = (raw or "").strip()
+    if not url:
+        raise ValueError("download_url ist leer.")
+
+    parsed = urlparse(url)
+    scheme = (parsed.scheme or "").lower()
+    if scheme not in ("http", "https"):
+        raise ValueError("Nur http/https-URLs erlaubt.")
+
+    host = (parsed.hostname or "").lower()
+    if not host:
+        raise ValueError("Ungueltiger Host.")
+
+    if host not in _update_allowed_hosts():
+        raise ValueError(
+            "Host fuer App-Update nicht erlaubt. "
+            "COMPANION_UPDATE_ALLOWED_HOSTS setzen oder localhost verwenden.",
+        )
+
+    if scheme == "http" and host not in ("localhost", "127.0.0.1"):
+        raise ValueError("HTTP nur fuer localhost/127.0.0.1 erlaubt.")
+
+    path = (parsed.path or "").replace("\\", "/")
+    if not path.rstrip("/").lower().endswith(_EXE_NAME.lower()):
+        raise ValueError(
+            f"Pfad muss auf {_EXE_NAME} enden.",
+        )
+
+    if parsed.username or parsed.password:
+        raise ValueError("URLs mit Zugangsdaten sind nicht erlaubt.")
+
+    return url
+
+
+def _max_tile_workers_from_parallel(parallel_tiles: str) -> int:
+    pt = parallel_tiles.strip().lower()
+    if pt not in VALID_PARALLEL_TILES:
+        raise ValueError(
+            f"parallel_tiles muss '1', '2' oder 'auto' sein, nicht '{parallel_tiles}'.",
+        )
+    if pt == "1":
+        return 1
+    return 2
+
+# Browsers treat localhost and 127.0.0.1 as different origins — list both.
+# Override via env: comma-separated extra origins (COMPANION_CORS_ORIGINS).
+_DEFAULT_CORS_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:4173",
+    "http://127.0.0.1:4173",
+    "https://generator.deinedomain.com",
+]
+
+
+def _cors_origins() -> list[str]:
+    extra = os.environ.get("COMPANION_CORS_ORIGINS", "").strip()
+    out = list(_DEFAULT_CORS_ORIGINS)
+    if extra:
+        out.extend(o.strip() for o in extra.split(",") if o.strip())
+    return out
+
+
+app = FastAPI(title="Mockup Generator Companion", version=CURRENT_VERSION)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins(),
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=[
+        "X-Original-Width",
+        "X-Original-Height",
+        "X-Upscaled-Width",
+        "X-Upscaled-Height",
+    ],
+)
+
+
+@app.get("/status")
+def companion_status():
+    return {
+        "status": "online",
+        "version": CURRENT_VERSION,
+        "installed_model_ids": model_store.list_installed_model_ids(),
+        "active_model_id": model_store.get_active_model_id(),
+        "vulkan_runtime_installed": model_store.vulkan_runtime_installed(),
+    }
+
+
+@app.get("/models/catalog")
+def get_models_catalog():
+    return model_store.load_catalog()
+
+
+@app.get("/models/installed")
+def get_models_installed():
+    return {
+        "installed_model_ids": model_store.list_installed_model_ids(),
+        "active_model_id": model_store.get_active_model_id(),
+        "vulkan_runtime_installed": model_store.vulkan_runtime_installed(),
+    }
+
+
+class InstallModelBody(BaseModel):
+    model_id: str
+
+
+@app.post("/install-model")
+async def post_install_model(body: InstallModelBody):
+    mid = body.model_id.strip()
+    if not mid:
+        raise HTTPException(status_code=400, detail="model_id ist leer.")
+    try:
+        await model_store.install_model_from_catalog(mid)
+    except ValueError as exc:
+        logger.warning("Install model failed: %s", exc)
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except OSError as exc:
+        logger.exception("Install model I/O")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Speicher fehlgeschlagen: {exc}",
+        ) from exc
+    return {"ok": True, "model_id": mid}
+
+
+@app.post("/uninstall-model")
+def post_uninstall_model(body: InstallModelBody):
+    mid = body.model_id.strip()
+    if not mid:
+        raise HTTPException(status_code=400, detail="model_id ist leer.")
+    try:
+        model_store.uninstall_model(mid)
+    except ValueError as exc:
+        logger.warning("Uninstall model failed: %s", exc)
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except OSError as exc:
+        logger.exception("Uninstall model I/O")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Loeschen fehlgeschlagen: {exc}",
+        ) from exc
+    return {"ok": True, "model_id": mid}
+
+
+@app.post("/uninstall-vulkan-runtime")
+def post_uninstall_vulkan_runtime():
+    """Entfernt realesrgan-ncnn-vulkan.exe und vcomp*.dll (Modell-.bin/.param bleiben unter models/)."""
+    try:
+        model_store.uninstall_vulkan_runtime_files()
+    except OSError as exc:
+        logger.exception("Uninstall vulkan runtime")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Loeschen fehlgeschlagen: {exc}",
+        ) from exc
+    return {"ok": True}
+
+
+class SetActiveBody(BaseModel):
+    model_id: str
+
+
+class UpdateBody(BaseModel):
+    download_url: str
+
+
+@app.post("/models/active")
+def post_models_active(body: SetActiveBody):
+    mid = body.model_id.strip()
+    if not mid:
+        raise HTTPException(status_code=400, detail="model_id ist leer.")
+    try:
+        model_store.set_active_model_id(mid)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"ok": True, "active_model_id": mid}
+
+
+@app.post("/update")
+async def post_update(body: UpdateBody):
+    try:
+        url = _validate_update_download_url(body.download_url)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    cdir = companion_dir()
+    dest = cdir / _NEW_EXE_NAME
+    try:
+        async with httpx.AsyncClient(timeout=600.0, follow_redirects=False) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            dest.write_bytes(response.content)
+    except httpx.HTTPError as exc:
+        logger.exception("Update download failed")
+        raise HTTPException(
+            status_code=502,
+            detail=f"Download fehlgeschlagen: {exc}",
+        ) from exc
+    except OSError as exc:
+        logger.exception("Update write failed")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Speichern fehlgeschlagen: {exc}",
+        ) from exc
+
+    bat_path = cdir / "updater.bat"
+    bat_exact = (
+        "@echo off\r\n"
+        "timeout /t 2 /nobreak\r\n"
+        "move /y MockupLocalEngine_new.exe MockupLocalEngine.exe\r\n"
+        'start "" MockupLocalEngine.exe\r\n'
+        'del "%~f0"\r\n'
+    )
+    try:
+        bat_path.write_text(bat_exact, encoding="utf-8-sig")
+    except OSError as exc:
+        logger.exception("Updater batch write failed")
+        raise HTTPException(
+            status_code=500,
+            detail=f"updater.bat konnte nicht geschrieben werden: {exc}",
+        ) from exc
+
+    creationflags = 0
+    if sys.platform == "win32":
+        creationflags |= getattr(subprocess, "DETACHED_PROCESS", 0)
+        creationflags |= getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    try:
+        subprocess.Popen(
+            "updater.bat",
+            cwd=str(cdir),
+            shell=True,
+            close_fds=True,
+            creationflags=creationflags,
+        )
+    except OSError as exc:
+        logger.exception("Updater start failed")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Updater konnte nicht gestartet werden: {exc}",
+        ) from exc
+
+    logger.info("Update applied; exiting for batch replace.")
+    os._exit(0)
+
+
+@app.get("/tile-progress/{job_id}")
+def get_tile_progress(job_id: str):
+    """
+    Polling fuer Kachel-Fortschritt (job_id vom Client, z. B. UUID).
+    Vor reset_job: ready=false; danach: total_tiles, completed_tiles, tile_durations_ms.
+    """
+    if not tile_progress.is_valid_job_id(job_id):
+        raise HTTPException(status_code=400, detail="Ungueltige job_id.")
+    snap = tile_progress.get_snapshot(job_id)
+    if snap is None:
+        return {"ready": False, "finished": False}
+    return {"ready": True, **snap}
+
+
+@app.post("/upscale")
+async def upscale(
+    image: UploadFile = File(...),
+    factor: str = Form("x2"),
+    model_id: str | None = Form(None),
+    parallel_tiles: str = Form("1"),
+    progress_job_id: str | None = Form(None),
+):
+    f = factor.strip().lower()
+    if f not in VALID_FACTORS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Ungueltiger Faktor '{factor}'. Erlaubt: x2, x4",
+        )
+
+    mid = (model_id or "").strip() or None
+
+    try:
+        max_tile_workers = _max_tile_workers_from_parallel(parallel_tiles)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    name = image.filename or ""
+    ext = os.path.splitext(name)[1].lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Dateityp '{ext}' nicht erlaubt. Erlaubt: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
+            ),
+        )
+
+    raw = await image.read()
+    if len(raw) > MAX_IMAGE_SIZE:
+        mb = MAX_IMAGE_SIZE // (1024 * 1024)
+        raise HTTPException(status_code=400, detail=f"Bild zu gross (max {mb} MB).")
+
+    try:
+        pil_img = PILImage.open(BytesIO(raw))
+        pil_img.load()
+    except Exception:
+        raise HTTPException(
+            status_code=400,
+            detail="Die Datei konnte nicht als Bild gelesen werden.",
+        ) from None
+
+    orig_w, orig_h = pil_img.size
+
+    try:
+        ncnn = model_store.resolve_ncnn_name_for_upscale(mid)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    pjid = (progress_job_id or "").strip()
+    if pjid and not tile_progress.is_valid_job_id(pjid):
+        raise HTTPException(
+            status_code=400,
+            detail="progress_job_id ungueltig (8–128 Zeichen: Buchstaben, Zahlen, _ und -).",
+        )
+
+    try:
+        result_img = await asyncio.to_thread(
+            upscale_image_local,
+            pil_img,
+            f,
+            ncnn,  # type: ignore[arg-type]
+            max_tile_workers=max_tile_workers,
+            progress_job_id=pjid or None,
+        )
+    except UpscaleError as exc:
+        logger.error("Local upscale error: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("Unexpected local upscale error")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unerwarteter Fehler: {exc}",
+        ) from exc
+    finally:
+        if pjid:
+            tile_progress.finish_job(pjid)
+
+    up_w, up_h = result_img.size
+    buf = BytesIO()
+    result_img.save(buf, format="PNG", optimize=True)
+    buf.seek(0)
+
+    return Response(
+        content=buf.getvalue(),
+        media_type="image/png",
+        headers={
+            "X-Original-Width": str(orig_w),
+            "X-Original-Height": str(orig_h),
+            "X-Upscaled-Width": str(up_w),
+            "X-Upscaled-Height": str(up_h),
+            "Content-Disposition": f'inline; filename="upscaled_{up_w}x{up_h}.png"',
+            "Access-Control-Expose-Headers": (
+                "X-Original-Width, X-Original-Height, X-Upscaled-Width, X-Upscaled-Height"
+            ),
+        },
+    )
+
+
+def _run_uvicorn() -> None:
+    import traceback
+
+    import uvicorn
+
+    try:
+        logger.info(
+            "Companion HTTP: http://127.0.0.1:%s",
+            COMPANION_PORT,
+        )
+        uvicorn.run(app, host="127.0.0.1", port=COMPANION_PORT, log_level="info")
+    except Exception:
+        logger.exception("Companion HTTP server failed to start or crashed")
+        if getattr(sys, "frozen", False):
+            log_path = companion_dir() / "companion_server.log"
+            try:
+                log_path.write_text(traceback.format_exc(), encoding="utf-8")
+            except OSError:
+                pass
+            err_txt = companion_dir() / "companion_start_error.txt"
+            try:
+                err_txt.write_text(
+                    "Der HTTP-Server konnte nicht starten. Siehe companion_server.log "
+                    "neben MockupLocalEngine.exe\n",
+                    encoding="utf-8",
+                )
+            except OSError:
+                pass
+        raise
+
+
+def _run_with_tray() -> None:
+    import pystray
+    from PIL import Image
+    from pystray import Menu, MenuItem
+
+    t = threading.Thread(target=_run_uvicorn, daemon=True)
+    t.start()
+
+    image = Image.new("RGB", (64, 64), color=(79, 70, 229))
+
+    def on_quit(icon: pystray.Icon, _item: object) -> None:
+        icon.stop()
+        os._exit(0)
+
+    icon = pystray.Icon(
+        "mockup_local_engine",
+        image,
+        "Mockup Local Engine",
+        menu=Menu(MenuItem("Beenden", on_quit)),
+    )
+    icon.run()
+
+
+if __name__ == "__main__":
+    if getattr(sys, "frozen", False):
+        _run_with_tray()
+    else:
+        import uvicorn
+
+        uvicorn.run(app, host="127.0.0.1", port=COMPANION_PORT)
