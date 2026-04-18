@@ -29,6 +29,10 @@ import {
 import { useIntegrationFlags } from "../../hooks/useIntegrationFlags";
 import { cn } from "../../lib/cn";
 import { getErrorMessage } from "../../lib/error";
+import {
+  filterRasterImageFiles,
+  MARKETING_ALLOWED_EXT,
+} from "../../lib/imageUploadAccept";
 import { toast } from "../../lib/toast";
 import { useAppStore } from "../../store/appStore";
 import { Button } from "../ui/Button";
@@ -54,8 +58,6 @@ type MarketingRow = {
 };
 
 const nextRowId = () => `m_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-
-const ALLOWED_EXT = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif"]);
 
 const statusLabel: Record<RowStatus, string> = {
   draft: "Entwurf",
@@ -130,11 +132,9 @@ export const MarketingDashboard = () => {
 
   const uploadFiles = useCallback(
     async (files: File[]) => {
-      const picked: File[] = [];
-      for (const f of files) {
-        const ext = f.name.slice(f.name.lastIndexOf(".")).toLowerCase();
-        if (ALLOWED_EXT.has(ext)) picked.push(f);
-      }
+      const picked = filterRasterImageFiles(files, {
+        allowedExt: MARKETING_ALLOWED_EXT,
+      });
       if (picked.length === 0) {
         toast.error("Keine gültigen Bilddateien (JPG, PNG, WebP, GIF).");
         return;

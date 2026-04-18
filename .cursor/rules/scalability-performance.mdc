@@ -33,7 +33,7 @@ for ts in TemplateSet.objects.filter(user=user):
 
 ## Frontend-Performance
 
-- **Lazy Loading:** Große Komponenten mit `React.lazy()` + `Suspense` laden (z.B. `TemplateEditor`, `EtsyWorkspace`)
+- **Lazy Loading:** Große Komponenten mit `React.lazy()` + `Suspense` laden (z.B. `TemplateEditor`, `EtsyListingsEditor`)
 - **Code Splitting:** Vite macht automatisches Chunk-Splitting – keine manuellen Tricks nötig
 - **Canvas-Memory:** Offscreen-Canvas nach Gebrauch auf `0x0` setzen und Referenz freigeben
 - **Bilder:** `compressImage` (max 2400px) für Uploads, `createArtworkPreviewObjectUrl` für UI-Thumbnails

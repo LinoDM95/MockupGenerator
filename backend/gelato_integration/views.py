@@ -85,11 +85,14 @@ def _optimize_image(file) -> tuple[io.BytesIO | None, str]:
 
     buf.seek(0)
     new_size = buf.getbuffer().nbytes
-    print(
-        f"[gelato DEBUG] _optimize_image {original_name!r} "
-        f"{size / 1024 / 1024:.1f} MB → {new_size / 1024 / 1024:.1f} MB "
-        f"(fmt={fmt} alpha={has_alpha} dpi={dpi})",
-        flush=True,
+    logger.debug(
+        "_optimize_image %r %.1f MB → %.1f MB (fmt=%s alpha=%s dpi=%s)",
+        original_name,
+        size / 1024 / 1024,
+        new_size / 1024 / 1024,
+        fmt,
+        has_alpha,
+        dpi,
     )
     return buf, new_name
 
@@ -112,10 +115,7 @@ def _upload_to_r2(file, prefix: str) -> str:
 
     size = getattr(file, "size", None)
     name = getattr(file, "name", "?")
-    print(
-        f"[gelato DEBUG] _upload_to_r2 START prefix={prefix!r} name={name!r} size_bytes={size}",
-        flush=True,
-    )
+    logger.debug("_upload_to_r2 START prefix=%r name=%r size_bytes=%s", prefix, name, size)
 
     optimized_buf, new_name = _optimize_image(file)
     if optimized_buf is not None:
@@ -124,10 +124,10 @@ def _upload_to_r2(file, prefix: str) -> str:
             optimized_buf, "image", new_name, content_type,
             optimized_buf.getbuffer().nbytes, None,
         )
-        print(
-            f"[gelato DEBUG] _upload_to_r2 using optimized file name={new_name!r} "
-            f"size={optimized_buf.getbuffer().nbytes}",
-            flush=True,
+        logger.debug(
+            "_upload_to_r2 using optimized file name=%r size=%s",
+            new_name,
+            optimized_buf.getbuffer().nbytes,
         )
     else:
         file.seek(0)
@@ -142,9 +142,10 @@ def _upload_to_r2(file, prefix: str) -> str:
 
     TemporaryDesignUpload.objects.create(image=saved_name)
 
-    print(
-        f"[gelato DEBUG] _upload_to_r2 DONE saved_name={saved_name!r} public_url={public_url[:120]!r}…",
-        flush=True,
+    logger.debug(
+        "_upload_to_r2 DONE saved_name=%r public_url=%r…",
+        saved_name,
+        public_url[:120],
     )
     return public_url
 
@@ -315,7 +316,7 @@ class GelatoExportView(APIView):
     def post(self, request):
         import json as _json
 
-        print(f"[gelato DEBUG] GelatoExportView.post user={request.user.pk}", flush=True)
+        logger.debug("GelatoExportView.post user=%s", request.user.pk)
         conn, err = _get_connection_or_error(request.user)
         if err:
             return err
@@ -329,10 +330,11 @@ class GelatoExportView(APIView):
         except (ValueError, TypeError):
             metadata_list = []
 
-        print(
-            f"[gelato DEBUG] template_id={template_id!r} free_shipping={free_shipping} "
-            f"metadata_count={len(metadata_list)}",
-            flush=True,
+        logger.debug(
+            "template_id=%r free_shipping=%s metadata_count=%s",
+            template_id,
+            free_shipping,
+            len(metadata_list),
         )
 
         if not template_id:
@@ -351,7 +353,7 @@ class GelatoExportView(APIView):
             )
 
         artworks = request.FILES.getlist("artworks")
-        print(f"[gelato DEBUG] artworks={len(artworks)} MAX_FILE_SIZE={MAX_FILE_SIZE}", flush=True)
+        logger.debug("artworks=%s MAX_FILE_SIZE=%s", len(artworks), MAX_FILE_SIZE)
 
         if not artworks:
             return Response(
@@ -367,7 +369,7 @@ class GelatoExportView(APIView):
         mb = MAX_FILE_SIZE // (1024 * 1024)
         for f in artworks:
             if f.size and f.size > MAX_FILE_SIZE:
-                print(f"[gelato DEBUG] REJECT {f.name!r} size={f.size}", flush=True)
+                logger.debug("REJECT %r size=%s", f.name, f.size)
                 return Response(
                     {"detail": f"Datei zu groß: {f.name} (max {mb} MB)."},
                     status=status.HTTP_400_BAD_REQUEST,
@@ -380,7 +382,7 @@ class GelatoExportView(APIView):
             description = str(meta.get("description", ""))
             tags = str(meta.get("tags", ""))[:1024]
 
-            print(f"[gelato DEBUG] [{idx}] upload {art_file.name!r} → R2", flush=True)
+            logger.debug("[%s] upload %r → R2", idx, art_file.name)
             artwork_url = _upload_to_r2(art_file, "gelato_artworks")
 
             task = GelatoExportTask.objects.create(
@@ -394,17 +396,14 @@ class GelatoExportView(APIView):
                 status=GelatoExportTask.Status.PENDING,
             )
             tasks_created.append(task)
-            print(
-                f"[gelato DEBUG] task {task.id} created title={title!r} url={artwork_url[:80]!r}",
-                flush=True,
-            )
+            logger.debug("task %s created title=%r url=%r", task.id, title, artwork_url[:80])
 
         task_ids = [str(t.id) for t in tasks_created]
-        print(f"[gelato DEBUG] dispatch {len(task_ids)} tasks", flush=True)
+        logger.debug("dispatch %s tasks", len(task_ids))
         try:
             process_gelato_bulk_export.delay(task_ids)
         except Exception as exc:
-            print(f"[gelato DEBUG] Celery failed → sync: {exc!r}", flush=True)
+            logger.debug("Celery failed → sync: %r", exc)
             logger.warning("Celery broker unavailable – running export synchronously")
             process_gelato_bulk_export(task_ids)
 

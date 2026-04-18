@@ -77,7 +77,8 @@ const shouldTryRefreshOn401 = (path: string): boolean => {
 
 let refreshInFlight: Promise<boolean> | null = null;
 
-const refreshAccessToken = async (): Promise<boolean> => {
+/** Einmaliges Refresh (z. B. vor langen Batch-Jobs). Bei Erfolg wird der Proaktiv-Timer neu geplant. */
+export const refreshAccessToken = async (): Promise<boolean> => {
   if (!refreshInFlight) {
     refreshInFlight = (async () => {
       try {

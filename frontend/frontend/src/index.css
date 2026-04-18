@@ -2,7 +2,7 @@
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  /* Indigo/Violett wie BlockingProgressOverlay — für helle UI (Fortschritt, Akzente) */
+  /* Indigo/Violett wie WorkSessionShell (Fortschritt) — für helle UI (Akzente) */
   --app-accent-from: #6366f1;
   --app-accent-via: #8b5cf6;
   --app-accent-to: #818cf8;
@@ -83,7 +83,7 @@
   }
 }
 
-/* BlockingProgressOverlay: unbestimmter Fortschritt (gleitender Indigo/Violett-Schimmer) */
+/* Arbeitssitzung / Overlay: unbestimmter Fortschritt (gleitender Indigo/Violett-Schimmer) */
 @keyframes overlay-indigo-shimmer {
   0% {
     transform: translateX(-120%);
@@ -112,7 +112,7 @@
     @apply h-1.5 w-full overflow-hidden rounded-full bg-indigo-100 ring-1 ring-inset ring-indigo-200/50;
   }
 
-  /** Füllung: gleicher Verlauf wie BlockingProgressOverlay */
+  /** Füllung: gleicher Verlauf wie WorkSessionShell-Fortschritt */
   .app-progress-fill {
     @apply h-full max-w-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-400;
   }

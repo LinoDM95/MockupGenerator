@@ -24,23 +24,25 @@ import {
   UpscaleVertexApiNotEnabledError,
   upscaleImage,
 } from "../../api/upscaler";
-import { ApiError, refreshAccessTokenIfExpiringSoon } from "../../api/client";
+import { ApiError, refreshAccessToken } from "../../api/client";
 import { useWorkSessionEta } from "../../hooks/useWorkSessionEta";
 import { cn } from "../../lib/cn";
 import { triggerAnchorDownload } from "../../lib/download";
 import { getErrorMessage } from "../../lib/error";
+import {
+  filterRasterImageFiles,
+  MAX_UPSCALER_IMAGE_BYTES,
+} from "../../lib/imageUploadAccept";
 import { formatUpscaleUserMessage } from "../../lib/upscaleUserMessage";
 import { toast } from "../../lib/toast";
 import { useAppStore } from "../../store/appStore";
 import { AppPage } from "../ui/AppPage";
-import { BlockingProgressOverlay } from "../ui/BlockingProgressOverlay";
 import { Button } from "../ui/Button";
 import { Dropzone } from "../ui/Dropzone";
 import { WorkSessionShell } from "../ui/workSession/WorkSessionShell";
 
 const MAX_OUTPUT_PIXELS = 17_000_000;
-const MAX_BATCH_FILES = 50;
-const ALLOWED_EXT = new Set([".jpg", ".jpeg", ".png", ".webp"]);
+const MAX_BATCH_FILES = 15;
 
 type ItemStatus = "pending" | "running" | "done" | "error" | "cancelled";
 
@@ -155,15 +157,9 @@ export const UpscalerView = () => {
     setGenericError(null);
     setVertexApiGate(null);
 
-    const picked: File[] = [];
-    for (let i = 0; i < files.length; i++) {
-      const f = files[i];
-      if (!f) continue;
-      const ext = f.name.slice(f.name.lastIndexOf(".")).toLowerCase();
-      if (!ALLOWED_EXT.has(ext)) continue;
-      if (f.size > 10 * 1024 * 1024) continue;
-      picked.push(f);
-    }
+    const picked = filterRasterImageFiles(files, {
+      maxBytes: MAX_UPSCALER_IMAGE_BYTES,
+    });
 
     if (picked.length === 0) {
       setGenericError(
@@ -318,6 +314,14 @@ export const UpscalerView = () => {
       return;
     }
 
+    const tokenOk = await refreshAccessToken();
+    if (!tokenOk) {
+      toast.error(
+        "Sitzung konnte nicht erneuert werden. Bitte erneut anmelden und den Upscaler noch einmal starten.",
+      );
+      return;
+    }
+
     cancelRequestedRef.current = false;
     resetEta();
     setSessionEtaLabel(getRemainingLabel(todo.length));
@@ -325,8 +329,6 @@ export const UpscalerView = () => {
     setNavigationLocked(true);
     setProgressTotal(todo.length);
     setProgressIdx(0);
-
-    await refreshAccessTokenIfExpiringSoon();
 
     let anySuccess = false;
     let vertexAborted = false;
@@ -632,13 +634,16 @@ export const UpscalerView = () => {
         </WorkSessionShell>
       ) : null}
       {isBuildingZip ? (
-        <BlockingProgressOverlay
+        <WorkSessionShell
+          shellClassName="z-[100]"
           title="ZIP wird erstellt"
           message={zipProgress.message}
           current={zipProgress.current}
           total={zipProgress.total}
           packPercent={zipProgress.packPercent}
-        />
+        >
+          <div className="min-h-0 flex-1" aria-hidden />
+        </WorkSessionShell>
       ) : null}
       {!isProcessing && vertexApiGate ? (
         <VertexApiNotEnabledBox activationUrl={vertexApiGate} />

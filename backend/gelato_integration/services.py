@@ -126,10 +126,10 @@ class GelatoClient:
 
     def get_template(self, template_id: str) -> dict:
         """GET /templates/{templateId}"""
-        print(f"[gelato DEBUG] GelatoClient.get_template template_id={template_id!r}", flush=True)
+        logger.debug("GelatoClient.get_template template_id=%r", template_id)
         data = self._get_json(f"/templates/{template_id}")
         n_var = len(data.get("variants", []) or [])
-        print(f"[gelato DEBUG] get_template response variants={n_var}", flush=True)
+        logger.debug("get_template response variants=%s", n_var)
         return data
 
     def build_variants_payload(
@@ -142,10 +142,10 @@ class GelatoClient:
         placeholder of every variant so a single artwork is applied to all
         sizes/colours.
         """
-        print(
-            f"[gelato DEBUG] build_variants_payload template_id={template_id!r} "
-            f"image_url_prefix={image_url[:80]!r}…",
-            flush=True,
+        logger.debug(
+            "build_variants_payload template_id=%r image_url_prefix=%r…",
+            template_id,
+            image_url[:80],
         )
         tpl_data = self.get_template(template_id)
         variants = tpl_data.get("variants", [])
@@ -153,16 +153,10 @@ class GelatoClient:
         for v in variants:
             placeholders = v.get("imagePlaceholders", [])
             if not placeholders:
-                print(
-                    f"[gelato DEBUG]   variant id={v.get('id')} skip (no placeholders)",
-                    flush=True,
-                )
+                logger.debug("  variant id=%s skip (no placeholders)", v.get("id"))
                 continue
             ph_names = [p.get("name") for p in placeholders]
-            print(
-                f"[gelato DEBUG]   variant id={v.get('id')} placeholders={ph_names}",
-                flush=True,
-            )
+            logger.debug("  variant id=%s placeholders=%s", v.get("id"), ph_names)
             result.append({
                 "templateVariantId": v["id"],
                 "imagePlaceholders": [
@@ -170,7 +164,7 @@ class GelatoClient:
                     for p in placeholders
                 ],
             })
-        print(f"[gelato DEBUG] build_variants_payload done n_variants_out={len(result)}", flush=True)
+        logger.debug("build_variants_payload done n_variants_out=%s", len(result))
         return result
 
     def create_product_from_template(
@@ -201,25 +195,26 @@ class GelatoClient:
             payload["tags"] = tags
         if variants:
             payload["variants"] = variants
-        print(
-            f"[gelato DEBUG] create_product_from_template POST store_id={store_id!r} "
-            f"templateId={template_id!r} has_variants={bool(variants)} "
-            f"payload_keys={list(payload.keys())}",
-            flush=True,
+        logger.debug(
+            "create_product_from_template POST store_id=%r templateId=%r has_variants=%s payload_keys=%s",
+            store_id,
+            template_id,
+            bool(variants),
+            list(payload.keys()),
         )
         out = self._post_json(
             f"/stores/{store_id}/products:create-from-template",
             payload,
         )
         if isinstance(out, dict):
-            print(
-                f"[gelato DEBUG] create_product_from_template response keys={list(out.keys())[:12]}",
-                flush=True,
+            logger.debug(
+                "create_product_from_template response keys=%s",
+                list(out.keys())[:12],
             )
         else:
-            print(
-                f"[gelato DEBUG] create_product_from_template response type={type(out).__name__}",
-                flush=True,
+            logger.debug(
+                "create_product_from_template response type=%s",
+                type(out).__name__,
             )
         return out
 

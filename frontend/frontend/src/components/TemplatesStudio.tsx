@@ -24,9 +24,9 @@ import {
   patchTemplateSet,
 } from "../api/sets";
 import { compressImage, dataUrlToBlob, loadImage } from "../lib/canvas/image";
-import { getTemplateRenderOpts } from "../lib/canvas/renderOpts";
 import { newClientElementId } from "../lib/elementId";
 import { getErrorMessage } from "../lib/error";
+import { normalizeTemplateForEditor } from "../lib/normalizeTemplateForEditor";
 import { sanitizeFileName } from "../lib/sanitize";
 import { toast } from "../lib/toast";
 import { useLoadTemplateSets } from "../hooks/useLoadTemplateSets";
@@ -36,32 +36,6 @@ import { TemplateEditor } from "./editor/TemplateEditor";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 import { LinearLoadingBar } from "./ui/LinearLoadingBar";
-
-const migrateTemplate = (tpl: Template): Template => {
-  let elements = tpl.elements;
-  if (!elements?.length && (tpl as unknown as { placeholders?: TemplateElement[] }).placeholders) {
-    elements = ((tpl as unknown as { placeholders: TemplateElement[] }).placeholders || []).map(
-      (ph) => ({ ...ph, type: "placeholder" as const }),
-    );
-  }
-  elements = (elements || []).map((el) => ({
-    ...el,
-    rotation: el.rotation ?? 0,
-    shadowEnabled: el.shadowEnabled ?? false,
-    shadowColor: el.shadowColor ?? "rgba(0,0,0,0.5)",
-    shadowBlur: el.shadowBlur ?? 20,
-    shadowOffsetX: el.shadowOffsetX ?? 10,
-    shadowOffsetY: el.shadowOffsetY ?? 10,
-    textCurve: el.textCurve ?? 0,
-  }));
-  const { frameStyle: defaultFrameStyle, ...frameOpts } = getTemplateRenderOpts(tpl);
-  return {
-    ...tpl,
-    elements,
-    defaultFrameStyle,
-    ...frameOpts,
-  };
-};
 
 export const TemplatesStudio = () => {
   const templateSets = useAppStore((s) => s.templateSets);
@@ -213,7 +187,7 @@ export const TemplatesStudio = () => {
   };
 
   const editTemplate = (tpl: Template) => {
-    const migrated = migrateTemplate(tpl);
+    const migrated = normalizeTemplateForEditor(tpl);
     setEditingTemplate(migrated);
     setSelectedElementId(migrated.elements[0]?.id ?? null);
   };

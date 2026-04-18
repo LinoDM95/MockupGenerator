@@ -10,6 +10,14 @@ import { PinterestCallbackPage } from "./pages/PinterestCallbackPage.tsx";
 import { LandingPage } from "./pages/LandingPage.tsx";
 import "./index.css";
 
+/** Von StartMockupApp.bat mit ?launcher=batch – zeigt in der App den Button „Aktualisieren“ (Reload). */
+if (typeof window !== "undefined") {
+  const p = new URLSearchParams(window.location.search);
+  if (p.get("launcher") === "batch") {
+    sessionStorage.setItem("mockupLauncherBatch", "1");
+  }
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>

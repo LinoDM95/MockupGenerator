@@ -1,12 +1,13 @@
 import type { ComponentType } from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
-import { Link2, Layers, LogOut, Megaphone, Rocket, Zap } from "lucide-react";
+import { Link2, Layers, LogOut, Megaphone, RefreshCw, Rocket, Zap } from "lucide-react";
 import { Navigate } from "react-router-dom";
 
 import { clearProactiveTokenRefresh, scheduleProactiveAccessRefresh } from "./api/client";
 import { cn } from "./lib/cn";
+import { Button } from "./components/ui/Button";
 import { DialogHost } from "./components/DialogHost";
 import { AIActivityPanel } from "./components/ai/AIActivityPanel";
 import { IntegrationsView } from "./components/IntegrationsView";
@@ -40,6 +41,9 @@ function App() {
   const setEditingSetId = useAppStore((s) => s.setEditingSetId);
   const navigationLocked = useAppStore((s) => s.navigationLocked);
   const reduceMotion = useReducedMotion();
+  const [showBatchLauncherRefresh] = useState(
+    () => typeof sessionStorage !== "undefined" && sessionStorage.getItem("mockupLauncherBatch") === "1",
+  );
 
   useEffect(() => {
     if (!accessToken) {
@@ -103,23 +107,53 @@ function App() {
             })}
           </nav>
 
-          <button
-            type="button"
-            disabled={navigationLocked}
-            title={navigationLocked ? NAV_LOCK_TITLE : undefined}
-            onClick={() => {
-              if (navigationLocked) return;
-              logout();
-            }}
-            className={cn(
-              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors",
-              navigationLocked
-                ? "cursor-not-allowed opacity-50"
-                : "hover:bg-slate-100 hover:text-slate-900",
-            )}
-          >
-            <LogOut size={16} strokeWidth={2} />
-          </button>
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+            {showBatchLauncherRefresh ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="hidden h-8 gap-1.5 px-2.5 text-xs sm:inline-flex"
+                title="Seite neu laden (z. B. nach Code-Änderungen)"
+                onClick={() => {
+                  window.location.reload();
+                }}
+              >
+                <RefreshCw size={14} strokeWidth={2} className="shrink-0" />
+                Aktualisieren
+              </Button>
+            ) : null}
+            {showBatchLauncherRefresh ? (
+              <button
+                type="button"
+                className="flex h-8 w-8 items-center justify-center rounded-full text-slate-500 ring-1 ring-slate-900/5 transition-colors hover:bg-slate-50 hover:text-slate-900 sm:hidden"
+                title="Seite neu laden"
+                aria-label="Aktualisieren"
+                onClick={() => {
+                  window.location.reload();
+                }}
+              >
+                <RefreshCw size={16} strokeWidth={2} />
+              </button>
+            ) : null}
+            <button
+              type="button"
+              disabled={navigationLocked}
+              title={navigationLocked ? NAV_LOCK_TITLE : undefined}
+              onClick={() => {
+                if (navigationLocked) return;
+                logout();
+              }}
+              className={cn(
+                "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors",
+                navigationLocked
+                  ? "cursor-not-allowed opacity-50"
+                  : "hover:bg-slate-100 hover:text-slate-900",
+              )}
+            >
+              <LogOut size={16} strokeWidth={2} />
+            </button>
+          </div>
         </div>
       </header>
 

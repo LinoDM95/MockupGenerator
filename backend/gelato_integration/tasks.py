@@ -30,20 +30,20 @@ def _sanitize_gelato_tags(raw: str) -> list[str]:
 
 @shared_task(bind=True, ignore_result=True, max_retries=3)
 def process_gelato_bulk_export(self, task_ids: list[str]) -> None:
-    print(f"[gelato DEBUG] process_gelato_bulk_export START task_ids={task_ids}", flush=True)
+    logger.debug("process_gelato_bulk_export START task_ids=%s", task_ids)
     if not task_ids:
-        print("[gelato DEBUG] process_gelato_bulk_export empty task_ids → exit", flush=True)
+        logger.debug("process_gelato_bulk_export empty task_ids → exit")
         return
 
     first_task = GelatoExportTask.objects.filter(id=task_ids[0]).select_related("user").first()
     if not first_task:
         logger.error("GelatoExportTask not found: %s", task_ids[0])
-        print(f"[gelato DEBUG] first_task missing id={task_ids[0]!r}", flush=True)
+        logger.debug("first_task missing id=%r", task_ids[0])
         return
 
     conn = GelatoConnection.objects.filter(user=first_task.user, is_active=True).first()
     if not conn:
-        print("[gelato DEBUG] no active GelatoConnection for user", flush=True)
+        logger.debug("no active GelatoConnection for user")
         GelatoExportTask.objects.filter(id__in=task_ids).update(
             status=GelatoExportTask.Status.FAILED,
             error_message="Keine aktive Gelato-Verbindung.",
@@ -51,9 +51,10 @@ def process_gelato_bulk_export(self, task_ids: list[str]) -> None:
         )
         return
 
-    print(
-        f"[gelato DEBUG] connection store_id={conn.store_id!r} store_name={conn.store_name!r}",
-        flush=True,
+    logger.debug(
+        "connection store_id=%r store_name=%r",
+        conn.store_id,
+        conn.store_name,
     )
     client = GelatoClient(conn.get_api_key())
 
@@ -62,10 +63,10 @@ def process_gelato_bulk_export(self, task_ids: list[str]) -> None:
 
     try:
         for tid in task_ids:
-            print(f"[gelato DEBUG] --- task loop tid={tid!r} ---", flush=True)
+            logger.debug("--- task loop tid=%r ---", tid)
             task = GelatoExportTask.objects.filter(id=tid).select_related("gelato_template").first()
             if not task:
-                print(f"[gelato DEBUG] task row missing, skip tid={tid!r}", flush=True)
+                logger.debug("task row missing, skip tid=%r", tid)
                 continue
 
             task.status = GelatoExportTask.Status.PROCESSING
@@ -78,10 +79,11 @@ def process_gelato_bulk_export(self, task_ids: list[str]) -> None:
                     else ""
                 )
                 art_preview = (task.artwork_r2_url or "")[:100]
-                print(
-                    f"[gelato DEBUG] gelato_tpl_id={gelato_tpl_id!r} title={task.title!r} "
-                    f"artwork_r2_url_preview={art_preview!r}",
-                    flush=True,
+                logger.debug(
+                    "gelato_tpl_id=%r title=%r artwork_r2_url_preview=%r",
+                    gelato_tpl_id,
+                    task.title,
+                    art_preview,
                 )
 
                 if not task.artwork_r2_url:
@@ -91,22 +93,19 @@ def process_gelato_bulk_export(self, task_ids: list[str]) -> None:
                     )
 
                 if gelato_tpl_id not in variants_cache:
-                    print(
-                        f"[gelato DEBUG] build_variants_payload (cache miss) tpl={gelato_tpl_id!r}",
-                        flush=True,
-                    )
+                    logger.debug("build_variants_payload (cache miss) tpl=%r", gelato_tpl_id)
                     variants_cache[gelato_tpl_id] = client.build_variants_payload(
                         gelato_tpl_id, task.artwork_r2_url,
                     )
-                    print(
-                        f"[gelato DEBUG] variants_cache[{gelato_tpl_id!r}] "
-                        f"len={len(variants_cache[gelato_tpl_id])}",
-                        flush=True,
+                    logger.debug(
+                        "variants_cache[%r] len=%s",
+                        gelato_tpl_id,
+                        len(variants_cache[gelato_tpl_id]),
                     )
                 else:
-                    print(
-                        f"[gelato DEBUG] variants cache HIT → reinject artwork URL for tpl={gelato_tpl_id!r}",
-                        flush=True,
+                    logger.debug(
+                        "variants cache HIT → reinject artwork URL for tpl=%r",
+                        gelato_tpl_id,
                     )
                     # Re-inject the current artwork URL into the cached structure.
                     variants_cache[gelato_tpl_id] = [
@@ -121,10 +120,10 @@ def process_gelato_bulk_export(self, task_ids: list[str]) -> None:
                     ]
 
                 v_payload = variants_cache[gelato_tpl_id] or None
-                print(
-                    f"[gelato DEBUG] create_product_from_template store={conn.store_id!r} "
-                    f"variants_count={len(v_payload) if v_payload else 0}",
-                    flush=True,
+                logger.debug(
+                    "create_product_from_template store=%r variants_count=%s",
+                    conn.store_id,
+                    len(v_payload) if v_payload else 0,
                 )
                 tag_list = _sanitize_gelato_tags(task.tags or "")
                 result = client.create_product_from_template(
@@ -137,17 +136,15 @@ def process_gelato_bulk_export(self, task_ids: list[str]) -> None:
                     variants=v_payload,
                 )
                 product_id = str(result.get("id", ""))
-                print(
-                    f"[gelato DEBUG] Gelato API OK id={product_id} productUid={result.get('productUid')}",
-                    flush=True,
+                logger.debug(
+                    "Gelato API OK id=%s productUid=%s",
+                    product_id,
+                    result.get("productUid"),
                 )
 
                 if product_id:
                     deleted = client.delete_all_product_images(conn.store_id, product_id)
-                    print(
-                        f"[gelato DEBUG] deleted {deleted} auto-generated mockup images",
-                        flush=True,
-                    )
+                    logger.debug("deleted %s auto-generated mockup images", deleted)
 
                 task.gelato_product_id = product_id
                 task.gelato_product_uid = str(result.get("productUid", ""))
@@ -157,9 +154,10 @@ def process_gelato_bulk_export(self, task_ids: list[str]) -> None:
                 ])
 
             except GelatoApiError as e:
-                print(
-                    f"[gelato DEBUG] GelatoApiError status={e.status_code} detail={e.detail[:300]!r}",
-                    flush=True,
+                logger.debug(
+                    "GelatoApiError status=%s detail=%r",
+                    e.status_code,
+                    e.detail[:300],
                 )
                 task.status = GelatoExportTask.Status.FAILED
                 task.error_message = e.detail
@@ -171,13 +169,13 @@ def process_gelato_bulk_export(self, task_ids: list[str]) -> None:
                         pass
 
             except Exception as e:
-                print(f"[gelato DEBUG] unexpected error tid={tid!r}: {e!r}", flush=True)
+                logger.debug("unexpected error tid=%r: %r", tid, e)
                 logger.exception("Unexpected error exporting task %s", tid)
                 task.status = GelatoExportTask.Status.FAILED
                 task.error_message = str(e)[:1000]
                 task.save(update_fields=["status", "error_message", "updated_at"])
     finally:
-        print("[gelato DEBUG] process_gelato_bulk_export client.close()", flush=True)
+        logger.debug("process_gelato_bulk_export client.close()")
         client.close()
 
 
