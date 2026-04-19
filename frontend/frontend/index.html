@@ -8,8 +8,27 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <title>Creative Engine | Print-on-Demand Automatisierung</title>
+    <script>
+      // Farbschema-Hydration: VOR dem ersten Paint `.dark` setzen,
+      // damit bei Dark-Mode-Start kein heller Flash entsteht.
+      (function () {
+        try {
+          var stored = localStorage.getItem("ce-color-scheme");
+          var isDark =
+            stored === "dark" ||
+            (stored !== "light" &&
+              window.matchMedia &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.classList.toggle("dark", isDark);
+          document.documentElement.style.colorScheme = isDark ? "dark" : "light";
+        } catch (e) {
+          /* localStorage ggf. blockiert → Fallback: hell. */
+          document.documentElement.style.colorScheme = "light";
+        }
+      })();
+    </script>
   </head>
-  <body class="bg-[#FAFAFA] text-slate-900 selection:bg-indigo-500/20 selection:text-indigo-900">
+  <body class="antialiased">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -20,9 +20,11 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from .helpers import apply_frame_fields, read_image_dimensions
 from .models import Template, TemplateSet
 from .serializers import (
+    ChangePasswordSerializer,
     TemplateSerializer,
     TemplateSetCreateUpdateSerializer,
     TemplateSetSerializer,
+    UserMeSerializer,
     UserRegistrationSerializer,
     replace_template_elements,
 )
@@ -40,6 +42,35 @@ class RegisterView(APIView):
         ser.is_valid(raise_exception=True)
         ser.save()
         return Response(status=status.HTTP_201_CREATED)
+
+
+class CurrentUserView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+        return Response(UserMeSerializer(request.user).data)
+
+    def patch(self, request):
+        ser = UserMeSerializer(
+            request.user,
+            data=request.data,
+            partial=True,
+            context={"request": request},
+        )
+        ser.is_valid(raise_exception=True)
+        ser.save()
+        return Response(UserMeSerializer(request.user).data)
+
+
+class ChangePasswordView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request):
+        ser = ChangePasswordSerializer(data=request.data, context={"request": request})
+        ser.is_valid(raise_exception=True)
+        request.user.set_password(ser.validated_data["new_password"])
+        request.user.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 def _same_host_url(request, url: str) -> bool:

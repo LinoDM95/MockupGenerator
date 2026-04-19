@@ -2,17 +2,19 @@ import type { ComponentType } from "react";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
-import { Compass, Link2, Layers, LogOut, RefreshCw, Zap } from "lucide-react";
-import { Navigate } from "react-router-dom";
+import { Compass, Link2, Layers, LogOut, RefreshCw, UserCircle, Zap } from "lucide-react";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { clearProactiveTokenRefresh, scheduleProactiveAccessRefresh } from "./api/client";
 import { cn } from "./lib/cn";
 import { Button } from "./components/ui/Button";
+import { ThemeToggle } from "./components/ui/ThemeToggle";
 import { DialogHost } from "./components/DialogHost";
 import { AIActivityPanel } from "./components/ai/AIActivityPanel";
 import { IntegrationsView } from "./components/IntegrationsView";
 import { WorkspaceView } from "./components/WorkspaceView";
 import { RoadmapView } from "./components/RoadmapView";
+import { AccountPage } from "./pages/AccountPage";
 import type { AppTab } from "./store/appStore";
 import { useAppStore } from "./store/appStore";
 
@@ -30,6 +32,8 @@ const tabContent: Record<AppTab, ComponentType> = {
 
 const NAV_LOCK_TITLE = "Während eines laufenden Vorgangs ist die Navigation gesperrt.";
 
+const ACCOUNT_PATH = "/app/konto";
+
 function App() {
   const accessToken = useAppStore((s) => s.accessToken);
   const logout = useAppStore((s) => s.logout);
@@ -38,6 +42,9 @@ function App() {
   const setEditingSetId = useAppStore((s) => s.setEditingSetId);
   const navigationLocked = useAppStore((s) => s.navigationLocked);
   const reduceMotion = useReducedMotion();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isAccountPage = location.pathname === ACCOUNT_PATH;
   const [showBatchLauncherRefresh] = useState(
     () => typeof sessionStorage !== "undefined" && sessionStorage.getItem("mockupLauncherBatch") === "1",
   );
@@ -84,6 +91,9 @@ function App() {
                   title={navigationLocked ? NAV_LOCK_TITLE : undefined}
                   onClick={() => {
                     if (navigationLocked) return;
+                    if (location.pathname !== "/app") {
+                      navigate("/app");
+                    }
                     setActiveTab(id);
                     setEditingSetId(null);
                   }}
@@ -92,7 +102,9 @@ function App() {
                     navigationLocked
                       ? "cursor-not-allowed opacity-50"
                       : "hover:text-indigo-600",
-                    isActive ? "bg-indigo-50/50 text-indigo-600" : "text-slate-500",
+                    isActive && !isAccountPage
+                      ? "bg-indigo-50/50 text-indigo-600"
+                      : "text-slate-500",
                   )}
                   aria-current={isActive ? "page" : undefined}
                 >
@@ -120,6 +132,36 @@ function App() {
                 Aktualisieren
               </Button>
             ) : null}
+            
+            <button
+              type="button"
+              onClick={() => navigate(ACCOUNT_PATH)}
+              className={cn(
+                "group flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all duration-300 ease-out",
+                !reduceMotion && "hover:scale-105 active:scale-95",
+                isAccountPage
+                  // Aktiv: Gleiche Farben wie die aktiven Haupt-Tabs
+                  ? "bg-indigo-50/50 text-indigo-600"
+                  // Inaktiv: Gleiche Farben wie ThemeToggle und Logout
+                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-900",
+              )}
+              aria-current={isAccountPage ? "page" : undefined}
+              aria-label="Konto — Profil und Abrechnung"
+              title="Konto — Profil und Abrechnung"
+            >
+              <UserCircle
+                size={18}
+                strokeWidth={2}
+                className={cn(
+                  "transition-transform duration-300",
+                  !reduceMotion && "group-hover:rotate-6"
+                )}
+                aria-hidden
+              />
+            </button>
+
+            <ThemeToggle size="sm" />
+            
             {showBatchLauncherRefresh ? (
               <button
                 type="button"
@@ -142,10 +184,10 @@ function App() {
                 logout();
               }}
               className={cn(
-                "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors",
+                "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors",
                 navigationLocked
-                  ? "cursor-not-allowed opacity-50"
-                  : "hover:bg-slate-100 hover:text-slate-900",
+                  ? "cursor-not-allowed text-slate-400 opacity-50"
+                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-900",
               )}
             >
               <LogOut size={16} strokeWidth={2} />
@@ -155,18 +197,24 @@ function App() {
       </header>
 
       <main className="relative z-10 mx-auto max-w-7xl px-4 pb-12 pt-10 sm:px-6 lg:px-8">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            className="w-full min-w-0"
-            initial={{ opacity: 0, y: reduceMotion ? 0 : 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: reduceMotion ? 0 : -4 }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
-          >
-            <ActiveView />
-          </motion.div>
-        </AnimatePresence>
+        {isAccountPage ? (
+          <div className="w-full min-w-0">
+            <AccountPage />
+          </div>
+        ) : (
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              className="w-full min-w-0"
+              initial={{ opacity: 0, y: reduceMotion ? 0 : 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: reduceMotion ? 0 : -4 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+            >
+              <ActiveView />
+            </motion.div>
+          </AnimatePresence>
+        )}
       </main>
     </div>
   );

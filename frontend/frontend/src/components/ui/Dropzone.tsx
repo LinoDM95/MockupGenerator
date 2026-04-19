@@ -14,6 +14,10 @@ type Props = Omit<InputHTMLAttributes<HTMLInputElement>, "children" | "title"> &
    * kein zusätzlicher weißer Rahmen um eine innere Dropzone.
    */
   fullCard?: boolean;
+  /**
+   * Kein weißer Kartenhintergrund — transparente/subtile Fläche (z. B. leere UploadQueue).
+   */
+  bareSurface?: boolean;
   onPickFiles?: (files: FileList | null) => void;
   /** Nur bei Datei-Upload per Drag & Drop (nicht beim Dateiauswahl-Dialog). */
   onDropComplete?: () => void;
@@ -25,6 +29,7 @@ export const Dropzone = ({
   icon,
   className,
   fullCard = false,
+  bareSurface = false,
   id,
   onPickFiles,
   onDropComplete,
@@ -81,10 +86,20 @@ export const Dropzone = ({
         "flex w-full cursor-pointer flex-col items-center justify-center text-center transition-all duration-200 ease-out",
         fullCard
           ? cn(
-              "h-full min-h-0 justify-center rounded-2xl border-2 border-dashed px-5 py-8 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 sm:py-10",
-              isDragging
-                ? "border-indigo-500 bg-indigo-50"
-                : "border-slate-300 bg-white hover:border-indigo-400 hover:bg-slate-50",
+              "h-full min-h-0 justify-center rounded-2xl border-2 border-dashed px-5 py-8 sm:py-10",
+              bareSurface
+                ? cn(
+                    "shadow-none ring-1 ring-inset ring-slate-900/10 dark:ring-white/10",
+                    isDragging
+                      ? "border-indigo-500 bg-indigo-100/55 dark:bg-indigo-950/40"
+                      : "border-slate-300/80 bg-transparent hover:border-indigo-400/90 hover:bg-slate-100/40 dark:border-slate-500 dark:hover:bg-white/[0.06]",
+                  )
+                : cn(
+                    "shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5",
+                    isDragging
+                      ? "border-indigo-500 bg-indigo-50"
+                      : "border-slate-300 bg-white hover:border-indigo-400 hover:bg-slate-50",
+                  ),
             )
           : cn(
               "rounded-2xl border-2 border-dashed px-6 py-10",

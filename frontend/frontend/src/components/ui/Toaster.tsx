@@ -9,7 +9,8 @@ const variantStyles: Record<ToastVariant, string> = {
     "bg-white text-slate-900 ring-1 ring-emerald-500/20 shadow-[0_8px_24px_rgba(0,0,0,0.08)] [&_svg]:text-emerald-500",
   error:
     "bg-white text-slate-900 ring-1 ring-red-500/20 shadow-[0_8px_24px_rgba(0,0,0,0.08)] [&_svg]:text-red-500",
-  info: "bg-white text-slate-900 ring-1 ring-slate-900/5 shadow-[0_8px_24px_rgba(0,0,0,0.08)] [&_svg]:text-indigo-500",
+  info:
+    "bg-white text-slate-900 ring-1 ring-slate-900/5 shadow-[0_8px_24px_rgba(0,0,0,0.08)] [&_svg]:text-indigo-500",
 };
 
 export const Toaster = () => {

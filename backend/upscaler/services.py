@@ -6,7 +6,7 @@ import math
 import os
 import time
 from io import BytesIO
-from typing import Any, Literal, Tuple
+from typing import Any, Tuple
 from urllib.parse import quote
 
 from PIL import Image as PILImage
@@ -20,12 +20,42 @@ _DEFAULT_VERTEX_LOCATION = "us-central1"
 _CLOUD_PLATFORM_SCOPE = "https://www.googleapis.com/auth/cloud-platform"
 
 OVERLAP_SRC = 64
+# Pro Vertex-Aufruf nur x2 / x4 (Imagen API).
 VALID_FACTORS: dict[str, int] = {"x2": 2, "x4": 4}
+# Öffentliche Gesamtfaktoren (8/16 als Kette aus nativen Schritten).
+TOTAL_UPSCALE_FACTORS: frozenset[int] = frozenset({2, 4, 8, 16})
 # Mindest-Skalierung vor Tiling (isotrop), um API-Kacheln zu sparen; zu starke Reduktion vermeiden.
 SMART_SCALE_MIN = 0.85
 
 
+def native_steps_for_total_factor(total: int) -> list[int]:
+    """Zerlegt 2/4/8/16 in native API-Schritte (nur 2 und 4)."""
+    if total not in TOTAL_UPSCALE_FACTORS:
+        raise UpscaleError(f"Ungueltiger Gesamtfaktor: {total}. Erlaubt: 2, 4, 8, 16.")
+    mapping: dict[int, list[int]] = {
+        2: [2],
+        4: [4],
+        8: [4, 2],
+        16: [4, 4],
+    }
+    return mapping[total]
+
+
+def smallest_cover_factor(required_scale: float) -> int | None:
+    """Kleinste Zahl in (2,4,8,16) mit Wert >= required_scale, oder None wenn >16 nötig."""
+    for f in (2, 4, 8, 16):
+        if f >= required_scale - 1e-12:
+            return f
+    return None
+
+
 class UpscaleError(Exception):
+    pass
+
+
+class UpscaleUserInputError(UpscaleError):
+    """Ungueltige Nutzerparameter — HTTP 400."""
+
     pass
 
 
@@ -315,14 +345,16 @@ def _build_blend_mask(
     import numpy as np
 
     mask = np.ones((tile_h, tile_w), dtype=np.float32)
+    ow_x = min(overlap_out, tile_w) if blend_left else 0
+    ow_y = min(overlap_out, tile_h) if blend_top else 0
 
-    if blend_left and overlap_out > 0:
-        ramp = np.linspace(0.0, 1.0, overlap_out, dtype=np.float32)
-        mask[:, :overlap_out] *= ramp[np.newaxis, :]
+    if blend_left and ow_x > 0:
+        ramp = np.linspace(0.0, 1.0, ow_x, dtype=np.float32)
+        mask[:, :ow_x] *= ramp[np.newaxis, :]
 
-    if blend_top and overlap_out > 0:
-        ramp = np.linspace(0.0, 1.0, overlap_out, dtype=np.float32)
-        mask[:overlap_out, :] *= ramp[:, np.newaxis]
+    if blend_top and ow_y > 0:
+        ramp = np.linspace(0.0, 1.0, ow_y, dtype=np.float32)
+        mask[:ow_y, :] *= ramp[:, np.newaxis]
 
     return mask
 
@@ -413,6 +445,21 @@ def _upscale_tiled(
 
     target_w, target_h = w * factor_int, h * factor_int
 
+    if total_tiles == 1:
+        out = _upscale_single(
+            client,
+            pil_img,
+            factor_str,
+            project_id,
+            credentials,
+        )
+        if smart_scale_applied:
+            out = out.resize(
+                (orig_w * factor_int, orig_h * factor_int),
+                PILImage.Resampling.LANCZOS,
+            )
+        return out
+
     logger.info(
         "Tiled upscale: %dx%d -> %dx%d, grid %dx%d (%d tiles), overlap=%dpx",
         w,
@@ -451,6 +498,13 @@ def _upscale_tiled(
             upscaled_tile = _call_upscale_api(
                 client, tile, factor_str, project_id, credentials
             )
+            tw_in, th_in = tile.size
+            exp_w, exp_h = tw_in * factor_int, th_in * factor_int
+            if upscaled_tile.size != (exp_w, exp_h):
+                upscaled_tile = upscaled_tile.resize(
+                    (exp_w, exp_h),
+                    PILImage.Resampling.LANCZOS,
+                )
             tile_arr = np.array(upscaled_tile.convert("RGB"), dtype=np.float32)
             th, tw = tile_arr.shape[:2]
 
@@ -480,25 +534,82 @@ def _upscale_tiled(
     return out
 
 
+def _upscale_one_native_pass(
+    client,
+    pil_img: PILImage.Image,
+    native_int: int,
+    project_id: str,
+    credentials: Any,
+) -> PILImage.Image:
+    """Ein Vertex-Upscale-Schritt mit nativem Faktor 2 oder 4 (inkl. Tiling)."""
+    if native_int not in (2, 4):
+        raise UpscaleError(f"Intern: nativer Faktor muss 2 oder 4 sein, nicht {native_int}.")
+    factor_str = f"x{native_int}"
+    w, h = pil_img.size
+    target_pixels = (w * native_int) * (h * native_int)
+    if pil_img.mode == "RGBA":
+        pil_img = pil_img.convert("RGB")
+    if target_pixels <= MAX_OUTPUT_PIXELS:
+        return _upscale_single(client, pil_img, factor_str, project_id, credentials)
+    return _upscale_tiled(client, pil_img, native_int, project_id, credentials)
+
+
 def upscale_image(
     pil_img: PILImage.Image,
-    factor: Literal["x2", "x4"],
     service_account_json: str,
+    *,
+    factor_total: int | None = None,
+    target_width: int | None = None,
+    target_height: int | None = None,
 ) -> PILImage.Image:
-    """Main entry point: upscale a PIL image, handling tiling if needed."""
-    if factor not in VALID_FACTORS:
-        raise UpscaleError(f"Ungueltiger Faktor: {factor}. Erlaubt: x2, x4")
+    """Upscale: entweder ``factor_total`` in (2,4,8,16) oder exakte Zielgröße.
 
-    factor_int = VALID_FACTORS[factor]
-    w, h = pil_img.size
-    target_pixels = (w * factor_int) * (h * factor_int)
+    8/16 werden als Kette aus 2x-/4x-Schritten ausgeführt. Bei Zielauflösung: KI bis
+    zum deckenden Faktor, danach LANCZOS auf exakte Pixel.
+    """
+    has_target = target_width is not None and target_height is not None
+    has_factor = factor_total is not None
 
-    client, project_id, credentials = _get_vertex_client(service_account_json)
+    if has_target == has_factor:
+        raise UpscaleError(
+            "Genau einer der Modi ist erforderlich: factor_total ODER target_width+target_height."
+        )
 
     if pil_img.mode == "RGBA":
         pil_img = pil_img.convert("RGB")
 
-    if target_pixels <= MAX_OUTPUT_PIXELS:
-        return _upscale_single(client, pil_img, factor, project_id, credentials)
-    else:
-        return _upscale_tiled(client, pil_img, factor_int, project_id, credentials)
+    if has_target:
+        tw, th = int(target_width), int(target_height)
+        ow, oh = pil_img.size
+        if ow < 1 or oh < 1:
+            raise UpscaleError("Ungueltige Bildgroesse.")
+        required = max(tw / float(ow), th / float(oh))
+        if required <= 1.0:
+            return pil_img.resize((tw, th), PILImage.Resampling.LANCZOS)
+
+        cover = smallest_cover_factor(required)
+        if cover is None:
+            raise UpscaleUserInputError(
+                "Die gewuenschte Zielaufloesung erfordert mehr als 16x Upscaling. "
+                "Bitte kleinere Zielwerte waehlen."
+            )
+
+        client, project_id, credentials = _get_vertex_client(service_account_json)
+        img: PILImage.Image = pil_img
+        for step in native_steps_for_total_factor(cover):
+            img = _upscale_one_native_pass(
+                client, img, step, project_id, credentials
+            )
+        if img.size != (tw, th):
+            img = img.resize((tw, th), PILImage.Resampling.LANCZOS)
+        return img
+
+    assert factor_total is not None
+    if factor_total not in TOTAL_UPSCALE_FACTORS:
+        raise UpscaleError(f"Ungueltiger Faktor: {factor_total}. Erlaubt: 2, 4, 8, 16.")
+
+    client, project_id, credentials = _get_vertex_client(service_account_json)
+    img = pil_img
+    for step in native_steps_for_total_factor(factor_total):
+        img = _upscale_one_native_pass(client, img, step, project_id, credentials)
+    return img

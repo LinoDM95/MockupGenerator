@@ -54,7 +54,7 @@ export const WorkSessionFooter = ({
       aria-busy="true"
       className="relative z-20 shrink-0 px-4 pb-6 pt-4 sm:px-6"
     >
-      <div className="mx-auto flex max-w-4xl flex-col gap-5 rounded-[2rem] border border-indigo-800/80 bg-indigo-950 px-6 py-6 text-left shadow-2xl ring-1 ring-indigo-500/15 sm:px-8 sm:py-7">
+      <div className="mx-auto flex max-w-4xl flex-col gap-5 rounded-[2rem] border border-work-session-footer-shell bg-work-session-footer-shell px-6 py-6 text-left shadow-2xl ring-1 ring-work-session-footer-shell sm:px-8 sm:py-7">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex min-w-0 flex-1 items-center gap-4">
             {showGlyph ? (
@@ -63,10 +63,10 @@ export const WorkSessionFooter = ({
               </div>
             ) : null}
             <div className="min-w-0 flex-1">
-              <h3 className="text-lg font-medium tracking-tight text-white">
+              <h3 className="text-work-session-title text-lg font-medium tracking-tight">
                 {title}
               </h3>
-              <p className="mt-1 text-sm tracking-wide text-slate-400">
+              <p className="text-work-session-subtitle mt-1 text-sm tracking-wide">
                 {subtitle}
               </p>
             </div>
@@ -75,10 +75,10 @@ export const WorkSessionFooter = ({
           {onAbort ? (
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               className={cn(
-                "shrink-0 rounded-full border-slate-600 bg-transparent text-slate-300 shadow-none transition-colors",
-                "hover:border-red-500/60 hover:bg-red-950/40 hover:text-red-200",
+                "shrink-0 rounded-full border border-[rgb(71_85_105)] !bg-transparent !text-[rgb(203_213_225)] !shadow-none ring-0 transition-colors",
+                "hover:!border-red-500/60 hover:!bg-[rgb(69_10_10/0.4)] hover:!text-red-200",
                 "disabled:pointer-events-none disabled:opacity-50",
               )}
               disabled={abortDisabled}
@@ -91,23 +91,23 @@ export const WorkSessionFooter = ({
 
         <div className="mt-2 flex flex-col gap-2.5">
           <div className="flex items-center justify-between text-[13px] font-medium tracking-wide">
-            <span className="text-[10px] uppercase tracking-widest text-slate-500">
+            <span className="text-work-session-caption text-[10px] uppercase tracking-widest">
               {etaLabel ?? "Fortschritt"}
             </span>
             {displayPct !== null ? (
-              <span className="font-mono text-slate-300">{displayPct}%</span>
+              <span className="text-work-session-stat font-mono">{displayPct}%</span>
             ) : (
               <motion.span
                 animate={{ opacity: [0.5, 1, 0.5] }}
                 transition={{ duration: 1.5, repeat: Infinity }}
-                className="text-[10px] uppercase tracking-widest text-slate-400"
+                className="text-work-session-subtitle text-[10px] uppercase tracking-widest"
               >
                 Verarbeitung …
               </motion.span>
             )}
           </div>
 
-          <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-slate-800 shadow-inner">
+          <div className="bg-work-session-progress-track relative h-2.5 w-full overflow-hidden rounded-full shadow-inner">
             {indeterminate ? (
               <motion.div
                 className="absolute inset-y-0 left-0 h-full w-1/3 rounded-full bg-indigo-500"
@@ -129,7 +129,7 @@ export const WorkSessionFooter = ({
               key={message}
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-xs font-medium tracking-wide text-slate-400"
+              className="text-work-session-subtitle text-xs font-medium tracking-wide"
             >
               {message}
             </motion.p>

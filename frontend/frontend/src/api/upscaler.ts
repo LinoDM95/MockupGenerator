@@ -1,6 +1,11 @@
 import { ApiError, apiFetch } from "./client";
 
-export type UpscaleFactor = "x2" | "x4";
+/** Gesamtfaktor (KI-Kette aus 2x-/4x-Schritten im Backend). */
+export type UpscaleTotalFactor = 2 | 4 | 8 | 16;
+
+export type UpscaleImageParams =
+  | { kind: "factor"; factor: UpscaleTotalFactor }
+  | { kind: "target"; targetWidth: number; targetHeight: number };
 
 export type UpscaleResult = {
   blob: Blob;
@@ -53,14 +58,26 @@ const throwUpscaleHttpError = (res: Response, bodyText: string): never => {
   throw new ApiError(`HTTP ${res.status}`, res.status, bodyText);
 };
 
+export const appendUpscaleParams = (
+  form: FormData,
+  params: UpscaleImageParams,
+) => {
+  if (params.kind === "factor") {
+    form.append("factor", String(params.factor));
+  } else {
+    form.append("target_width", String(params.targetWidth));
+    form.append("target_height", String(params.targetHeight));
+  }
+};
+
 export const upscaleImage = async (
   file: File,
-  factor: UpscaleFactor,
+  params: UpscaleImageParams,
   options?: { signal?: AbortSignal },
 ): Promise<UpscaleResult> => {
   const form = new FormData();
   form.append("image", file);
-  form.append("factor", factor);
+  appendUpscaleParams(form, params);
 
   const res = await apiFetch("/api/upscaler/upscale/", {
     method: "POST",

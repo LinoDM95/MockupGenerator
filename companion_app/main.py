@@ -27,7 +27,12 @@ from PIL import Image as PILImage
 from pydantic import BaseModel
 
 from companion_app import model_store, tile_progress
-from companion_app.local_services import UpscaleError, upscale_image_local
+from companion_app.local_services import (
+    UpscaleError,
+    UpscaleUserInputError,
+    upscale_image_local,
+)
+from companion_app.upscale_limits import get_max_output_pixels
 from companion_app.paths import companion_dir
 from companion_app.version_info import engine_version_string
 
@@ -41,7 +46,8 @@ COMPANION_PORT = int(os.environ.get("COMPANION_PORT", "8001"))
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 MAX_IMAGE_SIZE = 10 * 1024 * 1024
-VALID_FACTORS = {"x2", "x4"}
+TOTAL_UPSCALE_FACTORS = frozenset({2, 4, 8, 16})
+MAX_TARGET_SIDE = 16384
 VALID_PARALLEL_TILES = frozenset({"1", "2", "auto"})
 _EXE_NAME = "MockupLocalEngine.exe"
 _NEW_EXE_NAME = "MockupLocalEngine_new.exe"
@@ -100,6 +106,35 @@ def _max_tile_workers_from_parallel(parallel_tiles: str) -> int:
     if pt == "1":
         return 1
     return 2
+
+
+def _parse_factor_total(raw: str | None) -> int | None:
+    if raw is None:
+        return None
+    s = str(raw).strip().lower()
+    if not s:
+        return None
+    if s.startswith("x"):
+        s = s[1:]
+    try:
+        v = int(s, 10)
+    except ValueError:
+        return None
+    return v if v in TOTAL_UPSCALE_FACTORS else None
+
+
+def _parse_positive_int_form(raw: str | None) -> int | None:
+    if raw is None:
+        return None
+    s = str(raw).strip()
+    if not s:
+        return None
+    try:
+        v = int(s, 10)
+    except ValueError:
+        return None
+    return v if v >= 1 else None
+
 
 # Browsers treat localhost and 127.0.0.1 as different origins — list both.
 # Override via env: comma-separated extra origins (COMPANION_CORS_ORIGINS).
@@ -322,17 +357,61 @@ def get_tile_progress(job_id: str):
 @app.post("/upscale")
 async def upscale(
     image: UploadFile = File(...),
-    factor: str = Form("x2"),
+    factor: str | None = Form(None),
+    target_width: str | None = Form(None),
+    target_height: str | None = Form(None),
     model_id: str | None = Form(None),
     parallel_tiles: str = Form("1"),
     progress_job_id: str | None = Form(None),
 ):
-    f = factor.strip().lower()
-    if f not in VALID_FACTORS:
+    tw = _parse_positive_int_form(target_width)
+    th = _parse_positive_int_form(target_height)
+    factor_total = _parse_factor_total(factor)
+    has_target = tw is not None and th is not None
+    has_partial_target = (tw is None) != (th is None)
+    has_factor = factor_total is not None
+
+    if has_partial_target:
         raise HTTPException(
             status_code=400,
-            detail=f"Ungueltiger Faktor '{factor}'. Erlaubt: x2, x4",
+            detail=(
+                "Fuer Zielaufloesung muessen sowohl target_width als auch target_height gesetzt sein."
+            ),
         )
+    if has_target and has_factor:
+        raise HTTPException(
+            status_code=400,
+            detail="Bitte entweder Faktor ODER Zielaufloesung angeben, nicht beides.",
+        )
+    if not has_target and not has_factor:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Bitte 'factor' (2, 4, 8 oder 16) oder 'target_width' und 'target_height' angeben."
+            ),
+        )
+    if has_factor and factor_total is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Ungueltiger Faktor. Erlaubt: 2, 4, 8 oder 16 (z. B. factor=8 oder x8).",
+        )
+
+    max_px_cap = min(get_max_output_pixels(), 67_108_864)
+    if has_target:
+        assert tw is not None and th is not None
+        if tw > MAX_TARGET_SIDE or th > MAX_TARGET_SIDE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Zielabmessungen zu gross (max {MAX_TARGET_SIDE} px pro Kante).",
+            )
+        if tw * th > max_px_cap:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Zielflaeche (Breite x Hoehe) ueberschreitet das erlaubte Maximum. "
+                    "Bitte kleinere Werte waehlen."
+                ),
+            )
 
     mid = (model_id or "").strip() or None
 
@@ -380,14 +459,29 @@ async def upscale(
         )
 
     try:
-        result_img = await asyncio.to_thread(
-            upscale_image_local,
-            pil_img,
-            f,
-            ncnn,  # type: ignore[arg-type]
-            max_tile_workers=max_tile_workers,
-            progress_job_id=pjid or None,
-        )
+        if has_target:
+            assert tw is not None and th is not None
+            result_img = await asyncio.to_thread(
+                upscale_image_local,
+                pil_img,
+                ncnn,
+                max_tile_workers=max_tile_workers,
+                progress_job_id=pjid or None,
+                target_width=tw,
+                target_height=th,
+            )
+        else:
+            assert factor_total is not None
+            result_img = await asyncio.to_thread(
+                upscale_image_local,
+                pil_img,
+                ncnn,
+                max_tile_workers=max_tile_workers,
+                progress_job_id=pjid or None,
+                factor_total=factor_total,
+            )
+    except UpscaleUserInputError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except UpscaleError as exc:
         logger.error("Local upscale error: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc

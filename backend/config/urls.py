@@ -19,8 +19,13 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
+from core.views import ChangePasswordView, CurrentUserView
+
 urlpatterns = [
     path("admin/", admin.site.urls),
+    # Explizit vor include("core.urls"), damit /api/auth/me/ sicher gematcht wird (Profil / Passwort).
+    path("api/auth/me/", CurrentUserView.as_view(), name="auth-me"),
+    path("api/auth/change-password/", ChangePasswordView.as_view(), name="auth-change-password"),
     path("api/", include("core.urls")),
     path("api/gelato/", include("gelato_integration.urls")),
     path("api/ai/", include("ai_integration.urls")),

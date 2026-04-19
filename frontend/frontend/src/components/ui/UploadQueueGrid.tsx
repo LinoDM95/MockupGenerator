@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Plus, X } from "lucide-react";
-import type { ReactNode } from "react";
+import { Children, type ReactNode } from "react";
 
 import { RASTER_IMAGE_ACCEPT_HTML } from "../../lib/imageUploadAccept";
 import { cn } from "../../lib/cn";
@@ -74,31 +74,53 @@ export const UploadQueueGrid = ({
   onPickFiles,
   dropzoneIcon,
   children,
-}: UploadQueueGridProps) => (
-  <div className="min-w-0">
-    <p className="mb-4 text-xs font-bold uppercase tracking-widest text-slate-400">
-      {label}
-    </p>
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-      <div className="flex h-full min-h-[18rem] min-w-0 flex-col sm:min-h-0">
-        <Dropzone
-          fullCard
-          title={dropzoneTitle}
-          description={dropzoneDescription}
-          icon={dropzoneIcon ?? <UploadQueueDefaultIcon />}
-          accept={accept}
-          multiple={multiple}
-          onPickFiles={onPickFiles}
-          onChange={(e) => resetFileInputOnPick(e, onPickFiles)}
-          className="h-full min-h-0 flex-1"
-        />
+}: UploadQueueGridProps) => {
+  const hasQueueItems =
+    Children.toArray(children).filter((c) => c != null && c !== false && c !== true)
+      .length > 0;
+
+  return (
+    <div className="min-w-0">
+      <p className="mb-4 text-xs font-bold uppercase tracking-widest text-slate-400">
+        {label}
+      </p>
+      <div
+        className={cn(
+          "grid grid-cols-1 gap-4",
+          hasQueueItems && "sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4",
+        )}
+      >
+        <div
+          className={cn(
+            "flex min-w-0 flex-col",
+            hasQueueItems
+              ? "h-full min-h-[18rem] sm:min-h-0"
+              : "min-h-[min(28rem,55vh)] w-full flex-1",
+          )}
+        >
+          <Dropzone
+            fullCard
+            bareSurface={!hasQueueItems}
+            title={dropzoneTitle}
+            description={dropzoneDescription}
+            icon={dropzoneIcon ?? <UploadQueueDefaultIcon />}
+            accept={accept}
+            multiple={multiple}
+            onPickFiles={onPickFiles}
+            onChange={(e) => resetFileInputOnPick(e, onPickFiles)}
+            className={cn(
+              "h-full min-h-0 flex-1",
+              !hasQueueItems && "min-h-[min(28rem,55vh)]",
+            )}
+          />
+        </div>
+        <AnimatePresence initial={false} mode="popLayout">
+          {children}
+        </AnimatePresence>
       </div>
-      <AnimatePresence initial={false} mode="popLayout">
-        {children}
-      </AnimatePresence>
     </div>
-  </div>
-);
+  );
+};
 
 export const UploadQueueMotionItem = ({
   children,

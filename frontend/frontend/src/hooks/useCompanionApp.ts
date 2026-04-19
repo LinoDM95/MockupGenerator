@@ -17,10 +17,12 @@ import {
   uninstallCompanionVulkanRuntime,
 } from "../api/companion";
 import {
+  appendUpscaleParams,
   parseUpscaleImageResponse,
-  type UpscaleFactor,
+  type UpscaleImageParams,
   type UpscaleResult,
 } from "../api/upscaler";
+
 import { COMPANION_BASE_URL } from "../lib/companionConstants";
 import {
   fetchCompanionTileProgress,
@@ -164,7 +166,7 @@ export const useCompanionApp = () => {
   const upscaleWithCompanion = useCallback(
     async (
       file: File,
-      factor: UpscaleFactor,
+      params: UpscaleImageParams,
       options?: {
         signal?: AbortSignal;
         modelId?: string;
@@ -219,8 +221,8 @@ export const useCompanionApp = () => {
 
       const form = new FormData();
       form.append("image", file);
-      form.append("factor", factor);
-      form.append("parallel_tiles", options?.parallelTiles ?? "1");
+      appendUpscaleParams(form, params);
+      form.append("parallel_tiles", options?.parallelTiles ?? "auto");
       if (options?.modelId?.trim()) {
         form.append("model_id", options.modelId.trim());
       }

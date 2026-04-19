@@ -9,6 +9,7 @@ import { useAppStore } from "../store/appStore";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
+import { ThemeToggle } from "./ui/ThemeToggle";
 
 export const AuthScreen = () => {
   const accessToken = useAppStore((s) => s.accessToken);
@@ -44,7 +45,10 @@ export const AuthScreen = () => {
   if (accessToken) return <Navigate to="/app" replace />;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
+    <div className="relative flex min-h-screen items-center justify-center bg-slate-50 p-4">
+      <div className="absolute right-4 top-4 z-10">
+        <ThemeToggle size="sm" />
+      </div>
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}

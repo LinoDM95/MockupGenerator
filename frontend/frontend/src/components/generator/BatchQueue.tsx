@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Globe, Layers, Loader2, Package, Zap } from "lucide-react";
+import { Globe, Layers, Loader2, Zap } from "lucide-react";
 
 import { GENERATOR_IMAGE_ACCEPT_HTML } from "../../lib/imageUploadAccept";
 import {
@@ -11,7 +11,6 @@ import type { ArtworkItem, TemplateSet } from "../../types/mockup";
 import { AppPageSectionHeader } from "../ui/AppPageSectionHeader";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
-import { EmptyState } from "../ui/EmptyState";
 import { IntegrationMissingCallout } from "../ui/IntegrationMissingCallout";
 import { Select } from "../ui/Select";
 import {
@@ -21,9 +20,9 @@ import {
   UploadQueueCardMedia,
   UploadQueueCardRemoveButton,
   UploadQueueGrid,
-  UploadQueueInitialDropzone,
   UploadQueueMotionItem,
 } from "../ui/UploadQueueGrid";
+import { WorkspaceEngineSplitLayout } from "../ui/WorkspaceEngineSplitLayout";
 import { ArtworkListThumbnail } from "./ArtworkListThumbnail";
 import { cn } from "../../lib/cn";
 
@@ -81,28 +80,18 @@ export const BatchQueue = ({
         title="Motive verarbeiten"
         description={
           artworks.length === 0
-            ? "Noch keine Designs — starte mit einem Upload."
+            ? "Noch keine Designs — Einstellungen links, Motive rechts per Dropzone oder Klick hinzufügen."
             : `${artworks.length} Design${artworks.length === 1 ? "" : "s"} bereit zum Export`
         }
       />
 
-      {artworks.length === 0 ? (
-        <EmptyState
-          icon={Package}
-          title="Noch keine Motive"
-          desc="Lade eine oder mehrere Bilddateien hoch, um Mockups im Raster zu erstellen und als ZIP zu exportieren."
-          action={
-            <UploadQueueInitialDropzone
-              title="Motive hinzufügen"
-              description="PNG, JPG, WebP — mehrere Dateien möglich."
-              accept={GENERATOR_IMAGE_ACCEPT_HTML}
-              onPickFiles={onFiles}
-            />
-          }
-        />
-      ) : (
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(280px,320px)_1fr]">
-          <aside className="flex flex-col gap-6 lg:sticky lg:top-24 lg:self-start">
+      <WorkspaceEngineSplitLayout
+        variant="queue"
+        narrowPrimary
+        primaryAriaLabel="Generator-Einstellungen und Aktionen"
+        secondaryAriaLabel="Motive hochladen"
+        primary={
+          <>
             <Card padding="md" variant="embedded">
               <h3 className="mb-4 text-sm font-bold tracking-tight text-slate-900">Aktionen</h3>
               <div className="flex flex-col gap-2.5">
@@ -111,6 +100,7 @@ export const BatchQueue = ({
                   variant="outline"
                   className="w-full justify-center"
                   onClick={onClearAll}
+                  disabled={artworks.length === 0}
                 >
                   Liste leeren
                 </Button>
@@ -206,16 +196,25 @@ export const BatchQueue = ({
                 <p className="text-xs font-medium text-slate-500">
                   Rahmen pro Vorlage legst du im Vorlagen-Studio unter „Vorlage bearbeiten“ fest.
                 </p>
-                <Button type="button" className="w-full" onClick={onApplyGlobal}>
-                  Auf alle {artworks.length} Motive anwenden
+                <Button
+                  type="button"
+                  className="w-full"
+                  onClick={onApplyGlobal}
+                  disabled={artworks.length === 0}
+                >
+                  {artworks.length === 0
+                    ? "Auf alle Motive anwenden"
+                    : `Auf alle ${artworks.length} Motive anwenden`}
                 </Button>
               </div>
             </Card>
-          </aside>
-
+          </>
+        }
+        secondary={
           <UploadQueueGrid
             label="Motive"
-            dropzoneTitle="Mehr Motive"
+            dropzoneTitle={artworks.length === 0 ? "Motive hinzufügen" : "Mehr Motive"}
+            dropzoneDescription="PNG, JPG, WebP — mehrere Dateien möglich."
             accept={GENERATOR_IMAGE_ACCEPT_HTML}
             onPickFiles={onFiles}
           >
@@ -292,8 +291,8 @@ export const BatchQueue = ({
               );
             })}
           </UploadQueueGrid>
-        </div>
-      )}
+        }
+      />
     </div>
   );
 };

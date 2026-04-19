@@ -45,7 +45,7 @@ export const PixelGlyph = ({ size = "md", className = "" }: PixelGlyphProps) => 
     return (
       <div className={outerClass} aria-hidden>
         <div
-          className={`grid grid-cols-2 ${sc.innerContainer} bg-slate-900 border border-white/10 shadow-2xl`}
+          className={`grid grid-cols-2 ${sc.innerContainer} border border-[rgb(255_255_255/0.1)] bg-work-session-glyph-static shadow-2xl`}
         >
           {[0, 1, 2, 3].map((i) => (
             <div key={i} className={`${sc.tile} bg-indigo-500`} />
@@ -70,7 +70,7 @@ export const PixelGlyph = ({ size = "md", className = "" }: PixelGlyphProps) => 
 
       {/* 2. Main Glass Container */}
       <motion.div
-        className={`relative grid grid-cols-2 overflow-hidden border border-white/15 bg-slate-950/90 shadow-[0_8px_32px_rgba(0,0,0,0.4)] ${sc.innerContainer}`}
+        className={`relative grid grid-cols-2 overflow-hidden border border-[rgb(255_255_255/0.15)] bg-work-session-glyph-face shadow-[0_8px_32px_rgba(0,0,0,0.4)] ${sc.innerContainer}`}
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.6, ease: appleEase }}

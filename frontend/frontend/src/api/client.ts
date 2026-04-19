@@ -119,7 +119,13 @@ export class ApiError extends Error {
     try {
       const j = JSON.parse(this.body) as Record<string, unknown>;
       if (typeof j.detail === "string") return j.detail;
-      if (Array.isArray(j.detail)) return j.detail.join(", ");
+      if (Array.isArray(j.detail)) return j.detail.map(String).join(", ");
+      const fieldMsgs: string[] = [];
+      for (const v of Object.values(j)) {
+        if (Array.isArray(v)) fieldMsgs.push(...v.map(String));
+        else if (typeof v === "string") fieldMsgs.push(v);
+      }
+      if (fieldMsgs.length) return fieldMsgs.join(" ");
     } catch {
       /* body is not JSON */
     }

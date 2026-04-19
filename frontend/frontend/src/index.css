@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Tailwind v4: `dark:` anhand der `.dark`-Klasse am Root (s. lib/colorScheme.ts + index.html). */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
   /* Indigo/Violett wie WorkSessionShell (Fortschritt) — für helle UI (Akzente) */
@@ -8,10 +11,65 @@
   --app-accent-to: #818cf8;
 }
 
+/*
+ * DARK MODE — Palette über CSS-Variablen (Tailwind v4: bg-slate-* → var(--color-slate-*)).
+ * Bestehende Klassen ohne `dark:`-Prefix invertieren mit .dark am <html>.
+ */
+.dark {
+  --color-white: oklch(20.1% 0.016 265);
+  --color-slate-50: oklch(14.5% 0.02 265);
+  --color-slate-100: oklch(20.1% 0.022 265);
+  --color-slate-200: oklch(26.4% 0.025 260);
+  --color-slate-300: oklch(33% 0.03 258);
+  --color-slate-400: oklch(45% 0.04 258);
+  --color-slate-500: oklch(60% 0.042 258);
+  --color-slate-600: oklch(72% 0.035 258);
+  --color-slate-700: oklch(82% 0.025 258);
+  --color-slate-800: oklch(90% 0.018 258);
+  --color-slate-900: oklch(95.5% 0.012 258);
+  --color-slate-950: oklch(98.4% 0.004 258);
+
+  --color-indigo-50: oklch(28% 0.08 281);
+  --color-indigo-100: oklch(34% 0.11 280);
+  --color-indigo-200: oklch(40% 0.16 278);
+  --color-indigo-800: oklch(78% 0.06 281);
+  --color-indigo-900: oklch(88% 0.045 281);
+  --color-indigo-950: oklch(93% 0.03 281);
+
+  --color-violet-50: oklch(28% 0.09 300);
+  --color-violet-100: oklch(34% 0.13 298);
+  --color-violet-700: oklch(72% 0.11 300);
+  --color-violet-800: oklch(80% 0.08 300);
+  --color-violet-900: oklch(88% 0.055 300);
+
+  --color-red-50: oklch(26% 0.09 25);
+  --color-red-100: oklch(33% 0.13 25);
+  --color-rose-50: oklch(26% 0.09 10);
+  --color-rose-100: oklch(33% 0.13 10);
+
+  --color-emerald-50: oklch(26% 0.07 163);
+  --color-emerald-100: oklch(32% 0.09 163);
+  --color-emerald-600: oklch(72% 0.14 163);
+  --color-emerald-800: oklch(82% 0.09 163);
+  --color-emerald-900: oklch(90% 0.06 163);
+
+  --color-amber-50: oklch(28% 0.07 80);
+  --color-amber-100: oklch(34% 0.11 80);
+  --color-amber-900: oklch(88% 0.09 80);
+
+  --color-sky-50: oklch(28% 0.08 230);
+  --color-sky-100: oklch(34% 0.1 230);
+
+  color-scheme: dark;
+}
+
 @layer base {
   /* Anker-Sprünge (z. B. Landing: #four-pillars, #how-it-works) unter sticky Header sichtbar lassen */
   html {
     scroll-padding-top: 4.5rem;
+    transition:
+      background-color 600ms cubic-bezier(0.22, 1, 0.36, 1),
+      color 600ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   @media (prefers-reduced-motion: no-preference) {
@@ -21,7 +79,14 @@
   }
 
   body {
-    @apply bg-slate-50 text-slate-800 antialiased;
+    @apply bg-slate-50 text-slate-800 antialiased selection:bg-indigo-500/20 selection:text-indigo-900;
+    transition:
+      background-color 600ms cubic-bezier(0.22, 1, 0.36, 1),
+      color 600ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .dark body {
+    @apply selection:bg-indigo-400/20 selection:text-indigo-100;
   }
 
   a[href]:not([href=""]) {
@@ -93,6 +158,172 @@
   }
 }
 
+/* ------------------------------------------------------------------ */
+/*  Theme-Toggle: Mond, Sonne, Partikel (ThemeToggle.tsx)              */
+/* ------------------------------------------------------------------ */
+
+/* Wie theme-sun-rise: immer mittig (translate -50% auf X), nur Aufstieg/Abklingen + Glow — kein links-rechts. */
+@keyframes theme-moon-arc {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 40%) scale(0.35) rotate(-30deg);
+    filter: drop-shadow(0 0 0 rgba(167, 139, 250, 0));
+  }
+  30% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.12) rotate(10deg);
+    filter: drop-shadow(0 0 28px rgba(196, 181, 253, 0.95))
+      drop-shadow(0 0 52px rgba(99, 102, 241, 0.75));
+  }
+  70% {
+    opacity: 1;
+    filter: drop-shadow(0 0 32px rgba(167, 139, 250, 0.9))
+      drop-shadow(0 0 58px rgba(79, 70, 229, 0.65));
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -60%) scale(1.28) rotate(28deg);
+    filter: drop-shadow(0 0 0 rgba(167, 139, 250, 0));
+  }
+}
+
+@keyframes theme-sun-rise {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 40%) scale(0.35) rotate(-30deg);
+    filter: drop-shadow(0 0 0 rgba(253, 224, 71, 0));
+  }
+  30% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.15) rotate(12deg);
+    filter: drop-shadow(0 0 50px rgba(253, 224, 71, 0.85));
+  }
+  70% {
+    opacity: 1;
+    filter: drop-shadow(0 0 55px rgba(253, 186, 71, 0.8));
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -60%) scale(1.35) rotate(30deg);
+    filter: drop-shadow(0 0 0 rgba(253, 224, 71, 0));
+  }
+}
+
+@keyframes theme-sun-rays {
+  0% {
+    opacity: 0;
+    transform: rotate(0deg) scale(0.6);
+  }
+  40% {
+    opacity: 0.9;
+    transform: rotate(35deg) scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(85deg) scale(1.4);
+  }
+}
+
+/* Mond: gleiche Radial-Ausdehnung wie theme-light-sweep (zentriert, über den Screen). */
+@keyframes theme-night-sweep {
+  0% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.2);
+  }
+}
+
+@keyframes theme-moon-rays {
+  0% {
+    opacity: 0;
+    transform: rotate(0deg) scale(0.6);
+  }
+  40% {
+    opacity: 0.98;
+    transform: rotate(-32deg) scale(1.08);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(-78deg) scale(1.38);
+  }
+}
+
+@keyframes theme-light-sweep {
+  0% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.2);
+  }
+}
+
+@keyframes theme-star-fall {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(calc(var(--px) * 0.2), calc(var(--py) * 0.2)) scale(1);
+  }
+  80% {
+    opacity: 1;
+    transform: translate(calc(var(--px) * 0.9), calc(var(--py) * 0.9)) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--px), var(--py)) scale(0.3);
+  }
+}
+
+@keyframes theme-spark-burst {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(calc(var(--px) * 0.15), calc(var(--py) * 0.15)) scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--px), var(--py)) scale(0.2);
+  }
+}
+
+@keyframes theme-toggle-moon-shimmer {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 5px rgba(167, 139, 250, 0.65));
+  }
+  50% {
+    filter: drop-shadow(0 0 14px rgba(129, 140, 248, 0.95));
+  }
+}
+
+@keyframes theme-toggle-sun-shimmer {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 4px rgba(253, 224, 71, 0.5));
+  }
+  50% {
+    filter: drop-shadow(0 0 12px rgba(253, 186, 71, 0.9));
+  }
+}
+
 .overlay-progress-indeterminate {
   width: 42%;
   background: linear-gradient(
@@ -138,6 +369,64 @@
     animation: marquee 30s linear infinite;
   }
 
+  /**
+   * WorkSession / Vollbild-Warte-UI: feste Farben (nicht die invertierten Slate/Indigo-Tokens unter .dark).
+   * Sonst werden z. B. bg-slate-950 / bg-indigo-950 im Dark Mode hell.
+   */
+  .bg-work-session-scrim {
+    background-color: rgb(2 6 23 / 0.92);
+  }
+  .bg-work-session-footer-shell {
+    background-color: rgb(30 27 75);
+  }
+  .border-work-session-footer-shell {
+    border-color: rgb(55 48 163 / 0.8);
+  }
+  .ring-work-session-footer-shell {
+    --tw-ring-color: rgb(99 102 241 / 0.15);
+  }
+  .text-work-session-title {
+    color: rgb(248 250 252);
+  }
+  .text-work-session-subtitle {
+    color: rgb(148 163 184);
+  }
+  .text-work-session-caption {
+    color: rgb(100 116 139);
+  }
+  .text-work-session-stat {
+    color: rgb(203 213 225);
+  }
+  .text-work-session-lead {
+    color: rgb(238 242 255 / 0.95);
+  }
+  .text-work-session-lead-muted {
+    color: rgb(224 231 255 / 0.65);
+  }
+  .bg-work-session-panel {
+    background-color: rgb(15 23 42 / 0.7);
+  }
+  .bg-work-session-progress-track {
+    background-color: rgb(30 41 59);
+  }
+  .ring-work-session-panel {
+    --tw-ring-color: rgb(129 140 248 / 0.15);
+  }
+  .shadow-work-session-panel {
+    box-shadow:
+      0 20px 25px -5px rgb(2 6 23 / 0.35),
+      0 8px 10px -6px rgb(2 6 23 / 0.28);
+  }
+  .border-work-session-hairline {
+    border-color: rgb(255 255 255 / 0.1);
+  }
+  .bg-work-session-glyph-face {
+    background-color: rgb(2 6 23 / 0.9);
+  }
+  .bg-work-session-glyph-static {
+    background-color: rgb(15 23 42);
+  }
+
   .checkerboard-bg {
     background-color: #222;
     background-image: repeating-linear-gradient(
@@ -151,5 +440,35 @@
       repeating-linear-gradient(45deg, #2a2a2a 25%, #222 25%, #222 75%, #2a2a2a 75%, #2a2a2a);
     background-position: 0 0, 10px 10px;
     background-size: 20px 20px;
+  }
+
+  /** Raster für Landing — nutzt Slate-Token (flippt mit .dark). */
+  .landing-grid-24 {
+    background-image:
+      linear-gradient(to right, rgb(148 163 184 / 0.08) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(148 163 184 / 0.08) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  .landing-grid-16 {
+    background-image:
+      linear-gradient(to right, rgb(148 163 184 / 0.08) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(148 163 184 / 0.08) 1px, transparent 1px);
+    background-size: 16px 16px;
+  }
+
+  .landing-grid-24-strong {
+    background-image:
+      linear-gradient(to right, rgb(148 163 184 / 0.12) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(148 163 184 / 0.12) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  .theme-toggle-idle-moon {
+    animation: theme-toggle-moon-shimmer 3.2s ease-in-out infinite;
+  }
+
+  .theme-toggle-idle-sun {
+    animation: theme-toggle-sun-shimmer 3.2s ease-in-out infinite;
   }
 }

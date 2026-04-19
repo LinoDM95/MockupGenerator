@@ -650,10 +650,10 @@ export const GeneratorView = () => {
           }
         >
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/15 bg-slate-900/70 shadow-xl shadow-indigo-950/25 ring-1 ring-indigo-400/15">
-              <div className="shrink-0 border-b border-white/10 px-4 py-3">
-                <p className="text-xs font-medium text-indigo-100/70">Motive</p>
-                <p className="text-sm text-indigo-50/95">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[rgb(255_255_255/0.15)] bg-work-session-panel shadow-work-session-panel ring-1 ring-work-session-panel">
+              <div className="shrink-0 border-b border-work-session-hairline px-4 py-3">
+                <p className="text-work-session-lead-muted text-xs font-medium">Motive</p>
+                <p className="text-work-session-lead text-sm">
                   {artworks.length} Datei(en) in der Warteschlange
                 </p>
               </div>
@@ -661,7 +661,7 @@ export const GeneratorView = () => {
                 className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]"
                 aria-label="Liste der Motive"
               >
-                <ul className="divide-y divide-white/10">
+                <ul className="divide-y divide-[rgb(255_255_255/0.1)]">
                   {artworks.map((a) => (
                     <li key={a.id} className="flex items-center gap-3 px-4 py-3">
                       <ArtworkListThumbnail
@@ -670,10 +670,10 @@ export const GeneratorView = () => {
                         className="h-12 w-12"
                       />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-white">
+                        <p className="text-work-session-title truncate text-sm font-medium">
                           {a.name}
                         </p>
-                        <p className="text-xs text-indigo-100/65">
+                        <p className="text-work-session-lead-muted text-xs">
                           {isGenerating
                             ? "In der Warteschlange"
                             : a.previewUrl

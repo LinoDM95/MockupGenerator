@@ -19,10 +19,17 @@ const primaryClass: Record<Variant, string> = {
     "order-2 min-w-0 space-y-4 lg:order-1 lg:sticky lg:top-4 lg:z-10 lg:col-span-5 lg:self-start",
 };
 
+/** Schmalere Engine-Spalte (z. B. Generator): 4/12 + 8/12 statt 5/7. */
+const primaryClassQueueNarrow =
+  "order-2 min-w-0 space-y-4 lg:order-1 lg:sticky lg:top-4 lg:z-10 lg:col-span-4 lg:self-start";
+
 const secondaryClass: Record<Variant, string> = {
   empty: "order-1 min-w-0 space-y-4 lg:order-2",
   queue: "order-1 min-w-0 space-y-4 lg:order-2 lg:col-span-7",
 };
+
+const secondaryClassQueueNarrow =
+  "order-1 min-w-0 space-y-4 lg:order-2 lg:col-span-8";
 
 type Props = {
   variant: Variant;
@@ -34,6 +41,8 @@ type Props = {
   secondaryAriaLabel?: string;
   primaryClassName?: string;
   secondaryClassName?: string;
+  /** `variant="queue"`: linke Spalte 4/12, rechts 8/12 — mehr Platz für Dropzone. */
+  narrowPrimary?: boolean;
 };
 
 /**
@@ -49,19 +58,31 @@ export const WorkspaceEngineSplitLayout = ({
   secondaryAriaLabel,
   primaryClassName,
   secondaryClassName,
-}: Props) => (
-  <div className={gridClass[variant]}>
-    <aside
-      aria-label={primaryAriaLabel}
-      className={cn(primaryClass[variant], primaryClassName)}
-    >
-      {primary}
-    </aside>
-    <section
-      aria-label={secondaryAriaLabel}
-      className={cn(secondaryClass[variant], secondaryClassName)}
-    >
-      {secondary}
-    </section>
-  </div>
-);
+  narrowPrimary = false,
+}: Props) => {
+  const primaryCls =
+    variant === "queue" && narrowPrimary
+      ? primaryClassQueueNarrow
+      : primaryClass[variant];
+  const secondaryCls =
+    variant === "queue" && narrowPrimary
+      ? secondaryClassQueueNarrow
+      : secondaryClass[variant];
+
+  return (
+    <div className={gridClass[variant]}>
+      <aside
+        aria-label={primaryAriaLabel}
+        className={cn(primaryCls, primaryClassName)}
+      >
+        {primary}
+      </aside>
+      <section
+        aria-label={secondaryAriaLabel}
+        className={cn(secondaryCls, secondaryClassName)}
+      >
+        {secondary}
+      </section>
+    </div>
+  );
+};

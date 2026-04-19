@@ -123,6 +123,42 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return user
 
 
+class UserMeSerializer(serializers.ModelSerializer):
+    """Aktueller Nutzer: Lesen inkl. E-Mail; Schreiben nur Benutzername."""
+
+    class Meta:
+        model = User
+        fields = ("id", "username", "email")
+        read_only_fields = ("id", "email")
+
+    def validate_username(self, value: str) -> str:
+        value = (value or "").strip()
+        if not value:
+            raise serializers.ValidationError("Benutzername darf nicht leer sein.")
+        request = self.context.get("request")
+        user = getattr(request, "user", None) if request else None
+        if user and user.is_authenticated:
+            if User.objects.filter(username=value).exclude(pk=user.pk).exists():
+                raise serializers.ValidationError("Dieser Benutzername ist bereits vergeben.")
+        return value
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    current_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True, min_length=8)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        request = self.context.get("request")
+        user = getattr(request, "user", None) if request else None
+        if not user or not user.is_authenticated:
+            raise serializers.ValidationError("Nicht angemeldet.")
+        if not user.check_password(attrs["current_password"]):
+            raise serializers.ValidationError(
+                {"current_password": "Das aktuelle Passwort ist nicht korrekt."},
+            )
+        return attrs
+
+
 def replace_template_elements(
     template: Template,
     elements_data: list,

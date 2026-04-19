@@ -1,6 +1,10 @@
-import { useRef } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+
+import { ThemeToggle } from "../components/ui/ThemeToggle";
+import { cn } from "../lib/cn";
 import {
+  AnimatePresence,
   motion,
   useReducedMotion,
   useScroll,
@@ -11,6 +15,7 @@ import {
   type LucideIcon,
   ArrowRight,
   BarChart3,
+  ChevronUp,
   Check,
   FileImage,
   FolderOpen,
@@ -35,7 +40,87 @@ import {
 const appleEase: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
 /* ------------------------------------------------------------------ */
-/*  Helper: fade-in on scroll                                          */
+/* Helper: Animated Grid Background (Lila Kacheln mit starken Linien) */
+/* ------------------------------------------------------------------ */
+const AnimatedGrid = ({
+  width = 40,
+  height = 40,
+  numSquares = 30,
+  className,
+}: {
+  width?: number;
+  height?: number;
+  numSquares?: number;
+  className?: string;
+}) => {
+  const id = useId();
+
+  const squares = useMemo(() => {
+    return Array.from({ length: numSquares }).map(() => ({
+      x: Math.floor(Math.random() * 50),
+      y: Math.floor(Math.random() * 50),
+      duration: Math.random() * 3 + 2,
+      delay: Math.random() * 2,
+    }));
+  }, [numSquares]);
+
+  return (
+    <svg
+      aria-hidden="true"
+      className={cn(
+        "pointer-events-none absolute inset-0 h-full w-full",
+        className,
+      )}
+    >
+      <defs>
+        <pattern
+          id={id}
+          width={width}
+          height={height}
+          patternUnits="userSpaceOnUse"
+          x="-1"
+          y="-1"
+        >
+          <path
+            d={`M.5 ${height}V.5H${width}`}
+            fill="none"
+            strokeWidth="1"
+            className="stroke-slate-300/80"
+          />
+        </pattern>
+      </defs>
+
+      {/* 1. Ebene: lila Kacheln */}
+      <svg x="-1" y="-1" className="overflow-visible">
+        {squares.map((sq, i) => (
+          <motion.rect
+            key={i}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0, 0.4, 0] }}
+            transition={{
+              duration: sq.duration,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: sq.delay,
+            }}
+            width={width}
+            height={height}
+            x={sq.x * width}
+            y={sq.y * height}
+            className="fill-violet-500"
+            strokeWidth="0"
+          />
+        ))}
+      </svg>
+
+      {/* 2. Ebene: Raster-Linien über den Kacheln */}
+      <rect width="100%" height="100%" strokeWidth={0} fill={`url(#${id})`} />
+    </svg>
+  );
+};
+
+/* ------------------------------------------------------------------ */
+/* Helper: fade-in on scroll                                          */
 /* ------------------------------------------------------------------ */
 const FadeIn = ({
   children,
@@ -67,7 +152,7 @@ const FadeIn = ({
 };
 
 /* ------------------------------------------------------------------ */
-/*  SECTION 1 — Hero                                                   */
+/* SECTION 1 — Hero                                                   */
 /* ------------------------------------------------------------------ */
 const MOCKUP_COLORS = [
   "bg-indigo-400",
@@ -88,7 +173,7 @@ const bentoCardClass =
   "group relative flex h-full flex-col overflow-hidden rounded-[2rem] bg-white/70 p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 backdrop-blur-md transition-all duration-500 hover:-translate-y-1 hover:bg-white hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)]";
 
 const bentoCardInnerLight =
-  "pointer-events-none absolute inset-0 rounded-[2rem] shadow-[inset_0_1px_0_rgba(255,255,255,1)]";
+  "pointer-events-none absolute inset-0 rounded-[2rem] ring-1 ring-inset ring-slate-900/5";
 
 const primaryCtaClass =
   "group relative inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-8 py-4 text-base font-semibold tracking-wide text-white shadow-lg transition-all duration-300 hover:bg-indigo-700 hover:shadow-[0_0_40px_-10px_rgba(79,70,229,0.6)]";
@@ -99,25 +184,18 @@ const secondaryCtaClass =
 const Hero = () => {
   const reduceMotion = useReducedMotion();
   return (
-  <section className="relative overflow-hidden bg-[#FAFAFA] pb-24 pt-32">
-    <div
-      className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]"
-      aria-hidden
+  <section className="relative overflow-hidden bg-slate-50 pb-24 pt-32">
+    {/* Neues animiertes Grid mit weicher Kante (radial-gradient) */}
+    <AnimatedGrid 
+      width={40} 
+      height={40} 
+      numSquares={40} 
+      className="z-0 opacity-80 [mask-image:radial-gradient(ellipse_at_center,white,transparent_75%)]" 
     />
     <div className="pointer-events-none absolute left-1/2 top-0 -z-10 h-[800px] w-[800px] -translate-x-1/2 -translate-y-[30%] rounded-full bg-indigo-500/15 blur-[120px] mix-blend-multiply" />
 
     <div className="relative z-10 mx-auto max-w-5xl px-4 text-center sm:px-6 lg:px-8">
       <div className="text-center">
-        <motion.div
-          initial={{ opacity: 0, y: reduceMotion ? 0 : 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: reduceMotion ? 0.2 : 0.5 }}
-          className="mx-auto mb-8 flex w-fit items-center gap-2 rounded-full border border-indigo-200/50 bg-indigo-50/50 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-indigo-700 backdrop-blur-sm"
-        >
-          <Sparkles size={14} className="shrink-0 text-indigo-500" strokeWidth={2} />
-          Die Engine
-        </motion.div>
-
         <motion.h1
           initial={{ opacity: 0, y: reduceMotion ? 0 : 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -148,7 +226,7 @@ const Hero = () => {
           className="relative mx-auto mt-8 max-w-2xl rounded-2xl border border-slate-200/60 bg-white/70 px-4 py-4 text-left shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 backdrop-blur-md sm:px-6 sm:py-5"
         >
           <div
-            className="pointer-events-none absolute inset-0 rounded-2xl shadow-[inset_0_1px_0_rgba(255,255,255,1)]"
+            className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-slate-900/5"
             aria-hidden
           />
           <div className="relative">
@@ -236,7 +314,7 @@ const Hero = () => {
       >
         <div className="relative overflow-hidden rounded-[2.5rem] border border-white/40 bg-white/50 p-6 shadow-[0_20px_60px_rgb(0,0,0,0.05)] ring-1 ring-slate-900/5 backdrop-blur-xl sm:p-10">
           <div
-            className="pointer-events-none absolute inset-0 rounded-[2rem] shadow-[inset_0_1px_0_rgba(255,255,255,1)]"
+            className="pointer-events-none absolute inset-0 rounded-[2rem] ring-1 ring-inset ring-slate-900/5"
             aria-hidden
           />
           <div className="relative z-10">
@@ -300,7 +378,7 @@ const Hero = () => {
 };
 
 /* ------------------------------------------------------------------ */
-/*  SECTION — Vier Bereiche (wie Hauptnavigation)                      */
+/* SECTION — Vier Bereiche (wie Hauptnavigation)                      */
 /* ------------------------------------------------------------------ */
 const PILLARS: {
   title: string;
@@ -403,7 +481,7 @@ const FourPillars = () => (
 );
 
 /* ------------------------------------------------------------------ */
-/*  SECTION 2 — How it Works (Sticky Scroll)                          */
+/* SECTION 2 — How it Works (Sticky Scroll)                          */
 /* ------------------------------------------------------------------ */
 const steps = [
   {
@@ -442,13 +520,15 @@ const steps = [
 
 const StepVisualUpload = () => (
   <div className="relative mx-auto w-full max-w-sm">
-    <div
-      className="absolute inset-0 -z-10 rounded-[2rem] bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:16px_16px] opacity-70"
-      aria-hidden
+    <AnimatedGrid 
+      width={24} 
+      height={24} 
+      numSquares={15} 
+      className="absolute inset-0 -z-10 rounded-[2rem] opacity-40 [mask-image:radial-gradient(ellipse_at_center,white,transparent_80%)]" 
     />
     <div className="relative rounded-2xl border border-slate-200/60 bg-white/70 p-8 text-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 backdrop-blur-md">
       <div
-        className="pointer-events-none absolute inset-0 rounded-2xl shadow-[inset_0_1px_0_rgba(255,255,255,1)]"
+        className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-slate-900/5"
         aria-hidden
       />
       <div className="relative rounded-xl border-2 border-dashed border-indigo-200/80 bg-indigo-50/30 px-6 py-8">
@@ -482,7 +562,7 @@ const StepVisualTemplate = () => (
   <div className="relative mx-auto w-full max-w-sm">
     <div className="relative mb-4 flex items-center gap-3 overflow-hidden rounded-2xl border border-indigo-200/50 bg-gradient-to-r from-indigo-50/90 to-white/80 px-4 py-3 shadow-[0_4px_24px_rgb(79,70,229,0.08)] ring-1 ring-indigo-900/5">
       <div
-        className="pointer-events-none absolute inset-0 rounded-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]"
+        className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-slate-900/5"
         aria-hidden
       />
       <Layers className="relative shrink-0 text-indigo-600" size={20} strokeWidth={1.75} />
@@ -559,9 +639,9 @@ const StepVisualPublish = () => {
   const reduceMotion = useReducedMotion();
   return (
   <div className="relative mx-auto w-full max-w-sm space-y-4">
-    <div className="relative overflow-hidden rounded-[2rem] border border-white/[0.08] bg-black/45 p-5 shadow-[0_24px_48px_rgba(0,0,0,0.35)] ring-1 ring-white/10 backdrop-blur-xl">
+    <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-black/50 p-5 shadow-[0_24px_48px_rgba(0,0,0,0.35)] ring-1 ring-white/10 backdrop-blur-xl">
       <div
-        className="pointer-events-none absolute inset-0 rounded-[2rem] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]"
+        className="pointer-events-none absolute inset-0 rounded-[2rem] ring-1 ring-inset ring-white/10"
         aria-hidden
       />
       <div className="relative z-10 mb-4 flex items-center gap-3">
@@ -641,7 +721,7 @@ const StepVisualPublish = () => {
 const StepVisualAfterFlow = () => (
   <div className="relative mx-auto w-full max-w-md overflow-hidden rounded-[2rem] border border-violet-200/50 bg-gradient-to-br from-violet-50/95 to-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.05)] ring-1 ring-slate-900/5">
     <div
-      className="pointer-events-none absolute inset-0 rounded-[2rem] shadow-[inset_0_1px_0_rgba(255,255,255,1)]"
+      className="pointer-events-none absolute inset-0 rounded-[2rem] ring-1 ring-inset ring-slate-900/5"
       aria-hidden
     />
     <div className="relative z-10">
@@ -696,9 +776,12 @@ const HowItWorks = () => {
 
   return (
     <section id="how-it-works" ref={containerRef} className="relative overflow-hidden bg-slate-50 py-24 lg:py-32">
-      <div
-        className="pointer-events-none absolute inset-0 opacity-40 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]"
-        aria-hidden
+      {/* Auch hier ein leichter Hintergrundeffekt, aber dezent */}
+      <AnimatedGrid 
+        width={48} 
+        height={48} 
+        numSquares={20} 
+        className="z-0 opacity-30 [mask-image:radial-gradient(ellipse_at_center,white,transparent_80%)]" 
       />
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <FadeIn className="mb-16 text-center">
@@ -777,7 +860,7 @@ const HowItWorks = () => {
 };
 
 /* ------------------------------------------------------------------ */
-/*  SECTION — Zusatzmodule (Upscaler & Verbreiten getrennt)            */
+/* SECTION — Zusatzmodule (Upscaler & Verbreiten getrennt)            */
 /* ------------------------------------------------------------------ */
 const ExtraModules = () => (
   <section id="extra-modules" className="border-b border-slate-100 bg-white py-20 lg:py-24">
@@ -846,7 +929,7 @@ const ExtraModules = () => (
 );
 
 /* ------------------------------------------------------------------ */
-/*  SECTION 3 — Bento Grid (2×2)                                       */
+/* SECTION 3 — Bento Grid (2×2)                                       */
 /* ------------------------------------------------------------------ */
 const BentoGrid = () => (
   <section className="bg-white py-24 lg:py-32">
@@ -1042,7 +1125,7 @@ const BentoGrid = () => (
 );
 
 /* ------------------------------------------------------------------ */
-/*  SECTION 4 — Logo Marquee                                           */
+/* SECTION 4 — Logo Marquee                                           */
 /* ------------------------------------------------------------------ */
 const MARQUEE_ITEMS = [
   { icon: ShoppingBag, label: "Etsy" },
@@ -1094,13 +1177,16 @@ const Marquee = () => (
 );
 
 /* ------------------------------------------------------------------ */
-/*  SECTION 5 — Final CTA                                              */
+/* SECTION 5 — Final CTA                                              */
 /* ------------------------------------------------------------------ */
 const FinalCTA = () => (
-  <section className="relative overflow-hidden bg-[#FAFAFA] py-24 lg:py-32">
-    <div
-      className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"
-      aria-hidden
+  <section className="relative overflow-hidden bg-slate-50 py-24 lg:py-32">
+    {/* Finales Grid mit dichterer Kachelanordnung für einen krönenden Abschluss */}
+    <AnimatedGrid 
+      width={32} 
+      height={32} 
+      numSquares={60} 
+      className="z-0 opacity-100 [mask-image:radial-gradient(ellipse_at_center,white,transparent_70%)]" 
     />
     <div className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[480px] w-[640px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-indigo-500/15 blur-[100px]" />
 
@@ -1133,10 +1219,10 @@ const FinalCTA = () => (
 );
 
 /* ------------------------------------------------------------------ */
-/*  SECTION 6 — Footer                                                 */
+/* SECTION 6 — Footer                                                 */
 /* ------------------------------------------------------------------ */
 const Footer = () => (
-  <footer className="border-t border-slate-200/60 bg-[#FAFAFA] py-12">
+  <footer className="border-t border-slate-200/60 bg-slate-50 py-12">
     <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6 lg:px-8">
       <span className="flex items-center gap-2 text-base font-bold tracking-tight text-slate-900">
         <Zap size={18} className="text-indigo-600" fill="currentColor" strokeWidth={2} />
@@ -1150,10 +1236,82 @@ const Footer = () => (
 );
 
 /* ------------------------------------------------------------------ */
-/*  PAGE                                                               */
+/* Scroll-to-top (erscheint nach etwas Scroll)                         */
+/* ------------------------------------------------------------------ */
+const SCROLL_TOP_THRESHOLD_PX = 360;
+
+const LandingScrollToTop = () => {
+  const [visible, setVisible] = useState(false);
+  const reduceMotion = useReducedMotion();
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setVisible(window.scrollY > SCROLL_TOP_THRESHOLD_PX);
+    };
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const handleScrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+  };
+
+  return (
+    <AnimatePresence>
+      {visible ? (
+        <motion.button
+          key="scroll-top"
+          type="button"
+          aria-label="Nach oben scrollen"
+          title="Nach oben"
+          initial={{ opacity: 0, y: 20, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 16, scale: 0.92 }}
+          transition={{
+            duration: reduceMotion ? 0.12 : 0.28,
+            ease: appleEase,
+          }}
+          onClick={handleScrollToTop}
+          className={cn(
+            "group fixed z-40 flex h-12 w-12 items-center justify-center sm:h-14 sm:w-14",
+            "bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-4 sm:bottom-8 sm:right-6",
+            "rounded-2xl bg-white text-indigo-600",
+            "shadow-[0_12px_40px_rgba(0,0,0,0.12)] ring-1 ring-slate-900/5",
+            "transition-[box-shadow,transform,background-color] duration-300 ease-out",
+            "hover:scale-[1.04] hover:bg-indigo-50/90 hover:text-indigo-700",
+            "hover:shadow-[0_16px_48px_rgba(79,70,229,0.2)] hover:ring-indigo-500/25",
+            "focus:outline-none focus-visible:ring-4 focus-visible:ring-indigo-500/20",
+            "active:scale-[0.97] dark:bg-slate-800 dark:text-indigo-300 dark:ring-white/10",
+            "dark:hover:bg-slate-700/95 dark:hover:text-indigo-200 dark:hover:ring-indigo-400/25",
+          )}
+        >
+          <span
+            className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo-500/12 via-transparent to-violet-500/10 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+            aria-hidden
+          />
+          <span
+            className="pointer-events-none absolute -inset-px rounded-2xl bg-gradient-to-br from-indigo-500/25 via-violet-500/15 to-fuchsia-500/10 opacity-0 blur-sm transition-opacity duration-300 group-hover:opacity-100"
+            aria-hidden
+          />
+          <ChevronUp
+            className="relative z-10 shrink-0"
+            size={22}
+            strokeWidth={2.25}
+            aria-hidden
+          />
+        </motion.button>
+      ) : null}
+    </AnimatePresence>
+  );
+};
+
+/* ------------------------------------------------------------------ */
+/* PAGE                                                               */
 /* ------------------------------------------------------------------ */
 export const LandingPage = () => (
-  <div className="min-h-screen bg-[#FAFAFA] font-sans">
+  <div className="min-h-screen bg-slate-50 font-sans">
+    <LandingScrollToTop />
     <header className="fixed inset-x-0 top-4 z-50 px-4 sm:px-6">
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between rounded-full border border-white/40 bg-white/70 px-4 shadow-[0_8px_30px_rgb(0,0,0,0.06)] ring-1 ring-slate-900/5 backdrop-blur-xl sm:px-6">
         <span className="flex items-center gap-2 text-sm font-bold tracking-tight text-slate-900">
@@ -1175,6 +1333,7 @@ export const LandingPage = () => (
           >
             Bereiche
           </a>
+          <ThemeToggle size="sm" className="shrink-0" />
           <Link
             to="/login"
             className="rounded-full bg-indigo-600 px-5 py-2 text-xs font-bold text-white shadow-md ring-1 ring-inset ring-indigo-500/30 transition-all hover:scale-[1.02] hover:bg-indigo-700"

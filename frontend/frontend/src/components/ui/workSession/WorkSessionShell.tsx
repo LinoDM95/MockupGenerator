@@ -25,7 +25,7 @@ export const WorkSessionShell = ({
     exit={{ opacity: 0 }}
     transition={{ duration: 0.3 }}
     className={cn(
-      "fixed inset-0 z-[90] flex flex-col overflow-hidden bg-slate-950/92",
+      "fixed inset-0 z-[90] flex flex-col overflow-hidden bg-work-session-scrim",
       shellClassName,
     )}
     role="dialog"

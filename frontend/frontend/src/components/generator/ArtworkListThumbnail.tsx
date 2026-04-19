@@ -27,7 +27,7 @@ export const ArtworkListThumbnail = ({
       "relative shrink-0 overflow-hidden rounded-lg border",
       variant === "light"
         ? "border-slate-200 bg-slate-50"
-        : "border-white/15 bg-slate-900/60",
+        : "border-[rgb(255_255_255/0.15)] bg-[rgb(15_23_42/0.6)]",
       className,
     )}
   >

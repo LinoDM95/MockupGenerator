@@ -24,7 +24,7 @@ import type {
   CompanionCatalog,
   CompanionModelEntry,
 } from "../../api/companion";
-import type { UpscaleFactor } from "../../api/upscaler";
+import type { UpscaleTotalFactor } from "../../api/upscaler";
 import {
   UpscaleVertexApiNotEnabledError,
   upscaleImage,
@@ -70,7 +70,6 @@ import {
   UploadQueueCardMedia,
   UploadQueueCardRemoveButton,
   UploadQueueGrid,
-  UploadQueueInitialDropzone,
   UploadQueueMotionItem,
 } from "../ui/UploadQueueGrid";
 import { WorkspaceEngineSplitLayout } from "../ui/WorkspaceEngineSplitLayout";
@@ -97,18 +96,16 @@ type BatchItem = {
   errorMessage?: string;
 };
 
-const computeNeedsTiling = (
-  it: BatchItem,
-  factor: UpscaleFactor,
-): boolean => {
-  const mult = Number.parseInt(factor.slice(1), 10);
-  const targetW = it.originalWidth ? it.originalWidth * mult : null;
-  const targetH = it.originalHeight ? it.originalHeight * mult : null;
-  return (
-    targetW != null &&
-    targetH != null &&
-    targetW * targetH > UPSCALE_MAX_OUTPUT_PIXELS
-  );
+/** Faktor-Buttons in der UI (2× und Zielauflösung vorübergehend ausgeblendet). */
+const UPSCALE_FACTOR_UI_OPTIONS: readonly UpscaleTotalFactor[] = [4, 8, 16];
+
+const computeNeedsTiling = (it: BatchItem, factor: UpscaleTotalFactor): boolean => {
+  const ow = it.originalWidth;
+  const oh = it.originalHeight;
+  if (!ow || !oh) return false;
+  const tw = ow * factor;
+  const th = oh * factor;
+  return tw * th > UPSCALE_MAX_OUTPUT_PIXELS;
 };
 
 const nextId = (): string =>
@@ -153,7 +150,7 @@ export const UpscalerView = () => {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const [items, setItems] = useState<BatchItem[]>([]);
-  const [factor, setFactor] = useState<UpscaleFactor>("x4");
+  const [factor, setFactor] = useState<UpscaleTotalFactor>(4);
   const [vertexReady, setVertexReady] = useState<boolean | null>(null);
   const [vertexApiGate, setVertexApiGate] = useState<string | null>(null);
   const [genericError, setGenericError] = useState<string | null>(null);
@@ -165,7 +162,12 @@ export const UpscalerView = () => {
 
   const [engineMode, setEngineMode] = useState<"cloud" | "local">("cloud");
   const [parallelTiles, setParallelTiles] =
-    useState<ParallelTilesOption>("1");
+    useState<ParallelTilesOption>("auto");
+
+  useEffect(() => {
+    if (factor === 2) setFactor(4);
+  }, [factor]);
+
   /** Lokale Companion-/KI-Einstellungen — Standard eingeklappt. */
   const [localCompanionOpen, setLocalCompanionOpen] = useState(false);
   const [installingModelId, setInstallingModelId] = useState<string | null>(
@@ -528,6 +530,8 @@ export const UpscalerView = () => {
       return;
     }
 
+    const upscaleParams = { kind: "factor" as const, factor };
+
     if (engineMode === "cloud") {
       const tokenOk = await refreshAccessToken();
       if (!tokenOk) {
@@ -580,7 +584,7 @@ export const UpscalerView = () => {
         try {
           const result =
             engineMode === "local"
-              ? await upscaleWithCompanion(it.file, factor, {
+              ? await upscaleWithCompanion(it.file, upscaleParams, {
                   signal,
                   modelId: activeModelId ?? undefined,
                   parallelTiles,
@@ -592,7 +596,7 @@ export const UpscalerView = () => {
                     );
                   },
                 })
-              : await upscaleImage(it.file, factor, { signal });
+              : await upscaleImage(it.file, upscaleParams, { signal });
           const elapsed = performance.now() - t0;
           recordSample(elapsed);
           if (engineMode === "local" && lastTileSnap) {
@@ -797,7 +801,7 @@ export const UpscalerView = () => {
     [items],
   );
 
-  // ── Empty: Engine links, Dropzone rechts (wie Generator-Leerzustand) ──
+  // ── Empty: Engine links, UploadQueueGrid rechts (wie Generator: narrowPrimary + MOTIVE) ──
   if (items.length === 0) {
     return (
       <AppPage>
@@ -810,9 +814,10 @@ export const UpscalerView = () => {
         />
 
         <WorkspaceEngineSplitLayout
-          variant="empty"
+          variant="queue"
+          narrowPrimary
           primaryAriaLabel="Engine und Einstellungen"
-          secondaryAriaLabel="Bilder hochladen"
+          secondaryAriaLabel="Motive hochladen"
           primary={
             <>
             <div className={workspaceEmbeddedPaddedClassName}>
@@ -930,19 +935,27 @@ export const UpscalerView = () => {
                         />
                       ) : null}
                       {!isOutdated && !isChecking ? (
-                        <Select
-                          label="Parallele Kacheln (lokal)"
-                          name="companion-parallel-tiles-empty"
-                          value={parallelTiles}
-                          onChange={(e) =>
-                            setParallelTiles(e.target.value as ParallelTilesOption)
-                          }
-                          aria-label="Parallele Kacheln fuer lokales Upscaling"
-                        >
-                          <option value="1">1 (sequenziell)</option>
-                          <option value="2">2</option>
-                          <option value="auto">Auto (konservativ)</option>
-                        </Select>
+                        <div className="space-y-2">
+                          <Select
+                            label="Parallele Kacheln (lokal)"
+                            name="companion-parallel-tiles-empty"
+                            value={parallelTiles}
+                            onChange={(e) =>
+                              setParallelTiles(
+                                e.target.value as ParallelTilesOption,
+                              )
+                            }
+                            aria-label="Parallele Kacheln fuer lokales Upscaling"
+                          >
+                            <option value="1">1 (sequenziell)</option>
+                            <option value="2">2</option>
+                            <option value="auto">Auto (konservativ)</option>
+                          </Select>
+                          <p className="text-xs font-medium leading-relaxed text-slate-500">
+                            Lokale KI-Nutzung: Automatisch parallelisiert
+                            (Standard „Auto“).
+                          </p>
+                        </div>
                       ) : null}
                     </div>
                   ) : null}
@@ -992,12 +1005,15 @@ export const UpscalerView = () => {
           }
           secondary={
             <>
-              <UploadQueueInitialDropzone
-                title="Bilder hinzufügen"
-                description={`PNG, JPG oder WebP — je max. 10 MB, bis ${engineMode === "local" ? MAX_BATCH_FILES_LOCAL : MAX_BATCH_FILES_CLOUD} Dateien`}
+              <UploadQueueGrid
+                label="Motive"
+                dropzoneTitle="Motive hinzufügen"
+                dropzoneDescription={`PNG, JPG oder WebP — je max. 10 MB, bis ${engineMode === "local" ? MAX_BATCH_FILES_LOCAL : MAX_BATCH_FILES_CLOUD} Dateien`}
                 accept={RASTER_IMAGE_ACCEPT_HTML}
                 onPickFiles={handlePickFiles}
-              />
+              >
+                {null}
+              </UploadQueueGrid>
               {genericError ? <ErrorBanner message={genericError} /> : null}
             </>
           }
@@ -1030,13 +1046,13 @@ export const UpscalerView = () => {
                 <VertexApiNotEnabledBox activationUrl={vertexApiGate} />
               </div>
             ) : null}
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/15 bg-slate-900/70 shadow-xl shadow-indigo-950/25 ring-1 ring-indigo-400/15">
-              <div className="shrink-0 border-b border-white/10 px-4 py-3 sm:px-5">
-                <p className="text-xs font-medium text-indigo-100/70">
-                  Upscale-Faktor (dieser Lauf)
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[rgb(255_255_255/0.15)] bg-work-session-panel shadow-work-session-panel ring-1 ring-work-session-panel">
+              <div className="shrink-0 border-b border-work-session-hairline px-4 py-3 sm:px-5">
+                <p className="text-work-session-lead-muted text-xs font-medium">
+                  Einstellungen (dieser Lauf)
                 </p>
-                <p className="mt-1 text-sm font-semibold text-white">
-                  {factor.toUpperCase()}
+                <p className="text-work-session-title mt-1 text-sm font-semibold">
+                  {factor}×
                 </p>
               </div>
               <div
@@ -1077,8 +1093,9 @@ export const UpscalerView = () => {
       {!showResults && !isProcessing ? (
         <WorkspaceEngineSplitLayout
           variant="queue"
+          narrowPrimary
           primaryAriaLabel="Engine und Einstellungen"
-          secondaryAriaLabel="Ausgewaehlte Bilder"
+          secondaryAriaLabel="Ausgewaehlte Motive"
           secondary={
             <>
             {engineMode === "local" &&
@@ -1096,8 +1113,10 @@ export const UpscalerView = () => {
             ) : null}
 
             <UploadQueueGrid
-              label="Bilder"
-              dropzoneTitle="Mehr Bilder"
+              label="Motive"
+              dropzoneTitle="Mehr Motive"
+              dropzoneDescription="PNG, JPG oder WebP — mehrere Dateien möglich."
+              accept={RASTER_IMAGE_ACCEPT_HTML}
               onPickFiles={handlePickFiles}
             >
               {items.map((it, index) => {
@@ -1300,22 +1319,23 @@ export const UpscalerView = () => {
               </div>
 
               <div className="border-b border-slate-100 px-5 py-4">
-                <label className="mb-2 block text-xs font-medium text-slate-500">
-                  Upscale-Faktor (fuer alle)
-                </label>
-                <div className="flex gap-2">
-                  {(["x2", "x4"] as const).map((f) => (
+                <p className="mb-2 text-xs font-medium text-slate-500">
+                  Skalierung (fuer alle Dateien)
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {UPSCALE_FACTOR_UI_OPTIONS.map((f) => (
                     <button
                       key={f}
                       type="button"
                       onClick={() => setFactor(f)}
-                      className={`rounded-xl px-5 py-2.5 text-sm font-semibold shadow-[0_2px_8px_rgb(0,0,0,0.04)] transition-all duration-200 ring-1 ${
+                      className={cn(
+                        "rounded-xl px-4 py-2.5 text-sm font-semibold shadow-[0_2px_8px_rgb(0,0,0,0.04)] transition-all duration-200 ring-1",
                         factor === f
                           ? "bg-indigo-50 text-indigo-700 ring-indigo-500/25"
-                          : "bg-white text-slate-600 ring-slate-900/5 hover:bg-slate-50"
-                      }`}
+                          : "bg-white text-slate-600 ring-slate-900/5 hover:bg-slate-50",
+                      )}
                     >
-                      {f.toUpperCase()}
+                      {f}×
                     </button>
                   ))}
                 </div>
@@ -1432,21 +1452,27 @@ export const UpscalerView = () => {
                         />
                       ) : null}
                       {!isOutdated && !isChecking ? (
-                        <Select
-                          label="Parallele Kacheln (lokal)"
-                          name="companion-parallel-tiles-queue"
-                          value={parallelTiles}
-                          onChange={(e) =>
-                            setParallelTiles(
-                              e.target.value as ParallelTilesOption,
-                            )
-                          }
-                          aria-label="Parallele Kacheln fuer lokales Upscaling"
-                        >
-                          <option value="1">1 (sequenziell)</option>
-                          <option value="2">2</option>
-                          <option value="auto">Auto (konservativ)</option>
-                        </Select>
+                        <div className="space-y-2">
+                          <Select
+                            label="Parallele Kacheln (lokal)"
+                            name="companion-parallel-tiles-queue"
+                            value={parallelTiles}
+                            onChange={(e) =>
+                              setParallelTiles(
+                                e.target.value as ParallelTilesOption,
+                              )
+                            }
+                            aria-label="Parallele Kacheln fuer lokales Upscaling"
+                          >
+                            <option value="1">1 (sequenziell)</option>
+                            <option value="2">2</option>
+                            <option value="auto">Auto (konservativ)</option>
+                          </Select>
+                          <p className="text-xs font-medium leading-relaxed text-slate-500">
+                            Lokale KI-Nutzung: Automatisch parallelisiert
+                            (Standard „Auto“).
+                          </p>
+                        </div>
                       ) : null}
                     </div>
                   ) : null}
@@ -1592,7 +1618,7 @@ const UpscalerQueueList = ({
   variant = "light",
 }: {
   items: BatchItem[];
-  factor: UpscaleFactor;
+  factor: UpscaleTotalFactor;
   variant?: "light" | "dark";
 }) => {
   const dark = variant === "dark";
@@ -1601,7 +1627,7 @@ const UpscalerQueueList = ({
       className={cn(
         "divide-y",
         dark
-          ? "divide-white/10"
+          ? "divide-[rgb(255_255_255/0.1)]"
           : "divide-slate-100 overflow-hidden rounded-xl bg-white shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5",
       )}
     >
@@ -1614,7 +1640,7 @@ const UpscalerQueueList = ({
               className={cn(
                 "h-16 w-16 shrink-0 overflow-hidden rounded-lg border",
                 dark
-                  ? "border-white/15 bg-slate-900/60"
+                  ? "border-[rgb(255_255_255/0.15)] bg-[rgb(15_23_42/0.6)]"
                   : "border-slate-200 bg-slate-50",
               )}
             >
@@ -1628,7 +1654,7 @@ const UpscalerQueueList = ({
               <p
                 className={cn(
                   "truncate text-sm font-medium",
-                  dark ? "text-white" : "text-slate-900",
+                  dark ? "text-work-session-title" : "text-slate-900",
                 )}
               >
                 {it.file.name}
@@ -1636,7 +1662,7 @@ const UpscalerQueueList = ({
               <p
                 className={cn(
                   "mt-0.5 text-xs",
-                  dark ? "text-indigo-100/75" : "text-slate-500",
+                  dark ? "text-work-session-lead-muted" : "text-slate-500",
                 )}
               >
                 {(it.file.size / (1024 * 1024)).toFixed(2)} MB
@@ -1668,7 +1694,7 @@ const UpscalerQueueList = ({
                 <p
                   className={cn(
                     "mt-1 text-xs",
-                    dark ? "text-slate-400" : "text-slate-500",
+                    dark ? "text-work-session-subtitle" : "text-slate-500",
                   )}
                 >
                   {it.errorMessage}
@@ -1678,7 +1704,7 @@ const UpscalerQueueList = ({
             <div className="shrink-0 self-center text-xs">
               {it.status === "pending" ? (
                 <span
-                  className={dark ? "text-indigo-200/50" : "text-slate-400"}
+                  className={dark ? "text-work-session-caption" : "text-slate-400"}
                 >
                   Wartet
                 </span>
@@ -1699,7 +1725,7 @@ const UpscalerQueueList = ({
               ) : null}
               {it.status === "cancelled" ? (
                 <span
-                  className={dark ? "text-indigo-200/45" : "text-slate-400"}
+                  className={dark ? "text-work-session-caption" : "text-slate-400"}
                 >
                   —
                 </span>
@@ -1719,10 +1745,10 @@ const VertexApiNotEnabledBox = ({
 }) => (
   <div
     role="status"
-    className="rounded-xl bg-indigo-50 px-4 py-4 text-sm text-indigo-950 ring-1 ring-inset ring-indigo-500/20"
+    className="rounded-xl bg-[#eef2ff] px-4 py-4 text-sm text-[#1e1b4b] ring-1 ring-inset ring-[rgb(99_102_241/0.25)]"
   >
-    <p className="font-semibold text-indigo-950">Fast geschafft!</p>
-    <p className="mt-2 leading-relaxed text-indigo-900/95">
+    <p className="font-semibold text-[#1e1b4b]">Fast geschafft!</p>
+    <p className="mt-2 leading-relaxed text-[rgb(30_27_75/0.95)]">
       Du musst die Vertex AI API in deinem Google Cloud Projekt noch aktivieren,
       bevor du dein erstes Bild skalieren kannst.
     </p>
@@ -1734,7 +1760,7 @@ const VertexApiNotEnabledBox = ({
     >
       Jetzt API aktivieren
     </Button>
-    <p className="mt-3 text-xs leading-relaxed text-indigo-800/90">
+    <p className="mt-3 text-xs leading-relaxed text-[rgb(55_48_163/0.9)]">
       Klicke auf den Button, aktiviere die API bei Google und warte ca. 2–3
       Minuten. Klicke danach einfach hier noch einmal auf &quot;Alle
       hochskalieren&quot; bzw. &quot;Upscale starten&quot;.

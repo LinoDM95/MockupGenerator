@@ -22,12 +22,38 @@ from companion_app.upscale_limits import MAX_OUTPUT_PIXELS
 logger = logging.getLogger(__name__)
 OVERLAP_SRC = 64
 VALID_FACTORS: dict[str, int] = {"x2": 2, "x4": 4}
+TOTAL_UPSCALE_FACTORS: frozenset[int] = frozenset({2, 4, 8, 16})
 SMART_SCALE_MIN = 0.85
 # Upper bound for parallel tile subprocesses (VRAM on typical 8–16 GB GPUs).
 MAX_TILE_WORKERS_CAP = 2
 
 class UpscaleError(Exception):
     pass
+
+
+class UpscaleUserInputError(UpscaleError):
+    """Ungueltige Nutzerparameter — HTTP 400."""
+
+    pass
+
+
+def native_steps_for_total_factor(total: int) -> list[int]:
+    if total not in TOTAL_UPSCALE_FACTORS:
+        raise UpscaleError(f"Ungueltiger Gesamtfaktor: {total}. Erlaubt: 2, 4, 8, 16.")
+    mapping: dict[int, list[int]] = {
+        2: [2],
+        4: [4],
+        8: [4, 2],
+        16: [4, 4],
+    }
+    return mapping[total]
+
+
+def smallest_cover_factor(required_scale: float) -> int | None:
+    for f in (2, 4, 8, 16):
+        if f >= required_scale - 1e-12:
+            return f
+    return None
 
 
 def _realesrgan_working_dir() -> Path:
@@ -174,14 +200,18 @@ def _build_blend_mask(
     import numpy as np
 
     mask = np.ones((tile_h, tile_w), dtype=np.float32)
+    # Bei schmalen/hohen Randkacheln overlap_out > tile_w|tile_h — sonst bricht das
+    # Broadcasting (mask * ramp) oder erzeugt falsche Gewichte → „Kachelgitter“-Artefakte.
+    ow_x = min(overlap_out, tile_w) if blend_left else 0
+    ow_y = min(overlap_out, tile_h) if blend_top else 0
 
-    if blend_left and overlap_out > 0:
-        ramp = np.linspace(0.0, 1.0, overlap_out, dtype=np.float32)
-        mask[:, :overlap_out] *= ramp[np.newaxis, :]
+    if blend_left and ow_x > 0:
+        ramp = np.linspace(0.0, 1.0, ow_x, dtype=np.float32)
+        mask[:, :ow_x] *= ramp[np.newaxis, :]
 
-    if blend_top and overlap_out > 0:
-        ramp = np.linspace(0.0, 1.0, overlap_out, dtype=np.float32)
-        mask[:overlap_out, :] *= ramp[:, np.newaxis]
+    if blend_top and ow_y > 0:
+        ramp = np.linspace(0.0, 1.0, ow_y, dtype=np.float32)
+        mask[:ow_y, :] *= ramp[:, np.newaxis]
 
     return mask
 
@@ -194,6 +224,7 @@ def _tile_job_result(
     pil_tile: PILImage.Image,
     factor_str: str,
     ncnn_model_name: str,
+    factor_int: int,
     progress_job_id: str | None = None,
 ) -> tuple[int, int, int, int, PILImage.Image]:
     if progress_job_id:
@@ -201,6 +232,13 @@ def _tile_job_result(
     t0 = time.perf_counter()
     try:
         upscaled = _local_upscale_tile(pil_tile, factor_str, ncnn_model_name)
+        tw_in, th_in = pil_tile.size
+        exp_w, exp_h = tw_in * factor_int, th_in * factor_int
+        if upscaled.size != (exp_w, exp_h):
+            upscaled = upscaled.resize(
+                (exp_w, exp_h),
+                PILImage.Resampling.LANCZOS,
+            )
         return row, col, x0, y0, upscaled
     finally:
         if progress_job_id:
@@ -288,6 +326,20 @@ def _upscale_tiled_local(
 
     target_w, target_h = w * factor_int, h * factor_int
 
+    if total_tiles == 1:
+        out = _upscale_single_local(
+            pil_img,
+            factor_str,
+            ncnn_model_name,
+            progress_job_id=progress_job_id,
+        )
+        if smart_scale_applied:
+            out = out.resize(
+                (orig_w * factor_int, orig_h * factor_int),
+                PILImage.Resampling.LANCZOS,
+            )
+        return out
+
     logger.info(
         "Tiled local upscale: %dx%d -> %dx%d, grid %dx%d (%d tiles), overlap=%dpx",
         w,
@@ -347,6 +399,7 @@ def _upscale_tiled_local(
                 tile,
                 factor_str,
                 ncnn_model_name,
+                factor_int,
                 progress_job_id,
             )
             tile_results.append(tr)
@@ -362,6 +415,7 @@ def _upscale_tiled_local(
                     tile,
                     factor_str,
                     ncnn_model_name,
+                    factor_int,
                     progress_job_id,
                 ): (row, col)
                 for row, col, x0, y0, _x1, _y1, tile in jobs
@@ -401,31 +455,28 @@ def _upscale_tiled_local(
     return out
 
 
-def upscale_image_local(
+def _upscale_one_native_pass_local(
     pil_img: PILImage.Image,
-    factor: Literal["x2", "x4"],
+    native_int: int,
     ncnn_model_name: str,
     *,
     max_tile_workers: int = 1,
     progress_job_id: str | None = None,
 ) -> PILImage.Image:
-    """Upscale a PIL image locally via Real-ESRGAN, with tiling when needed."""
-    if factor not in VALID_FACTORS:
-        raise UpscaleError(f"Ungueltiger Faktor: {factor}. Erlaubt: x2, x4")
-
-    factor_int = VALID_FACTORS[factor]
+    """Ein Real-ESRGAN-Schritt mit nativem Faktor 2 oder 4."""
+    if native_int not in (2, 4):
+        raise UpscaleError(f"Intern: nativer Faktor muss 2 oder 4 sein, nicht {native_int}.")
+    factor_str: Literal["x2", "x4"] = "x2" if native_int == 2 else "x4"
     w, h = pil_img.size
+    factor_int = native_int
     target_pixels = (w * factor_int) * (h * factor_int)
-
     if pil_img.mode == "RGBA":
         pil_img = pil_img.convert("RGB")
-
     w_cap = max(1, min(max_tile_workers, MAX_TILE_WORKERS_CAP))
-
     if target_pixels <= MAX_OUTPUT_PIXELS:
         return _upscale_single_local(
             pil_img,
-            factor,
+            factor_str,
             ncnn_model_name,
             progress_job_id=progress_job_id,
         )
@@ -436,3 +487,72 @@ def upscale_image_local(
         max_tile_workers=w_cap,
         progress_job_id=progress_job_id,
     )
+
+
+def upscale_image_local(
+    pil_img: PILImage.Image,
+    ncnn_model_name: str,
+    *,
+    max_tile_workers: int = 1,
+    progress_job_id: str | None = None,
+    factor_total: int | None = None,
+    target_width: int | None = None,
+    target_height: int | None = None,
+) -> PILImage.Image:
+    """Lokales Upscale: factor_total in (2,4,8,16) oder exakte Zielgroesse."""
+    has_target = target_width is not None and target_height is not None
+    has_factor = factor_total is not None
+    if has_target == has_factor:
+        raise UpscaleError(
+            "Genau einer der Modi ist erforderlich: factor_total ODER target_width+target_height."
+        )
+
+    if pil_img.mode == "RGBA":
+        pil_img = pil_img.convert("RGB")
+
+    if has_target:
+        tw, th = int(target_width), int(target_height)
+        ow, oh = pil_img.size
+        if ow < 1 or oh < 1:
+            raise UpscaleError("Ungueltige Bildgroesse.")
+        required = max(tw / float(ow), th / float(oh))
+        if required <= 1.0:
+            return pil_img.resize((tw, th), PILImage.Resampling.LANCZOS)
+
+        cover = smallest_cover_factor(required)
+        if cover is None:
+            raise UpscaleUserInputError(
+                "Die gewuenschte Zielaufloesung erfordert mehr als 16x Upscaling."
+            )
+
+        steps = native_steps_for_total_factor(cover)
+        img: PILImage.Image = pil_img
+        for i, step in enumerate(steps):
+            pid = progress_job_id if i == len(steps) - 1 else None
+            img = _upscale_one_native_pass_local(
+                img,
+                step,
+                ncnn_model_name,
+                max_tile_workers=max_tile_workers,
+                progress_job_id=pid,
+            )
+        if img.size != (tw, th):
+            img = img.resize((tw, th), PILImage.Resampling.LANCZOS)
+        return img
+
+    assert factor_total is not None
+    if factor_total not in TOTAL_UPSCALE_FACTORS:
+        raise UpscaleError(f"Ungueltiger Faktor: {factor_total}. Erlaubt: 2, 4, 8, 16.")
+
+    steps = native_steps_for_total_factor(factor_total)
+    img = pil_img
+    for i, step in enumerate(steps):
+        pid = progress_job_id if i == len(steps) - 1 else None
+        img = _upscale_one_native_pass_local(
+            img,
+            step,
+            ncnn_model_name,
+            max_tile_workers=max_tile_workers,
+            progress_job_id=pid,
+        )
+    return img
