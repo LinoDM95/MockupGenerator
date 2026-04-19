@@ -5,6 +5,7 @@ import {
   LayoutGrid,
   Link2,
   Loader2,
+  Lock,
   Package,
   Pin,
   ShoppingBag,
@@ -20,6 +21,11 @@ import {
   testIntegrationConnection,
 } from "../../api/settings";
 import { getErrorMessage } from "../../lib/error";
+import {
+  getDefaultHubTab,
+  isIntegrationHubUiEnabled,
+  type HubTabId,
+} from "../../lib/integrationAvailability";
 import { cn } from "../../lib/cn";
 import { toast } from "../../lib/toast";
 import { useAppStore } from "../../store/appStore";
@@ -33,7 +39,7 @@ import { Card } from "../ui/Card";
 import { Input } from "../ui/Input";
 import { PanelModal } from "../ui/PanelModal";
 
-export type HubTabId = "etsy" | "gelato" | "gemini" | "cloudflare_r2" | "pinterest";
+export type { HubTabId };
 
 const R2_GUIDE = {
   title: "Cloudflare R2",
@@ -101,7 +107,7 @@ export const SetupHub = () => {
   const integrationHubSection = useAppStore((s) => s.integrationHubSection);
   const setIntegrationHubSection = useAppStore((s) => s.setIntegrationHubSection);
 
-  const [tab, setTab] = useState<HubTabId>("etsy");
+  const [tab, setTab] = useState<HubTabId>(() => getDefaultHubTab());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [status, setStatus] = useState<IntegrationStatusResponse | null>(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
@@ -130,10 +136,14 @@ export const SetupHub = () => {
   }, []);
 
   useEffect(() => {
-    if (integrationHubSection) {
-      setTab(integrationHubSection);
+    if (!integrationHubSection) return;
+    if (!isIntegrationHubUiEnabled(integrationHubSection)) {
+      toast.info("Diese Integration ist derzeit noch nicht freigeschaltet.");
       setIntegrationHubSection(null);
+      return;
     }
+    setTab(integrationHubSection);
+    setIntegrationHubSection(null);
   }, [integrationHubSection, setIntegrationHubSection]);
 
   useEffect(() => {
@@ -146,6 +156,10 @@ export const SetupHub = () => {
   };
 
   const handleOpenSettings = (next: HubTabId) => {
+    if (!isIntegrationHubUiEnabled(next)) {
+      toast.info("Diese Integration ist derzeit noch nicht freigeschaltet.");
+      return;
+    }
     setTab(next);
     resetFeedback();
     setSettingsOpen(true);
@@ -210,11 +224,12 @@ export const SetupHub = () => {
       <AppPageSectionHeader
         icon={LayoutGrid}
         title="Alle Integrationen"
-        description="Verwalte Shop-Verbindungen und API-Keys zentral an einem Ort."
+        description="Verwalte Shop-Verbindungen und API-Keys zentral. Karten mit „In Vorbereitung“ sind vorübergehend gesperrt und können noch nicht eingerichtet werden."
       />
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {INTEGRATION_CARDS.map((item, i) => {
+          const hubEnabled = isIntegrationHubUiEnabled(item.id);
           const ok = statusField(item.id, status);
           const Icon = item.icon;
           const selected = tab === item.id;
@@ -229,18 +244,30 @@ export const SetupHub = () => {
                 padding="md"
                 className={cn(
                   "flex h-full flex-col justify-between transition-shadow",
-                  selected && "ring-2 ring-indigo-400/50",
+                  selected && hubEnabled && "ring-2 ring-indigo-400/50",
+                  !hubEnabled && "opacity-[0.72] saturate-[0.7]",
                 )}
+                aria-disabled={!hubEnabled}
               >
                 <div>
                   <div className="mb-4 flex items-start justify-between gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-700 ring-1 ring-inset ring-slate-900/5">
+                    <div
+                      className={cn(
+                        "flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-700 ring-1 ring-inset ring-slate-900/5",
+                        !hubEnabled && "bg-slate-100 text-slate-400",
+                      )}
+                    >
                       <Icon size={22} strokeWidth={1.5} />
                     </div>
                     {loadingStatus ? (
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500 ring-1 ring-inset ring-slate-900/5">
                         <Loader2 size={12} className="animate-spin" aria-hidden />
                         …
+                      </span>
+                    ) : !hubEnabled ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800 ring-1 ring-inset ring-amber-500/25">
+                        <Lock size={12} strokeWidth={2.5} aria-hidden />
+                        In Vorbereitung
                       </span>
                     ) : ok ? (
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 ring-1 ring-inset ring-emerald-500/20">
@@ -254,7 +281,14 @@ export const SetupHub = () => {
                       </span>
                     )}
                   </div>
-                  <h3 className="text-lg font-bold tracking-tight text-slate-900">{item.title}</h3>
+                  <h3
+                    className={cn(
+                      "text-lg font-bold tracking-tight text-slate-900",
+                      !hubEnabled && "text-slate-500",
+                    )}
+                  >
+                    {item.title}
+                  </h3>
                   <p className="mt-1 text-sm font-medium leading-relaxed text-slate-500">
                     {item.desc}
                   </p>
@@ -263,15 +297,25 @@ export const SetupHub = () => {
                 <div className="mt-6 border-t border-slate-100 pt-4">
                   <Button
                     type="button"
-                    variant={ok ? "outline" : "secondary"}
+                    variant={hubEnabled ? (ok ? "outline" : "secondary") : "outline"}
                     size="sm"
+                    disabled={!hubEnabled || loadingStatus}
+                    title={
+                      !hubEnabled
+                        ? "Diese Integration ist derzeit noch nicht freigeschaltet."
+                        : undefined
+                    }
                     className={cn(
                       "w-full",
-                      ok && "text-slate-600 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900",
+                      hubEnabled && ok && "text-slate-600 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900",
                     )}
                     onClick={() => handleOpenSettings(item.id)}
                   >
-                    {ok ? "Einstellungen öffnen" : "Jetzt einrichten"}
+                    {!hubEnabled
+                      ? "Derzeit nicht verfügbar"
+                      : ok
+                        ? "Einstellungen öffnen"
+                        : "Jetzt einrichten"}
                   </Button>
                 </div>
               </Card>

@@ -14,7 +14,7 @@ Neue und geänderte **eingeloggte App-Views** bauen **nicht** frei Überschrifte
 
 ### Ebenen
 
-1. **Haupt-Tab (App-weit)** — Erstellen, Verbreiten, Automatisieren, Integrationen  
+1. **Haupt-Tab (App-weit)** — Erstellen, Roadmap, Integrationen  
    - Steuerung nur in `App.tsx` (`mainTabs`). Keine zweite Hauptnav duplizieren.
 
 2. **Seitenkopf pro Haupt-Tab** — `AppSubNavPageLayout` (`AppSubNavPageLayout.tsx`)  
@@ -57,7 +57,7 @@ Neue und geänderte **eingeloggte App-Views** bauen **nicht** frei Überschrifte
 
 ### Copy / Anzeigenamen
 
-- Anzeigenamen an die Tabs koppeln: **Erstellen**, **Verbreiten**, **Automatisieren**, **Integrationen** (interne `AppTab`-IDs z. B. `marketing` unverändert).
+- Anzeigenamen an die Tabs koppeln: **Erstellen**, **Roadmap**, **Integrationen** (interne `AppTab`-IDs: `workspace`, `roadmap`, `integrations`).
 
 ## Wiederverwendung & Auslagerung (Frontend)
 

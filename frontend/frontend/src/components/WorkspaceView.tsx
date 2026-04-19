@@ -1,11 +1,10 @@
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Folder, Layers, Maximize, Store } from "lucide-react";
+import { Folder, Layers, Maximize } from "lucide-react";
 
 import type { WorkspaceTab } from "../store/appStore";
 import { useAppStore } from "../store/appStore";
 import { AppSubNavPageLayout } from "./ui/AppSubNavPageLayout";
 import { SubNavTab } from "./ui/SubNavTab";
-import { EtsyListingsEditor } from "./etsy/EtsyListingsEditor";
 import { GeneratorView } from "./GeneratorView";
 import { TemplatesStudio } from "./TemplatesStudio";
 import { UpscalerView } from "./upscaler/UpscalerView";
@@ -17,7 +16,6 @@ const SUB: { id: WorkspaceTab; label: string; shortLabel: string; icon: typeof L
   { id: "generator", label: "Generator", shortLabel: "Gen.", icon: Layers },
   { id: "templates", label: "Vorlagen-Studio", shortLabel: "Vorl.", icon: Folder },
   { id: "upscaler", label: "Upscaler", shortLabel: "Up.", icon: Maximize },
-  { id: "etsy", label: "Etsy", shortLabel: "Etsy", icon: Store },
 ];
 
 export const WorkspaceView = () => {
@@ -30,7 +28,7 @@ export const WorkspaceView = () => {
   return (
     <AppSubNavPageLayout
       title="Erstellen"
-      description="Generator, Vorlagen, Upscaler und Etsy-Shop (Listings und Editor)."
+      description="Generator, Vorlagen-Studio und Upscaler — Mockups erstellen und exportieren."
       subNavAriaLabel="Erstellen: Unterbereich wechseln"
       subNav={
         <>
@@ -65,7 +63,6 @@ export const WorkspaceView = () => {
           {workspaceTab === "generator" ? <GeneratorView /> : null}
           {workspaceTab === "templates" ? <TemplatesStudio /> : null}
           {workspaceTab === "upscaler" ? <UpscalerView /> : null}
-          {workspaceTab === "etsy" ? <EtsyListingsEditor /> : null}
         </motion.div>
       </AnimatePresence>
     </AppSubNavPageLayout>

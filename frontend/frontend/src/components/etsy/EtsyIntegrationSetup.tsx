@@ -15,10 +15,11 @@ type EtsyIntegrationSetupProps = {
 
 /**
  * Etsy OAuth im zentralen Integrations-Setup.
- * Listings & Editor: {@link EtsyListingsEditor} im Arbeitsbereich.
+ * Listings-Editor: vorübergehend nicht in der Hauptnavigation (siehe Roadmap).
  */
 export const EtsyIntegrationSetup = ({ isConnected = false }: EtsyIntegrationSetupProps) => {
   const goToWorkspace = useAppStore((s) => s.goToWorkspace);
+  const setActiveTab = useAppStore((s) => s.setActiveTab);
 
   const handleConnect = useCallback(async () => {
     try {
@@ -82,13 +83,21 @@ export const EtsyIntegrationSetup = ({ isConnected = false }: EtsyIntegrationSet
 
       <div className="rounded-xl bg-slate-50 px-4 py-3 ring-1 ring-inset ring-slate-900/5">
         <p className="text-sm font-medium text-slate-600">
-          <span className="font-bold text-slate-900">Listings bearbeiten</span> findest du unter{" "}
+          <span className="font-bold text-slate-900">Mockups & ZIP-Export</span> startest du unter{" "}
           <button
             type="button"
             className="text-indigo-600 hover:text-indigo-800 hover:underline"
-            onClick={() => goToWorkspace("etsy")}
+            onClick={() => goToWorkspace("generator")}
           >
-            Erstellen → Etsy
+            Erstellen → Generator
+          </button>
+          . Der Etsy-Listings-Editor ist vorübergehend nicht in der Navigation — siehe{" "}
+          <button
+            type="button"
+            className="text-indigo-600 hover:text-indigo-800 hover:underline"
+            onClick={() => setActiveTab("roadmap")}
+          >
+            Roadmap
           </button>
           .
         </p>

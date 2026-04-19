@@ -15,7 +15,7 @@ import { IntegrationMissingCallout } from "../ui/IntegrationMissingCallout";
 
 /**
  * Pinterest OAuth im zentralen Integrations-Setup.
- * Pins & Queue: {@link MarketingDashboard} unter Hauptnavigation Verbreiten.
+ * Veröffentlichungs-UI: vorerst aus der Hauptnavigation — siehe Roadmap.
  */
 export const MarketingIntegrationSetup = () => {
   const setActiveTab = useAppStore((s) => s.setActiveTab);
@@ -79,16 +79,15 @@ export const MarketingIntegrationSetup = () => {
             </h3>
             {connected === true ? (
               <p className="mt-1 max-w-xl text-sm font-medium leading-relaxed text-slate-500">
-                Konto-Verbindung verwalten. Boards und Pins unter{" "}
-                <span className="font-semibold text-slate-700">Verbreiten</span>.
+                Konto-Verbindung verwalten. Boards und Pins für die Veröffentlichung sind vorgemerkt —
+                die Oberfläche dazu folgt (siehe Roadmap).
               </p>
             ) : (
               <p className="mt-1 max-w-xl text-sm font-medium leading-relaxed text-slate-500">
                 Verknüpfe dein Pinterest-Konto per OAuth (App-ID und Redirect-URI in der
                 Pinterest Developer Console wie in der{" "}
-                <code className="text-xs">.env</code> hinterlegt). Danach kannst du unter{" "}
-                <span className="font-semibold text-slate-700">Verbreiten</span> Boards wählen
-                und Pins veröffentlichen.
+                <code className="text-xs">.env</code> hinterlegt). Danach stehen Boards für die
+                Veröffentlichung bereit — die zugehörige Oberfläche wird überarbeitet (siehe Roadmap).
               </p>
             )}
             {connected === true ? (
@@ -113,14 +112,15 @@ export const MarketingIntegrationSetup = () => {
 
       <div className="rounded-xl bg-slate-50 px-4 py-3 ring-1 ring-inset ring-slate-900/5">
         <p className="text-sm font-medium text-slate-600">
+          Zu{" "}
           <span className="font-bold text-slate-900">Pins und Veröffentlichungs-Warteschlange</span>{" "}
-          findest du unter{" "}
+          findest du den geplanten Ausbau unter{" "}
           <button
             type="button"
             className="text-indigo-600 hover:text-indigo-800 hover:underline"
-            onClick={() => setActiveTab("marketing")}
+            onClick={() => setActiveTab("roadmap")}
           >
-            Verbreiten
+            Roadmap
           </button>{" "}
           in der Hauptnavigation.
         </p>

@@ -2,7 +2,7 @@ import type { ComponentType } from "react";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
-import { Link2, Layers, LogOut, Megaphone, RefreshCw, Rocket, Zap } from "lucide-react";
+import { Compass, Link2, Layers, LogOut, RefreshCw, Zap } from "lucide-react";
 import { Navigate } from "react-router-dom";
 
 import { clearProactiveTokenRefresh, scheduleProactiveAccessRefresh } from "./api/client";
@@ -12,23 +12,20 @@ import { DialogHost } from "./components/DialogHost";
 import { AIActivityPanel } from "./components/ai/AIActivityPanel";
 import { IntegrationsView } from "./components/IntegrationsView";
 import { WorkspaceView } from "./components/WorkspaceView";
-import { AutomationView } from "./components/automation/AutomationView";
-import { MarketingDashboard } from "./components/marketing/MarketingDashboard";
+import { RoadmapView } from "./components/RoadmapView";
 import type { AppTab } from "./store/appStore";
 import { useAppStore } from "./store/appStore";
 
 const mainTabs: { id: AppTab; label: string; shortLabel: string; icon: LucideIcon }[] = [
   { id: "workspace", label: "Erstellen", shortLabel: "Erst.", icon: Layers },
-  { id: "marketing", label: "Verbreiten", shortLabel: "Verbr.", icon: Megaphone },
-  { id: "automation", label: "Automatisieren", shortLabel: "Autom.", icon: Rocket },
+  { id: "roadmap", label: "Roadmap", shortLabel: "Road.", icon: Compass },
   { id: "integrations", label: "Integrationen", shortLabel: "Int.", icon: Link2 },
 ];
 
 const tabContent: Record<AppTab, ComponentType> = {
   workspace: WorkspaceView,
+  roadmap: RoadmapView,
   integrations: IntegrationsView,
-  automation: AutomationView,
-  marketing: MarketingDashboard,
 };
 
 const NAV_LOCK_TITLE = "Während eines laufenden Vorgangs ist die Navigation gesperrt.";

@@ -1,20 +1,17 @@
 import { create } from "zustand";
 
+import { isIntegrationHubUiEnabled, type HubTabId } from "../lib/integrationAvailability";
+import { toast } from "../lib/toast";
 import type { ArtworkItem, Template, TemplateSet } from "../types/mockup";
 
 /** Hauptnavigation (Header): weniger Einträge, mehr Struktur. */
-export type AppTab = "workspace" | "integrations" | "automation" | "marketing";
+export type AppTab = "workspace" | "roadmap" | "integrations";
 
 /** Unter-Tabs im Bereich „Erstellen“. */
-export type WorkspaceTab = "generator" | "templates" | "upscaler" | "etsy";
+export type WorkspaceTab = "generator" | "templates" | "upscaler";
 
 /** Zielbereich im zentralen Integrations-Setup (Setup Hub). */
-export type IntegrationHubSection =
-  | "etsy"
-  | "gelato"
-  | "gemini"
-  | "cloudflare_r2"
-  | "pinterest";
+export type IntegrationHubSection = HubTabId;
 
 /** Unteransicht auf der Seite „Integrationen“. */
 export type IntegrationsPanelMode = "wizard" | "all";
@@ -143,12 +140,22 @@ export const useAppStore = create<AppState>((set, get) => ({
   integrationWizardInitialStep: null,
   setIntegrationWizardInitialStep: (s) => set({ integrationWizardInitialStep: s }),
 
-  goToIntegration: (section) =>
+  goToIntegration: (section) => {
+    if (!isIntegrationHubUiEnabled(section)) {
+      toast.info("Diese Integration ist derzeit noch nicht freigeschaltet.");
+      set({
+        activeTab: "integrations",
+        integrationsPanelMode: "all",
+        integrationHubSection: null,
+      });
+      return;
+    }
     set({
       activeTab: "integrations",
       integrationsPanelMode: "all",
       integrationHubSection: section,
-    }),
+    });
+  },
 
   goToIntegrationWizardStep: (step) =>
     set({
