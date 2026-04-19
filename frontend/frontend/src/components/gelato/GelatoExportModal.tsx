@@ -116,6 +116,40 @@ const buildAiFailureHint = (msg: string, httpStatus?: number): string => {
 
 const MAX_CONSECUTIVE_FAILURES = 3;
 
+/** Hover-Vorschau: feste Breite w-80 (320px), Höhe bis ~60vh — in den Viewport clampen. */
+const PREVIEW_POPOVER_W = 320;
+const PREVIEW_POPOVER_EST_H = 400;
+
+const clampPreviewPopoverPosition = (
+  clientX: number,
+  clientY: number,
+): { left: number; top: number } => {
+  if (typeof window === "undefined") {
+    return { left: clientX + 8, top: clientY };
+  }
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const margin = 8;
+  const gap = 10;
+  const estH = Math.min(Math.round(vh * 0.58), PREVIEW_POPOVER_EST_H);
+
+  let left = clientX + gap;
+  if (left + PREVIEW_POPOVER_W > vw - margin) {
+    left = Math.max(margin, clientX - PREVIEW_POPOVER_W - gap);
+  }
+  left = Math.max(margin, Math.min(left, vw - PREVIEW_POPOVER_W - margin));
+
+  let top = clientY - estH - gap;
+  if (top < margin) {
+    top = clientY + gap;
+  }
+  if (top + estH > vh - margin) {
+    top = vh - estH - margin;
+  }
+  top = Math.max(margin, Math.min(top, vh - estH - margin));
+  return { left, top };
+};
+
 const createInitialExpertPhases = (): ExpertDebatePhase[] => [
   { key: "scout", label: "Agent 1 · Trend-Scout", status: "pending" },
   { key: "critic", label: "Agent 2 · Kritiker", status: "pending" },
@@ -337,6 +371,17 @@ export const GelatoExportModal = ({
         setAiConnected(false);
       }
     })();
+  }, []);
+
+  useEffect(() => {
+    const body = document.body;
+    const prevOverflow = body.style.overflow;
+    // Nur body sperren — overflow auf html bricht position:sticky am App-Header,
+    // sodass die Leiste bei gescrollter Seite aus dem Viewport verschwindet.
+    body.style.overflow = "hidden";
+    return () => {
+      body.style.overflow = prevOverflow;
+    };
   }, []);
 
   const updateMeta = useCallback(
@@ -786,13 +831,13 @@ export const GelatoExportModal = ({
   );
 
   const [previewIdx, setPreviewIdx] = useState<number | null>(null);
-  const [previewPos, setPreviewPos] = useState({ x: 0, y: 0 });
+  const [previewPos, setPreviewPos] = useState({ left: 0, top: 0 });
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
 
   const handlePreviewEnter = useCallback(
     (idx: number, e: React.MouseEvent) => {
       if (isMobile) return;
-      setPreviewPos({ x: e.clientX, y: e.clientY });
+      setPreviewPos(clampPreviewPopoverPosition(e.clientX, e.clientY));
       setPreviewIdx(idx);
     },
     [isMobile],
@@ -812,13 +857,13 @@ export const GelatoExportModal = ({
   }, []);
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50">
+    <div className="fixed inset-0 z-[200] flex items-start justify-center overflow-hidden bg-black/50 px-3 pb-4 pt-[5.5rem] sm:px-5 sm:pb-6 sm:pt-24">
       <div
-        className="relative flex w-full max-w-4xl flex-col rounded-xl bg-white shadow-[0_12px_40px_rgba(0,0,0,0.12)] ring-1 ring-slate-900/5"
-        style={{ maxHeight: "92vh" }}
+        className="relative flex w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-white shadow-[0_12px_40px_rgba(0,0,0,0.12)] ring-1 ring-slate-900/5"
+        style={{ maxHeight: "min(86vh, calc(100vh - 7rem))" }}
       >
         {/* Header */}
-        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 pt-5 pb-4">
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 pt-4 pb-3">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 ring-1 ring-inset ring-indigo-500/20">
               <Globe size={20} aria-hidden />
@@ -842,8 +887,8 @@ export const GelatoExportModal = ({
           </button>
         </div>
 
-        {/* Body */}
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+        {/* Body — einziger Scrollbereich im Dialog (lange Motivliste) */}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">
           {!integrationFlagsLoading && !gelatoIntegrationOk ? (
             <IntegrationMissingCallout
               className="mb-4"
@@ -854,7 +899,7 @@ export const GelatoExportModal = ({
             />
           ) : null}
           {step === 1 ? (
-            <div className="space-y-5">
+            <div className="space-y-4">
               {/* Template + Shipping */}
               <Select
                 label="Gelato-Template"
@@ -998,6 +1043,16 @@ export const GelatoExportModal = ({
                                 <span
                                   className="inline cursor-default transition-colors hover:text-slate-700"
                                   onMouseEnter={(e) => handlePreviewEnter(idx, e)}
+                                  onMouseMove={(e) => {
+                                    if (!isMobile && previewIdx === idx) {
+                                      setPreviewPos(
+                                        clampPreviewPopoverPosition(
+                                          e.clientX,
+                                          e.clientY,
+                                        ),
+                                      );
+                                    }
+                                  }}
                                   onMouseLeave={handlePreviewLeave}
                                 >
                                   {metadataList[idx]?.tags
@@ -1031,8 +1086,8 @@ export const GelatoExportModal = ({
                             </button>
                           )}
                           {isExpanded
-                            ? <ChevronUp size={16} className="shrink-0 text-slate-400" />
-                            : <ChevronDown size={16} className="shrink-0 text-slate-400" />
+                            ? <ChevronUp size={16} className="shrink-0 text-indigo-600" aria-hidden />
+                            : <ChevronDown size={16} className="shrink-0 text-indigo-600" aria-hidden />
                           }
                         </button>
 
@@ -1084,7 +1139,7 @@ export const GelatoExportModal = ({
             </div>
           ) : (
             /* Step 2: Summary */
-            <div className="space-y-5">
+            <div className="space-y-4">
               <div className="rounded-lg bg-slate-50 p-4 ring-1 ring-inset ring-slate-900/5">
                 <h3 className="mb-3 text-sm font-semibold text-slate-900">
                   Zusammenfassung
@@ -1144,7 +1199,7 @@ export const GelatoExportModal = ({
         </div>
 
         {/* Footer */}
-        <div className="flex shrink-0 items-center justify-between border-t border-slate-100 px-6 py-4">
+        <div className="flex shrink-0 items-center justify-between border-t border-slate-100 px-5 py-3">
           <div>
             {step === 2 && (
               <Button variant="ghost" onClick={() => setStep(1)}>
@@ -1177,8 +1232,8 @@ export const GelatoExportModal = ({
         <div
           className="fixed z-[205] w-80"
           style={{
-            left: `${Math.min(previewPos.x + 16, window.innerWidth - 340)}px`,
-            top: `${Math.max(8, Math.min(previewPos.y - 80, window.innerHeight - 420))}px`,
+            left: `${previewPos.left}px`,
+            top: `${previewPos.top}px`,
           }}
           onMouseEnter={handlePanelEnter}
           onMouseLeave={handlePanelLeave}
@@ -1238,12 +1293,13 @@ export const GelatoExportModal = ({
 
       {/* Single-artwork AI popup */}
       {aiPopupIdx !== null && artworks[aiPopupIdx] && (
-        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/50">
+        <div className="fixed inset-0 z-[210] flex items-start justify-center overflow-hidden bg-black/50 px-3 pb-4 pt-[5.5rem] sm:px-5 sm:pb-6 sm:pt-24">
           <div
             className={cn(
-              "w-full rounded-xl bg-white p-5 shadow-[0_12px_40px_rgba(0,0,0,0.12)] ring-1 ring-slate-900/5",
+              "w-full overflow-y-auto overscroll-contain rounded-xl bg-white p-4 shadow-[0_12px_40px_rgba(0,0,0,0.12)] ring-1 ring-slate-900/5 sm:p-5",
               aiExpertMode ? "max-w-lg" : "max-w-sm",
             )}
+            style={{ maxHeight: "min(78vh, calc(100vh - 7rem))" }}
           >
             <div className="mb-4 flex items-center gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 ring-1 ring-inset ring-indigo-500/20">

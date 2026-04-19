@@ -13,6 +13,10 @@ export type CompanionTileProgressReady = {
   total_tiles: number;
   completed_tiles: number;
   tile_durations_ms: number[];
+  /** Max. gleichzeitige Kachel-Jobs fuer dieses Bild (Companion-Thread-Pool). */
+  parallel_cap?: number;
+  /** Aktuell laufende Kachel-Upscales (gleichzeitig). */
+  parallel_in_flight?: number;
   finished: boolean;
 };
 
@@ -80,7 +84,18 @@ export const formatCompanionTileEtaLine = (p: {
     finishedImageTileCounts,
   });
   const kachel = `${snap.completed_tiles ?? 0}/${snap.total_tiles ?? "?"}`;
+  const cap = Math.max(1, snap.parallel_cap ?? 1);
+  const infl = Math.max(
+    0,
+    Math.min(snap.parallel_in_flight ?? 0, cap),
+  );
+  const par =
+    (snap.total_tiles ?? 0) > 1
+      ? ` · Parallel ${infl}/${cap}`
+      : "";
   const head = `Bild ${imageIndex + 1}/${totalImages} · Kachel ${kachel}`;
-  if (eta == null) return `${head} · Restzeit wird geschätzt …`;
-  return `${head} · Rest ca. ${formatRemainingMs(eta)}`;
+  if (eta == null) {
+    return `${head}${par} · Restzeit wird geschätzt …`;
+  }
+  return `${head}${par} · Rest ca. ${formatRemainingMs(eta)}`;
 };

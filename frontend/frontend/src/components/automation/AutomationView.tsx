@@ -29,8 +29,10 @@ import { cn } from "../../lib/cn";
 import { getErrorMessage } from "../../lib/error";
 import { toast } from "../../lib/toast";
 import { useAppStore } from "../../store/appStore";
-import { AppPage } from "../ui/AppPage";
+import { AppPageSectionHeader } from "../ui/AppPageSectionHeader";
+import { AppSubNavPageLayout } from "../ui/AppSubNavPageLayout";
 import { Button } from "../ui/Button";
+import { Card } from "../ui/Card";
 
 const POLL_MS = 2000;
 const MODEL_OPTIONS = [
@@ -256,10 +258,11 @@ function RunDashboard({
       <div className="rounded-2xl bg-gradient-to-b from-white to-slate-50/50 p-6 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">
-              Pipeline läuft
-            </h2>
-            <p className="font-mono text-xs text-slate-500">{job.id}</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+              Aktiver Job
+            </p>
+            <h3 className="mt-1 text-base font-bold tracking-tight text-slate-900">Pipeline</h3>
+            <p className="mt-1 font-mono text-xs text-slate-500">{job.id}</p>
             {job.mockup_set_name ? (
               <p className="mt-1 text-sm text-slate-700">
                 Vorlagen-Set:{" "}
@@ -278,29 +281,30 @@ function RunDashboard({
               ) : null}
             </p>
           </div>
-          <div className="flex flex-col items-end gap-2">
-            <span
-              className={cn(
-                "rounded-full px-3 py-1 text-xs font-semibold",
-                job.status === "completed"
-                  ? "bg-emerald-100 text-emerald-800"
-                  : job.status === "failed"
-                    ? "bg-red-100 text-red-800"
-                    : "bg-amber-100 text-amber-900",
-              )}
-            >
-              {job.status === "processing"
-                ? "Verarbeitung"
-                : job.status === "completed"
-                  ? "Abgeschlossen"
-                  : job.status === "failed"
-                    ? "Fehlgeschlagen"
-                    : job.status}
-            </span>
-            <Button variant="outline" type="button" className="text-xs" onClick={onNewJob}>
-              Neuen Job anlegen
-            </Button>
-          </div>
+          <span
+            className={cn(
+              "shrink-0 rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset",
+              job.status === "completed"
+                ? "bg-emerald-100 text-emerald-800 ring-emerald-500/20"
+                : job.status === "failed"
+                  ? "bg-red-100 text-red-800 ring-red-500/20"
+                  : "bg-amber-100 text-amber-900 ring-amber-500/20",
+            )}
+          >
+            {job.status === "processing"
+              ? "Verarbeitung"
+              : job.status === "completed"
+                ? "Abgeschlossen"
+                : job.status === "failed"
+                  ? "Fehlgeschlagen"
+                  : job.status}
+          </span>
+        </div>
+
+        <div className="mt-4 flex flex-wrap justify-end gap-2">
+          <Button variant="outline" type="button" size="sm" onClick={onNewJob}>
+            Neuen Job anlegen
+          </Button>
         </div>
 
         {job.status === "failed" && job.error_message ? (
@@ -406,7 +410,7 @@ function RunDashboard({
       ) : null}
 
       <div className="rounded-2xl bg-white p-4 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
           Motive im Detail
         </p>
         <ul className="mt-3 max-h-[420px] space-y-3 overflow-y-auto pr-1">
@@ -585,7 +589,17 @@ export const AutomationView = () => {
   }, [stopPoll]);
 
   return (
-    <AppPage>
+    <AppSubNavPageLayout
+      title="Automatisieren"
+      description="Massen-Pipeline mit klaren Etappen — auch bei vielen Motiven siehst du, wo gerade gearbeitet wird."
+    >
+      <div className="w-full min-w-0 space-y-8 pb-12">
+        <AppPageSectionHeader
+          icon={Rocket}
+          title="Pipeline & Jobs"
+          description="Voreinstellungen wählen, Bilder hochladen — danach Verlauf und Motive im Detail unten."
+        />
+
       <div
         role="status"
         className="rounded-xl bg-amber-50 px-4 py-3 text-center text-sm text-amber-950 ring-1 ring-inset ring-amber-500/20"
@@ -595,17 +609,6 @@ export const AutomationView = () => {
           Pipeline und Anbindungen sind experimentell. Nutze für zuverlässige Abläufe
           den Bereich <span className="font-medium">Erstellen</span> (Generator, Vorlagen)
           und <span className="font-medium">Integrationen</span>.
-        </p>
-      </div>
-
-      <div className="text-center">
-        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-violet-50 opacity-90">
-          <Rocket size={24} className="text-violet-600" />
-        </div>
-        <h1 className="text-xl font-semibold text-slate-900">Automation</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Massen-Pipeline mit klaren Etappen — auch bei vielen Motiven siehst du,
-          wo gerade gearbeitet wird.
         </p>
       </div>
 
@@ -635,12 +638,20 @@ export const AutomationView = () => {
       ) : null}
 
       {!jobId ? (
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-5 rounded-2xl bg-white p-6 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5"
-        >
-          <p className="text-sm font-medium text-slate-800">Voreinstellungen</p>
-          <div className="grid gap-4 sm:grid-cols-2">
+        <Card padding="lg">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                Neuer Job
+              </p>
+              <h3 className="mt-1 text-base font-bold tracking-tight text-slate-900">
+                Voreinstellungen &amp; Bilder
+              </h3>
+              <p className="mt-0.5 text-xs font-medium text-slate-500">
+                KI-Modell, Upscale, Vorlagen-Set und Gelato — dann Bilder wählen und starten.
+              </p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
             <label className="block text-sm">
               <span className="font-medium text-slate-700">KI-Modell (SEO)</span>
               <select
@@ -705,36 +716,37 @@ export const AutomationView = () => {
                 ))}
               </select>
             </label>
-          </div>
+            </div>
 
-          <label className="block text-sm">
-            <span className="font-medium text-slate-700">Bilder (max. 35)</span>
-            <input
-              type="file"
-              name="images"
-              accept="image/jpeg,image/png,image/webp"
-              multiple
-              className="mt-1 block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-violet-50 file:px-3 file:py-2 file:text-violet-700"
-              required
-            />
-          </label>
+            <label className="block text-sm">
+              <span className="font-medium text-slate-700">Bilder (max. 35)</span>
+              <input
+                type="file"
+                name="images"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                className="mt-1 block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-violet-50 file:px-3 file:py-2 file:text-violet-700"
+                required
+              />
+            </label>
 
-          <Button
-            type="submit"
-            className="w-full sm:w-auto"
-            disabled={busy || templateSets.length === 0 || !mockupSetId}
-          >
-            {busy ? (
-              <>
-                <Loader2 className="animate-spin" size={16} /> Starten…
-              </>
-            ) : (
-              <>
-                <Rocket size={16} /> Pipeline starten
-              </>
-            )}
-          </Button>
-        </form>
+            <Button
+              type="submit"
+              className="w-full sm:w-auto"
+              disabled={busy || templateSets.length === 0 || !mockupSetId}
+            >
+              {busy ? (
+                <>
+                  <Loader2 className="animate-spin" size={16} /> Starten…
+                </>
+              ) : (
+                <>
+                  <Rocket size={16} /> Pipeline starten
+                </>
+              )}
+            </Button>
+          </form>
+        </Card>
       ) : null}
 
       <AnimatePresence mode="wait">
@@ -766,6 +778,7 @@ export const AutomationView = () => {
           </motion.div>
         ) : null}
       </AnimatePresence>
-    </AppPage>
+      </div>
+    </AppSubNavPageLayout>
   );
 };

@@ -1,12 +1,14 @@
-import { Check, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Wand2 } from "lucide-react";
+import { LayoutGroup } from "framer-motion";
 import { useCallback, useEffect, useState } from "react";
 
 import type { IntegrationStatusResponse } from "../../api/settings";
 import { fetchIntegrationStatus } from "../../api/settings";
-import { cn } from "../../lib/cn";
 import { useAppStore } from "../../store/appStore";
 import { AISetup } from "../ai/AISetup";
 import { GelatoSetup } from "../gelato/GelatoSetup";
+import { AppPageSectionHeader } from "../ui/AppPageSectionHeader";
+import { AppTabStepButton } from "../ui/AppTabStepButton";
 import { Button } from "../ui/Button";
 import { WIZARD_STEPS } from "./integrationWizardCopy";
 import type { WizardStepCopy } from "./integrationWizardCopy";
@@ -150,50 +152,42 @@ export const IntegrationSetupWizard = () => {
 
   return (
     <div className="space-y-8">
-      <div className="rounded-2xl bg-white p-4 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 sm:p-6">
-        <h2 className="text-lg font-semibold text-slate-900">Geführter Einrichtungsassistent</h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Drei Schritte: Gelato → Gemini → Vertex. Nutze „Weiter“, sobald du den jeweiligen Schritt
-          in der App abgeschlossen hast.
-        </p>
+      <div className="w-full min-w-0 space-y-6">
+        <AppPageSectionHeader
+          icon={Wand2}
+          title="Geführter Einrichtungsassistent"
+          description="Drei Schritte: Gelato → Gemini → Vertex. Nutze „Weiter“, sobald du den jeweiligen Schritt in der App abgeschlossen hast."
+        />
 
-        <ol className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          {[1, 2, 3].map((n) => {
-            const done = n === 1 ? step1Done : n === 2 ? step2Done : step3Done;
-            const active = step === n;
-            return (
-              <li key={n} className="flex flex-1 items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setStep(n)}
-                  className={cn(
-                    "flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors shadow-[0_2px_8px_rgb(0,0,0,0.04)]",
-                    active
-                      ? "bg-indigo-50 text-indigo-900 ring-2 ring-indigo-500/30"
-                      : "bg-white text-slate-700 ring-1 ring-slate-900/5 hover:bg-slate-50",
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold",
-                      done ? "bg-emerald-500 text-white" : active ? "bg-indigo-600 text-white" : "bg-slate-200 text-slate-600",
-                    )}
+        <LayoutGroup>
+          <ol
+            className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-2"
+            aria-label="Einrichtungsschritte"
+          >
+            {[1, 2, 3].map((n) => {
+              const done = n === 1 ? step1Done : n === 2 ? step2Done : step3Done;
+              const active = step === n;
+              return (
+                <li key={n} className="flex flex-1 items-center gap-2">
+                  <AppTabStepButton
+                    active={active}
+                    done={done}
+                    stepNumber={n}
+                    activePillLayoutId="integration-wizard-step-pill"
+                    onClick={() => setStep(n)}
                   >
-                    {done ? <Check size={14} strokeWidth={2.5} /> : n}
-                  </span>
-                  <span className="min-w-0 truncate">
                     {n}. {WIZARD_STEPS[n - 1].stepLabel}
-                  </span>
-                </button>
-                {n < STEP_COUNT ? (
-                  <ChevronRight className="hidden h-4 w-4 shrink-0 text-slate-300 sm:block" aria-hidden />
-                ) : null}
-              </li>
-            );
-          })}
-        </ol>
+                  </AppTabStepButton>
+                  {n < STEP_COUNT ? (
+                    <ChevronRight className="hidden h-4 w-4 shrink-0 text-slate-300 sm:block" aria-hidden />
+                  ) : null}
+                </li>
+              );
+            })}
+          </ol>
+        </LayoutGroup>
         {loading ? (
-          <p className="mt-3 text-xs text-slate-500">Status wird aktualisiert…</p>
+          <p className="text-xs text-slate-500">Status wird aktualisiert…</p>
         ) : null}
       </div>
 

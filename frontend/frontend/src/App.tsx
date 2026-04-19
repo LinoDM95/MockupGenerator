@@ -62,14 +62,14 @@ function App() {
       <AIActivityPanel />
       <DialogHost />
 
-      <header className="pointer-events-none sticky top-4 z-50 px-4 sm:px-6 lg:px-8">
-        <div className="pointer-events-auto mx-auto flex h-14 max-w-5xl items-center justify-between rounded-full bg-white px-4 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 sm:px-6">
+      <header className="pointer-events-none sticky top-4 z-[220] px-4 sm:px-6 lg:px-8">
+        <div className="pointer-events-auto mx-auto flex h-14 w-full max-w-7xl items-center justify-between rounded-full bg-white px-4 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 sm:px-6">
           <div className="flex shrink-0 items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 shadow-sm">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 shadow-sm">
               <Zap size={16} className="text-white" fill="currentColor" />
             </div>
             <span className="hidden text-sm font-bold tracking-tight text-slate-900 sm:block">
-              Mockup Generator Pro
+              Creative Engine
             </span>
           </div>
 
@@ -161,6 +161,7 @@ function App() {
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
+            className="w-full min-w-0"
             initial={{ opacity: 0, y: reduceMotion ? 0 : 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: reduceMotion ? 0 : -4 }}

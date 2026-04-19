@@ -54,7 +54,7 @@ export const WorkSessionFooter = ({
       aria-busy="true"
       className="relative z-20 shrink-0 px-4 pb-6 pt-4 sm:px-6"
     >
-      <div className="mx-auto flex max-w-4xl flex-col gap-5 rounded-[2rem] border border-slate-700 bg-slate-900 px-6 py-6 text-left shadow-2xl ring-1 ring-white/5 sm:px-8 sm:py-7">
+      <div className="mx-auto flex max-w-4xl flex-col gap-5 rounded-[2rem] border border-indigo-800/80 bg-indigo-950 px-6 py-6 text-left shadow-2xl ring-1 ring-indigo-500/15 sm:px-8 sm:py-7">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex min-w-0 flex-1 items-center gap-4">
             {showGlyph ? (

@@ -1,5 +1,12 @@
 import { CheckCircle2, Download, Loader2, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import JSZip from "jszip";
 
 import type {
@@ -59,7 +66,8 @@ const JS_STORE = { compression: "STORE" as const };
 
 /** Listen-Thumbnails: klein genug für schnelles createImageBitmap, nicht die volle Datei im <img>. */
 const PREVIEW_MAX_EDGE = 256;
-const PREVIEW_CONCURRENCY = 3;
+/** Parallelität Vorschau-Jobs — höher = schneller fertig, mehr CPU/GPU-Decode-Last. */
+const PREVIEW_CONCURRENCY = 4;
 
 export const GeneratorView = () => {
   const templateSets = useAppStore((s) => s.templateSets);
@@ -132,6 +140,7 @@ export const GeneratorView = () => {
     if (!files?.length) return;
     const list = Array.from(files);
     const st = useAppStore.getState();
+    // `file` + `url` bleiben die volle Auflösung für loadImage/render; nur `previewUrl` ist klein.
     const newItems: ArtworkItem[] = list.map((file) => ({
       id: `art_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
       file,
@@ -139,7 +148,9 @@ export const GeneratorView = () => {
       name: file.name.replace(/\.[^/.]+$/, ""),
       setId: st.globalSetId || templateSets[0]?.id || "",
     }));
-    setArtworks((prev) => [...prev, ...newItems]);
+    startTransition(() => {
+      setArtworks((prev) => [...prev, ...newItems]);
+    });
 
     previewJobsPendingRef.current += 1;
     setIsPreparingPreviews(true);

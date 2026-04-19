@@ -8,6 +8,13 @@ export const fileExtensionLower = (name: string): string => {
 
 export const RASTER_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"] as const;
 
+/** HTML-`accept` für Raster-Uploads (Dropzone / `<input type="file">`). */
+export const RASTER_IMAGE_ACCEPT_HTML =
+  "image/jpeg,image/png,image/webp" as const;
+
+/** Generator: alle Bildtypen im Dateidialog. */
+export const GENERATOR_IMAGE_ACCEPT_HTML = "image/*" as const;
+
 /** Marketing erlaubt zusätzlich GIF (Animationen). */
 export const MARKETING_IMAGE_EXTENSIONS = [...RASTER_IMAGE_EXTENSIONS, ".gif"] as const;
 

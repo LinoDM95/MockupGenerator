@@ -34,11 +34,7 @@ const appleEase: [number, number, number, number] = [0.22, 1, 0.36, 1];
 /**
  * The "Creative Engine" Glyph — Ein Premium Lade-Batch für Print-on-Demand SaaS.
  */
-export const PixelGlyph = ({
-  placement: _placement = "inline",
-  size = "md",
-  className = "",
-}: PixelGlyphProps) => {
+export const PixelGlyph = ({ size = "md", className = "" }: PixelGlyphProps) => {
   const reduceMotion = useReducedMotion();
   const sc = sizeClasses[size];
   const isSm = size === "sm";

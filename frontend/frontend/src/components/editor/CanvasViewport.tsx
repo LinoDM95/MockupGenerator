@@ -453,7 +453,7 @@ export const CanvasViewport = ({
       ref={viewportRootRef}
       onPointerMove={handleViewportPointerMove}
       onPointerLeave={handleViewportPointerLeave}
-      className={`relative flex h-full min-h-[500px] flex-col rounded-xl bg-slate-100 ring-1 ring-slate-900/10 lg:col-span-3 ${
+      className={`relative flex h-full min-h-[500px] flex-col rounded-xl bg-slate-100 ring-1 ring-slate-900/10 ${
         allowFrameOuterShadowBleed ? "overflow-visible" : "overflow-hidden"
       }`}
     >

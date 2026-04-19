@@ -14,7 +14,7 @@ type Props = {
 export const PropertiesPanel = ({ activeEl, onUpdate }: Props) => {
   if (!activeEl) {
     return (
-      <div className="mt-6 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-400 ring-1 ring-inset ring-slate-900/5">
+      <div className="mt-6 rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-400 ring-1 ring-inset ring-dashed ring-slate-900/15">
         Wähle ein Element im Bild oder in den Ebenen.
       </div>
     );

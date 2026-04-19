@@ -9,6 +9,11 @@ type Props = Omit<InputHTMLAttributes<HTMLInputElement>, "children" | "title"> &
   description?: string;
   icon?: ReactNode;
   className?: string;
+  /**
+   * Eine Fläche wie eine Motiv-Karte: gestrichelter Rand = gesamte Karte,
+   * kein zusätzlicher weißer Rahmen um eine innere Dropzone.
+   */
+  fullCard?: boolean;
   onPickFiles?: (files: FileList | null) => void;
   /** Nur bei Datei-Upload per Drag & Drop (nicht beim Dateiauswahl-Dialog). */
   onDropComplete?: () => void;
@@ -19,6 +24,7 @@ export const Dropzone = ({
   description,
   icon,
   className,
+  fullCard = false,
   id,
   onPickFiles,
   onDropComplete,
@@ -72,10 +78,20 @@ export const Dropzone = ({
       onDragOver={handleDragOver}
       onDrop={handleDrop}
       className={cn(
-        "flex w-full cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-all duration-200 ease-out",
-        isDragging
-          ? "border-indigo-500 bg-indigo-50"
-          : "border-slate-300 bg-slate-50 hover:border-indigo-400 hover:bg-slate-100/50",
+        "flex w-full cursor-pointer flex-col items-center justify-center text-center transition-all duration-200 ease-out",
+        fullCard
+          ? cn(
+              "h-full min-h-0 justify-center rounded-2xl border-2 border-dashed px-5 py-8 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 sm:py-10",
+              isDragging
+                ? "border-indigo-500 bg-indigo-50"
+                : "border-slate-300 bg-white hover:border-indigo-400 hover:bg-slate-50",
+            )
+          : cn(
+              "rounded-2xl border-2 border-dashed px-6 py-10",
+              isDragging
+                ? "border-indigo-500 bg-indigo-50"
+                : "border-slate-300 bg-slate-50 hover:border-indigo-400 hover:bg-slate-100/50",
+            ),
         className,
       )}
     >

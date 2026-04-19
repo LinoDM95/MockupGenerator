@@ -79,9 +79,10 @@ export const ExportProgress = ({ taskIds, onClose }: Props) => {
   }, [taskIds]);
 
   useEffect(() => {
-    void poll();
+    const kickoff = window.setTimeout(() => void poll(), 0);
     intervalRef.current = setInterval(() => void poll(), POLL_INTERVAL_MS);
     return () => {
+      window.clearTimeout(kickoff);
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [poll]);

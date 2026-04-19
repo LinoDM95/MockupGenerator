@@ -59,10 +59,10 @@ export const AuthScreen = () => {
               <ArrowLeft size={14} strokeWidth={1.75} aria-hidden />
               Zurück
             </Link>
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900 shadow-sm">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 shadow-sm">
               <Zap size={20} className="text-white" fill="currentColor" />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Mockup Generator Pro</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Creative Engine</h1>
             <p className="mt-1 text-sm font-medium text-slate-500">
               {mode === "login" ? "Willkommen zurück" : "Account erstellen"}
             </p>

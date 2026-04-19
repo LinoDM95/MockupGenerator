@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import {
   CheckCircle2,
   Cloud,
+  LayoutGrid,
   Link2,
   Loader2,
   Package,
@@ -26,9 +27,11 @@ import { AISetup } from "../ai/AISetup";
 import { EtsyIntegrationSetup } from "../etsy/EtsyIntegrationSetup";
 import { GelatoSetup } from "../gelato/GelatoSetup";
 import { MarketingIntegrationSetup } from "../marketing/MarketingIntegrationSetup";
+import { AppPageSectionHeader } from "../ui/AppPageSectionHeader";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { Input } from "../ui/Input";
+import { PanelModal } from "../ui/PanelModal";
 
 export type HubTabId = "etsy" | "gelato" | "gemini" | "cloudflare_r2" | "pinterest";
 
@@ -99,6 +102,7 @@ export const SetupHub = () => {
   const setIntegrationHubSection = useAppStore((s) => s.setIntegrationHubSection);
 
   const [tab, setTab] = useState<HubTabId>("etsy");
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [status, setStatus] = useState<IntegrationStatusResponse | null>(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
 
@@ -141,10 +145,13 @@ export const SetupHub = () => {
     setFeedback("");
   };
 
-  const handleTabChange = (next: HubTabId) => {
+  const handleOpenSettings = (next: HubTabId) => {
     setTab(next);
     resetFeedback();
+    setSettingsOpen(true);
   };
+
+  const settingsModalTitle = `${INTEGRATION_CARDS.find((c) => c.id === tab)?.title ?? "Integration"} – Einstellungen`;
 
   const inputRingClass =
     fieldTone === "success"
@@ -199,15 +206,12 @@ export const SetupHub = () => {
   const g = R2_GUIDE;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8 pb-12">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight text-slate-900">
-          Alle Integrationen
-        </h2>
-        <p className="mt-2 text-sm font-medium text-slate-500">
-          Verwalte Shop-Verbindungen und API-Keys zentral an einem Ort.
-        </p>
-      </div>
+    <div className="w-full min-w-0 space-y-8 pb-12">
+      <AppPageSectionHeader
+        icon={LayoutGrid}
+        title="Alle Integrationen"
+        description="Verwalte Shop-Verbindungen und API-Keys zentral an einem Ort."
+      />
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {INTEGRATION_CARDS.map((item, i) => {
@@ -265,7 +269,7 @@ export const SetupHub = () => {
                       "w-full",
                       ok && "text-slate-600 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900",
                     )}
-                    onClick={() => handleTabChange(item.id)}
+                    onClick={() => handleOpenSettings(item.id)}
                   >
                     {ok ? "Einstellungen öffnen" : "Jetzt einrichten"}
                   </Button>
@@ -276,7 +280,12 @@ export const SetupHub = () => {
         })}
       </div>
 
-      <Card padding="md" className="min-w-0">
+      <PanelModal
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        title={settingsModalTitle}
+        size="2xl"
+      >
         {embedded ? (
           <div className="min-w-0">
             {tab === "etsy" ? (
@@ -289,10 +298,7 @@ export const SetupHub = () => {
         ) : (
           <div>
             <header className="mb-6">
-              <h2 className="text-lg font-semibold text-slate-900">
-                {r2Configured ? "Cloudflare R2 – Einstellungen" : g.title}
-              </h2>
-              <p className="mt-1 text-sm text-slate-600">
+              <p className="text-sm text-slate-600">
                 {r2Configured
                   ? "Credentials sind gespeichert. Zum Ändern neue Werte eintragen und speichern oder Verbindung testen."
                   : g.tagline}
@@ -407,7 +413,7 @@ export const SetupHub = () => {
             </div>
           </div>
         )}
-      </Card>
+      </PanelModal>
     </div>
   );
 };

@@ -1,7 +1,14 @@
 import { motion, useReducedMotion } from "framer-motion";
 import type { HTMLAttributes, ReactNode } from "react";
 
+import {
+  cardHoverShadowAccent,
+  cardHoverShadowDefault,
+  cardSurfaceElevationAccent,
+  cardSurfaceElevationDefault,
+} from "../../lib/cardSurface";
 import { cn } from "../../lib/cn";
+import { workspaceEmbeddedCardClassName } from "../../lib/workspaceSurfaces";
 
 type DivProps = Omit<
   HTMLAttributes<HTMLDivElement>,
@@ -17,7 +24,12 @@ type DivProps = Omit<
 type Props = DivProps & {
   children: ReactNode;
   padding?: "none" | "sm" | "md" | "lg";
-  variant?: "default" | "accent";
+  /**
+   * `default` / `accent`: helle Kachel auf dem Seitengrund.
+   * `embedded`: sekundäre Fläche (z. B. linke Sidebar) — leicht getönt, Inset-Ring,
+   * damit sie sich von den weißen Inhaltskarten (Motive, Dropzone) abhebt.
+   */
+  variant?: "default" | "accent" | "embedded";
   interactive?: boolean;
 };
 
@@ -29,16 +41,10 @@ const pad: Record<NonNullable<Props["padding"]>, string> = {
 };
 
 const variantClass: Record<NonNullable<Props["variant"]>, string> = {
-  default:
-    "relative rounded-2xl border border-transparent bg-white shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5",
-  accent:
-    "relative rounded-[2rem] border border-transparent bg-white shadow-[0_8px_24px_rgb(0,0,0,0.06)] ring-1 ring-indigo-900/5",
+  default: cn("relative rounded-2xl border border-transparent", cardSurfaceElevationDefault),
+  accent: cn("relative rounded-[2rem] border border-transparent", cardSurfaceElevationAccent),
+  embedded: workspaceEmbeddedCardClassName,
 };
-
-const hoverShadowDefault =
-  "0 8px 24px rgb(0,0,0,0.06), 0 2px 8px rgb(0,0,0,0.04)";
-const hoverShadowAccent =
-  "0 12px 32px rgb(99,102,241,0.08), 0 4px 12px rgb(0,0,0,0.04)";
 
 export const Card = ({
   children,
@@ -53,6 +59,12 @@ export const Card = ({
   const isInteractive =
     interactive === true || (interactive !== false && typeof onClick === "function");
   const surface = variantClass[variant];
+  const hoverShadow =
+    variant === "accent"
+      ? cardHoverShadowAccent
+      : variant === "embedded"
+        ? "0 4px 14px rgb(0,0,0,0.05)"
+        : cardHoverShadowDefault;
 
   if (isInteractive) {
     return (
@@ -63,7 +75,7 @@ export const Card = ({
             ? undefined
             : {
                 y: -2,
-                boxShadow: variant === "accent" ? hoverShadowAccent : hoverShadowDefault,
+                boxShadow: hoverShadow,
               }
         }
         transition={{ duration: 0.2, ease: "easeOut" }}

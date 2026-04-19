@@ -1,8 +1,9 @@
-import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Folder, Layers, Maximize, Store } from "lucide-react";
 
 import type { WorkspaceTab } from "../store/appStore";
 import { useAppStore } from "../store/appStore";
+import { AppSubNavPageLayout } from "./ui/AppSubNavPageLayout";
 import { SubNavTab } from "./ui/SubNavTab";
 import { EtsyListingsEditor } from "./etsy/EtsyListingsEditor";
 import { GeneratorView } from "./GeneratorView";
@@ -27,40 +28,32 @@ export const WorkspaceView = () => {
   const reduceMotion = useReducedMotion();
 
   return (
-    <div>
-      <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Erstellen</h1>
-          <p className="mt-0.5 text-sm text-slate-500">
-            Generator, Vorlagen, Upscaler und Etsy-Shop (Listings und Editor).
-          </p>
-        </div>
-        <LayoutGroup>
-          <nav
-            className="flex flex-wrap items-center justify-end gap-0.5 sm:gap-1"
-            aria-label="Erstellen: Unterbereich wechseln"
-          >
-            {SUB.map(({ id, label, shortLabel, icon: Icon }) => (
-              <SubNavTab
-                key={id}
-                label={label}
-                shortLabel={shortLabel}
-                icon={Icon}
-                active={workspaceTab === id}
-                disabled={navigationLocked}
-                title={navigationLocked ? NAV_LOCK_TITLE : undefined}
-                activePillLayoutId="workspace-sub-nav-pill"
-                onClick={() => {
-                  if (navigationLocked) return;
-                  setWorkspaceTab(id);
-                  setEditingSetId(null);
-                }}
-              />
-            ))}
-          </nav>
-        </LayoutGroup>
-      </div>
-
+    <AppSubNavPageLayout
+      title="Erstellen"
+      description="Generator, Vorlagen, Upscaler und Etsy-Shop (Listings und Editor)."
+      subNavAriaLabel="Erstellen: Unterbereich wechseln"
+      subNav={
+        <>
+          {SUB.map(({ id, label, shortLabel, icon: Icon }) => (
+            <SubNavTab
+              key={id}
+              label={label}
+              shortLabel={shortLabel}
+              icon={Icon}
+              active={workspaceTab === id}
+              disabled={navigationLocked}
+              title={navigationLocked ? NAV_LOCK_TITLE : undefined}
+              activePillLayoutId="workspace-sub-nav-pill"
+              onClick={() => {
+                if (navigationLocked) return;
+                setWorkspaceTab(id);
+                setEditingSetId(null);
+              }}
+            />
+          ))}
+        </>
+      }
+    >
       <AnimatePresence mode="wait">
         <motion.div
           key={workspaceTab}
@@ -75,6 +68,6 @@ export const WorkspaceView = () => {
           {workspaceTab === "etsy" ? <EtsyListingsEditor /> : null}
         </motion.div>
       </AnimatePresence>
-    </div>
+    </AppSubNavPageLayout>
   );
 };

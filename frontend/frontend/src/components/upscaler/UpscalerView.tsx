@@ -1,11 +1,10 @@
 import JSZip from "jszip";
 import {
   AlertCircle,
-  ArrowLeft,
   CheckCircle2,
+  ChevronDown,
   Copy,
   Download,
-  ImageUp,
   Loader2,
   Maximize,
   Settings,
@@ -46,18 +45,35 @@ import { getErrorMessage } from "../../lib/error";
 import {
   filterRasterImageFiles,
   MAX_UPSCALER_IMAGE_BYTES,
+  RASTER_IMAGE_ACCEPT_HTML,
 } from "../../lib/imageUploadAccept";
 import { MOCKUP_LOCAL_ENGINE_HREF } from "../../lib/localEngine";
+import {
+  workspaceEmbeddedPaddedClassName,
+  workspaceEmbeddedPanelClassName,
+} from "../../lib/workspaceSurfaces";
 import { UPSCALE_MAX_OUTPUT_PIXELS } from "../../lib/upscaleMaxOutputPixels";
 import { formatUpscaleUserMessage } from "../../lib/upscaleUserMessage";
 import { toast } from "../../lib/toast";
 import { useAppStore } from "../../store/appStore";
 import { AppPage } from "../ui/AppPage";
+import { AppPageSectionHeader } from "../ui/AppPageSectionHeader";
 import { Button } from "../ui/Button";
-import { Dropzone } from "../ui/Dropzone";
+import { Card } from "../ui/Card";
 import { Select } from "../ui/Select";
 import { IntegrationMissingCallout } from "../ui/IntegrationMissingCallout";
 import { LinearLoadingBar } from "../ui/LinearLoadingBar";
+import {
+  UploadQueueCard,
+  UploadQueueCardFooter,
+  UploadQueueCardIndexBadge,
+  UploadQueueCardMedia,
+  UploadQueueCardRemoveButton,
+  UploadQueueGrid,
+  UploadQueueInitialDropzone,
+  UploadQueueMotionItem,
+} from "../ui/UploadQueueGrid";
+import { WorkspaceEngineSplitLayout } from "../ui/WorkspaceEngineSplitLayout";
 import { WorkSessionShell } from "../ui/workSession/WorkSessionShell";
 
 /** Cloud (Vertex): konservativ wegen API-Kosten/Quota. */
@@ -79,6 +95,20 @@ type BatchItem = {
   upscaledWidth?: number;
   upscaledHeight?: number;
   errorMessage?: string;
+};
+
+const computeNeedsTiling = (
+  it: BatchItem,
+  factor: UpscaleFactor,
+): boolean => {
+  const mult = Number.parseInt(factor.slice(1), 10);
+  const targetW = it.originalWidth ? it.originalWidth * mult : null;
+  const targetH = it.originalHeight ? it.originalHeight * mult : null;
+  return (
+    targetW != null &&
+    targetH != null &&
+    targetW * targetH > UPSCALE_MAX_OUTPUT_PIXELS
+  );
 };
 
 const nextId = (): string =>
@@ -136,6 +166,8 @@ export const UpscalerView = () => {
   const [engineMode, setEngineMode] = useState<"cloud" | "local">("cloud");
   const [parallelTiles, setParallelTiles] =
     useState<ParallelTilesOption>("1");
+  /** Lokale Companion-/KI-Einstellungen — Standard eingeklappt. */
+  const [localCompanionOpen, setLocalCompanionOpen] = useState(false);
   const [installingModelId, setInstallingModelId] = useState<string | null>(
     null,
   );
@@ -241,23 +273,30 @@ export const UpscalerView = () => {
     const maxBatch =
       engineMode === "local" ? MAX_BATCH_FILES_LOCAL : MAX_BATCH_FILES_CLOUD;
 
-    let batch = picked;
-    if (batch.length > maxBatch) {
-      toast.error(
-        `Maximal ${maxBatch} Dateien pro Durchgang (${engineMode === "local" ? "lokal" : "Cloud"}). Es werden nur die ersten ${maxBatch} verwendet.`,
-      );
-      batch = batch.slice(0, maxBatch);
-    }
-
     setItems((prev) => {
-      revokeAllUrls(prev);
-      const next: BatchItem[] = batch.map((file) => ({
+      const remaining = maxBatch - prev.length;
+      if (remaining <= 0) {
+        toast.error(
+          `Maximal ${maxBatch} Dateien pro Durchgang (${engineMode === "local" ? "lokal" : "Cloud"}).`,
+        );
+        return prev;
+      }
+
+      let batch = picked;
+      if (picked.length > remaining) {
+        toast.error(
+          `Nur noch ${remaining} Platz — es werden nur die ersten ${remaining} neuen Dateien übernommen.`,
+        );
+        batch = picked.slice(0, remaining);
+      }
+
+      const newItems: BatchItem[] = batch.map((file) => ({
         id: nextId(),
         file,
         previewUrl: URL.createObjectURL(file),
         status: "pending" as const,
       }));
-      for (const it of next) {
+      for (const it of newItems) {
         const img = new Image();
         img.onload = () => {
           setItems((list) =>
@@ -274,10 +313,10 @@ export const UpscalerView = () => {
         };
         img.src = it.previewUrl;
       }
-      return next;
+      return [...prev, ...newItems];
     });
     setShowResults(false);
-  }, [engineMode, revokeAllUrls]);
+  }, [engineMode]);
 
   const handleClearSelection = useCallback(() => {
     pendingAutoZipRef.current = false;
@@ -289,6 +328,18 @@ export const UpscalerView = () => {
     setVertexApiGate(null);
     setShowResults(false);
   }, [revokeAllUrls]);
+
+  const handleRemoveQueueItem = useCallback((id: string) => {
+    pendingAutoZipRef.current = false;
+    setItems((prev) => {
+      const it = prev.find((row) => row.id === id);
+      if (!it) return prev;
+      URL.revokeObjectURL(it.previewUrl);
+      if (it.resultUrl) URL.revokeObjectURL(it.resultUrl);
+      return prev.filter((row) => row.id !== id);
+    });
+    setShowResults(false);
+  }, []);
 
   const buildZipFromDoneList = useCallback(async (done: BatchItem[]) => {
     if (!done.length) return;
@@ -465,10 +516,15 @@ export const UpscalerView = () => {
 
     const todo = items
       .map((it, idx) => ({ it, idx }))
-      .filter(({ it }) => it.status === "pending" || it.status === "error");
+      .filter(
+        ({ it }) =>
+          it.status === "pending" ||
+          it.status === "error" ||
+          it.status === "done",
+      );
 
     if (todo.length === 0) {
-      toast.error("Waehle zuerst Bilder aus oder setze fehlgeschlagene zurueck.");
+      toast.error("Keine Bilder zum Hochskalieren — bitte neue Bilder hinzufuegen.");
       return;
     }
 
@@ -706,8 +762,15 @@ export const UpscalerView = () => {
     toast.success("Bild heruntergeladen.");
   }, []);
 
-  const pendingCount = useMemo(
-    () => items.filter((i) => i.status === "pending" || i.status === "error").length,
+  /** Ausstehend, fehlgeschlagen oder fertig (erneuter Lauf mit anderem Faktor / gleicher Queue). */
+  const upscaleQueueCount = useMemo(
+    () =>
+      items.filter(
+        (i) =>
+          i.status === "pending" ||
+          i.status === "error" ||
+          i.status === "done",
+      ).length,
     [items],
   );
 
@@ -734,43 +797,25 @@ export const UpscalerView = () => {
     [items],
   );
 
-  // ── Empty: Dropzone oben/links (sticky), Engine/Modelle daneben ──
+  // ── Empty: Engine links, Dropzone rechts (wie Generator-Leerzustand) ──
   if (items.length === 0) {
     return (
       <AppPage>
-      <div className="mx-auto max-w-6xl space-y-6">
-        <div className="text-center lg:text-left">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 lg:mx-0">
-            <Maximize size={24} className="text-indigo-600" />
-          </div>
-          <h1 className="text-xl font-semibold text-slate-900">KI Upscaler</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Cloud: Google Imagen / Vertex. Lokal: kostenlose Companion-App auf
-            deiner GPU — nacheinander verarbeitet. Ein Bild: Vorher/Nachher; mehrere:
-            Ergebnisliste mit ZIP.
-          </p>
-        </div>
+      <div className="space-y-6">
+        <AppPageSectionHeader
+          align="centerSm"
+          icon={Maximize}
+          title="KI Upscaler"
+          description="Cloud: Google Imagen / Vertex. Lokal: kostenlose Companion-App auf deiner GPU — nacheinander verarbeitet. Ein Bild: Vorher/Nachher; mehrere: Ergebnisliste mit ZIP."
+        />
 
-        <div className="grid gap-6 lg:grid-cols-2 lg:items-start xl:grid-cols-[minmax(0,1fr)_minmax(22rem,26rem)]">
-          <section
-            aria-label="Bilder hochladen"
-            className="space-y-4 lg:sticky lg:top-4 lg:z-10 lg:self-start"
-          >
-            <Dropzone
-              title="Bilder hierher ziehen oder klicken"
-              description={`JPG, PNG oder WebP — je max. 10 MB, bis ${engineMode === "local" ? MAX_BATCH_FILES_LOCAL : MAX_BATCH_FILES_CLOUD} Dateien`}
-              icon={<ImageUp size={32} className="text-slate-400" />}
-              accept="image/jpeg,image/png,image/webp"
-              multiple
-              onPickFiles={handlePickFiles}
-              onChange={(e) => handlePickFiles(e.target.files)}
-              className="py-12"
-            />
-            {genericError ? <ErrorBanner message={genericError} /> : null}
-          </section>
-
-          <aside className="min-w-0 space-y-4">
-            <div className="rounded-2xl bg-white p-5 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5">
+        <WorkspaceEngineSplitLayout
+          variant="empty"
+          primaryAriaLabel="Engine und Einstellungen"
+          secondaryAriaLabel="Bilder hochladen"
+          primary={
+            <>
+            <div className={workspaceEmbeddedPaddedClassName}>
               <fieldset>
                 <legend className="text-xs font-medium text-slate-500">Engine</legend>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -780,7 +825,7 @@ export const UpscalerView = () => {
                     aria-checked={engineMode === "cloud"}
                     onClick={() => setEngineMode("cloud")}
                     className={cn(
-                      "rounded-2xl p-4 text-left shadow-[0_2px_8px_rgb(0,0,0,0.04)] transition-all ring-1",
+                      "rounded-xl p-4 text-left shadow-[0_2px_8px_rgb(0,0,0,0.04)] transition-all ring-1",
                       engineMode === "cloud"
                         ? "bg-indigo-50 ring-indigo-500/25"
                         : "bg-white ring-slate-900/5 hover:bg-slate-50",
@@ -799,7 +844,7 @@ export const UpscalerView = () => {
                     aria-checked={engineMode === "local"}
                     onClick={() => setEngineMode("local")}
                     className={cn(
-                      "rounded-2xl p-4 text-left shadow-[0_2px_8px_rgb(0,0,0,0.04)] transition-all ring-1",
+                      "rounded-xl p-4 text-left shadow-[0_2px_8px_rgb(0,0,0,0.04)] transition-all ring-1",
                       engineMode === "local"
                         ? "bg-indigo-50 ring-indigo-500/25"
                         : "bg-white ring-slate-900/5 hover:bg-slate-50",
@@ -814,64 +859,92 @@ export const UpscalerView = () => {
                   </button>
                 </div>
               </fieldset>
-              {engineMode === "local" ? (
-                <div className="mt-4 space-y-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                      Companion
-                    </span>
-                    {isChecking ? (
-                      <span className="text-xs font-medium text-slate-500">
-                        Pruefe …
-                      </span>
-                    ) : isOnline ? (
-                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-emerald-700 ring-1 ring-emerald-500/20">
-                        Online
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-slate-600 ring-1 ring-slate-900/10">
-                        Offline
-                      </span>
-                    )}
-                  </div>
-                  {isOnline && !isOutdated ? (
-                    <CompanionLocalModelsPanel
-                      catalog={catalog}
-                      installedModelIds={installedModelIds}
-                      activeModelId={activeModelId}
-                      vulkanRuntimeInstalled={vulkanRuntimeInstalled}
-                      installingModelId={installingModelId}
-                      uninstallingModelId={uninstallingModelId}
-                      onInstall={(id) => void handleInstallCompanionModel(id)}
-                      onUninstall={(id) => void handleUninstallCompanionModel(id)}
-                      onSelectActive={(id) =>
-                        void handleSelectCompanionActiveModel(id)
-                      }
-                      onUninstallVulkan={() => void handleUninstallVulkanRuntime()}
-                    />
+              {engineMode === "local" && isOnline ? (
+                <div className="mt-4 border-t border-slate-100 pt-4">
+                  {canRunLocalUpscale ? (
+                    <p className="mb-4 text-xs font-medium text-emerald-800">
+                      Aktives Modell bereit — du kannst hochskalieren.
+                    </p>
                   ) : null}
-                  {engineMode === "local" && isOnline && isOutdated ? (
-                    <CompanionEngineOutdatedCallout
-                      engineVersion={engineVersion}
+                  <button
+                    type="button"
+                    id="upscaler-local-companion-toggle-empty"
+                    aria-expanded={localCompanionOpen}
+                    aria-controls="upscaler-local-companion-panel-empty"
+                    onClick={() => setLocalCompanionOpen((o) => !o)}
+                    className="flex w-full items-center justify-between gap-2 rounded-lg py-1 text-left text-sm font-semibold text-slate-900 transition-colors hover:text-indigo-700"
+                  >
+                    <span>Lokale KI und Companion</span>
+                    <ChevronDown
+                      className={cn(
+                        "h-4 w-4 shrink-0 text-slate-500 transition-transform duration-200",
+                        localCompanionOpen && "rotate-180",
+                      )}
+                      aria-hidden
                     />
-                  ) : null}
-                  {engineMode === "local" &&
-                  isOnline &&
-                  !isOutdated &&
-                  !isChecking ? (
-                    <Select
-                      label="Parallele Kacheln (lokal)"
-                      name="companion-parallel-tiles-empty"
-                      value={parallelTiles}
-                      onChange={(e) =>
-                        setParallelTiles(e.target.value as ParallelTilesOption)
-                      }
-                      aria-label="Parallele Kacheln fuer lokales Upscaling"
+                  </button>
+                  {localCompanionOpen ? (
+                    <div
+                      id="upscaler-local-companion-panel-empty"
+                      className="mt-4 space-y-4"
+                      role="region"
+                      aria-labelledby="upscaler-local-companion-toggle-empty"
                     >
-                      <option value="1">1 (sequenziell)</option>
-                      <option value="2">2</option>
-                      <option value="auto">Auto (konservativ)</option>
-                    </Select>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                          Companion
+                        </span>
+                        {isChecking ? (
+                          <span className="text-xs font-medium text-slate-500">
+                            Pruefe …
+                          </span>
+                        ) : isOnline ? (
+                          <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-emerald-700 ring-1 ring-emerald-500/20">
+                            Online
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-slate-600 ring-1 ring-slate-900/10">
+                            Offline
+                          </span>
+                        )}
+                      </div>
+                      {!isOutdated ? (
+                        <CompanionLocalModelsPanel
+                          catalog={catalog}
+                          installedModelIds={installedModelIds}
+                          activeModelId={activeModelId}
+                          vulkanRuntimeInstalled={vulkanRuntimeInstalled}
+                          installingModelId={installingModelId}
+                          uninstallingModelId={uninstallingModelId}
+                          onInstall={(id) => void handleInstallCompanionModel(id)}
+                          onUninstall={(id) => void handleUninstallCompanionModel(id)}
+                          onSelectActive={(id) =>
+                            void handleSelectCompanionActiveModel(id)
+                          }
+                          onUninstallVulkan={() => void handleUninstallVulkanRuntime()}
+                        />
+                      ) : null}
+                      {isOutdated ? (
+                        <CompanionEngineOutdatedCallout
+                          engineVersion={engineVersion}
+                        />
+                      ) : null}
+                      {!isOutdated && !isChecking ? (
+                        <Select
+                          label="Parallele Kacheln (lokal)"
+                          name="companion-parallel-tiles-empty"
+                          value={parallelTiles}
+                          onChange={(e) =>
+                            setParallelTiles(e.target.value as ParallelTilesOption)
+                          }
+                          aria-label="Parallele Kacheln fuer lokales Upscaling"
+                        >
+                          <option value="1">1 (sequenziell)</option>
+                          <option value="2">2</option>
+                          <option value="auto">Auto (konservativ)</option>
+                        </Select>
+                      ) : null}
+                    </div>
                   ) : null}
                 </div>
               ) : null}
@@ -915,8 +988,20 @@ export const UpscalerView = () => {
                 </Button>
               </div>
             ) : null}
-          </aside>
-        </div>
+            </>
+          }
+          secondary={
+            <>
+              <UploadQueueInitialDropzone
+                title="Bilder hinzufügen"
+                description={`PNG, JPG oder WebP — je max. 10 MB, bis ${engineMode === "local" ? MAX_BATCH_FILES_LOCAL : MAX_BATCH_FILES_CLOUD} Dateien`}
+                accept={RASTER_IMAGE_ACCEPT_HTML}
+                onPickFiles={handlePickFiles}
+              />
+              {genericError ? <ErrorBanner message={genericError} /> : null}
+            </>
+          }
+        />
       </div>
       </AppPage>
     );
@@ -980,78 +1065,192 @@ export const UpscalerView = () => {
         <VertexApiNotEnabledBox activationUrl={vertexApiGate} />
       ) : null}
 
-      <div className="mx-auto max-w-6xl space-y-6 px-1 sm:px-0">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={handleClearSelection}
-          disabled={isProcessing}
-          className="flex items-center gap-1.5 text-sm text-slate-500 transition-colors hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <ArrowLeft size={16} /> Neue Auswahl
-        </button>
-        <p className="text-xs text-slate-500">
-          {items.length} Datei(en)
-          {doneCount > 0 ? ` · ${doneCount} fertig` : ""}
-        </p>
-      </div>
+      <div className="space-y-6">
+      <AppPageSectionHeader
+        icon={Maximize}
+        title="KI Upscaler"
+        description={`${items.length} Datei(en)${doneCount > 0 ? ` · ${doneCount} fertig` : ""} — Bilder hochskalieren (Cloud oder lokale Engine).`}
+      />
 
       {genericError ? <ErrorBanner message={genericError} /> : null}
 
       {!showResults && !isProcessing ? (
-        <div className="grid gap-6 lg:grid-cols-12 lg:items-start">
-          <section
-            aria-label="Ausgewaehlte Bilder"
-            className="min-w-0 space-y-4 lg:col-span-7"
-          >
-            <div className="overflow-hidden rounded-2xl bg-white shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5">
-              {engineMode === "local" &&
-              isOnline &&
-              (installingModelId || uninstallingModelId) ? (
-                <div className="border-b border-slate-100 px-5 py-3">
-                  <LinearLoadingBar
-                    message={
-                      uninstallingModelId
-                        ? "Modell wird entfernt …"
-                        : "Modell wird installiert …"
-                    }
-                  />
-                </div>
-              ) : null}
+        <WorkspaceEngineSplitLayout
+          variant="queue"
+          primaryAriaLabel="Engine und Einstellungen"
+          secondaryAriaLabel="Ausgewaehlte Bilder"
+          secondary={
+            <>
+            {engineMode === "local" &&
+            isOnline &&
+            (installingModelId || uninstallingModelId) ? (
+              <div className="overflow-hidden rounded-xl bg-white px-5 py-3 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5">
+                <LinearLoadingBar
+                  message={
+                    uninstallingModelId
+                      ? "Modell wird entfernt …"
+                      : "Modell wird installiert …"
+                  }
+                />
+              </div>
+            ) : null}
 
-              {engineMode === "local" && isOnline && canRunLocalUpscale ? (
-                <div className="border-b border-slate-100 px-5 py-3">
-                  <p className="text-xs font-medium text-emerald-800">
-                    Aktives Modell bereit — du kannst hochskalieren.
-                  </p>
-                </div>
-              ) : null}
+            <UploadQueueGrid
+              label="Bilder"
+              dropzoneTitle="Mehr Bilder"
+              onPickFiles={handlePickFiles}
+            >
+              {items.map((it, index) => {
+                const needsTiling = computeNeedsTiling(it, factor);
+                return (
+                  <UploadQueueMotionItem key={it.id}>
+                    <UploadQueueCard>
+                      <UploadQueueCardMedia>
+                        <img
+                          src={it.previewUrl}
+                          alt=""
+                          className="absolute inset-0 h-full w-full object-cover"
+                        />
+                        <UploadQueueCardRemoveButton
+                          onClick={() => handleRemoveQueueItem(it.id)}
+                          ariaLabel={`${it.file.name} entfernen`}
+                        />
+                        <UploadQueueCardIndexBadge index={index} />
+                        {it.status === "running" ? (
+                          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-900/25">
+                            <Loader2
+                              className="h-10 w-10 animate-spin text-white drop-shadow"
+                              aria-hidden
+                            />
+                          </div>
+                        ) : null}
+                      </UploadQueueCardMedia>
+                      <UploadQueueCardFooter>
+                        <p className="truncate text-sm font-bold text-slate-900">
+                          {it.file.name}
+                        </p>
+                        <p className="mt-1 text-xs font-medium text-slate-500">
+                          {(it.file.size / (1024 * 1024)).toFixed(2)} MB
+                          {it.status === "done" &&
+                          it.upscaledWidth &&
+                          it.upscaledHeight
+                            ? ` → ${it.upscaledWidth}×${it.upscaledHeight}`
+                            : null}
+                        </p>
+                        {needsTiling ? (
+                          <p className="mt-2 text-xs font-medium text-amber-600">
+                            Kachelverarbeitung (über 17 MP) – kann länger
+                            dauern.
+                          </p>
+                        ) : null}
+                        {it.status === "error" && it.errorMessage ? (
+                          <p className="mt-2 text-xs font-medium text-red-600">
+                            {it.errorMessage}
+                          </p>
+                        ) : null}
+                        {it.status === "cancelled" && it.errorMessage ? (
+                          <p className="mt-2 text-xs font-medium text-slate-500">
+                            {it.errorMessage}
+                          </p>
+                        ) : null}
+                        <div className="mt-3 flex items-center gap-2">
+                          {it.status === "pending" ? (
+                            <>
+                              <span
+                                className="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400"
+                                aria-hidden
+                              />
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                                Wartet
+                              </span>
+                            </>
+                          ) : null}
+                          {it.status === "running" ? (
+                            <>
+                              <Loader2
+                                className="h-3.5 w-3.5 shrink-0 animate-spin text-indigo-500"
+                                aria-hidden
+                              />
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-600">
+                                Läuft …
+                              </span>
+                            </>
+                          ) : null}
+                          {it.status === "done" ? (
+                            <>
+                              <span
+                                className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500"
+                                aria-hidden
+                              />
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600">
+                                Fertig
+                              </span>
+                            </>
+                          ) : null}
+                          {it.status === "error" ? (
+                            <>
+                              <AlertCircle
+                                className="h-3.5 w-3.5 shrink-0 text-red-500"
+                                aria-hidden
+                              />
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-red-600">
+                                Fehler
+                              </span>
+                            </>
+                          ) : null}
+                          {it.status === "cancelled" ? (
+                            <>
+                              <span
+                                className="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300"
+                                aria-hidden
+                              />
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                                Abgebrochen
+                              </span>
+                            </>
+                          ) : null}
+                        </div>
+                      </UploadQueueCardFooter>
+                    </UploadQueueCard>
+                  </UploadQueueMotionItem>
+                );
+              })}
+            </UploadQueueGrid>
 
-              <UpscalerQueueList items={items} factor={factor} />
-
-              {vertexReady === false && engineMode === "cloud" ? (
-                <div className="border-t border-amber-100 bg-amber-50/50 px-5 py-3 text-xs text-amber-950">
-                  <p className="font-medium">Vertex-Dienstkonto fehlt</p>
-                  <Button
-                    variant="outline"
-                    className="mt-2 border-amber-300 bg-white text-xs text-amber-950"
-                    onClick={() => {
-                      goToIntegrationWizardStep(3);
-                      setEditingSetId(null);
-                    }}
-                  >
-                    <Settings size={14} /> Vertex einrichten
-                  </Button>
-                </div>
-              ) : null}
-            </div>
-          </section>
-
-          <aside
-            aria-label="Engine und Einstellungen"
-            className="space-y-4 lg:sticky lg:top-4 lg:z-10 lg:col-span-5 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:self-start"
-          >
-            <div className="overflow-hidden rounded-2xl bg-white shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5">
+            {vertexReady === false && engineMode === "cloud" ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-5 py-3 text-xs text-amber-950 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-amber-200/60">
+                <p className="font-medium">Vertex-Dienstkonto fehlt</p>
+                <Button
+                  variant="outline"
+                  className="mt-2 border-amber-300 bg-white text-xs text-amber-950"
+                  onClick={() => {
+                    goToIntegrationWizardStep(3);
+                    setEditingSetId(null);
+                  }}
+                >
+                  <Settings size={14} /> Vertex einrichten
+                </Button>
+              </div>
+            ) : null}
+            </>
+          }
+          primary={
+            <>
+            <Card padding="md" variant="embedded">
+              <h3 className="mb-4 text-sm font-bold tracking-tight text-slate-900">
+                Aktionen
+              </h3>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full justify-center"
+                onClick={handleClearSelection}
+                disabled={isProcessing || items.length === 0}
+              >
+                Liste leeren
+              </Button>
+            </Card>
+            <div className={workspaceEmbeddedPanelClassName}>
               <div className="border-b border-slate-100 px-5 py-4">
                 <fieldset>
                   <legend className="mb-2 block text-xs font-medium text-slate-500">
@@ -1064,7 +1263,7 @@ export const UpscalerView = () => {
                       aria-checked={engineMode === "cloud"}
                       onClick={() => setEngineMode("cloud")}
                       className={cn(
-                        "rounded-2xl p-4 text-left shadow-[0_2px_8px_rgb(0,0,0,0.04)] transition-all ring-1",
+                        "rounded-xl p-4 text-left shadow-[0_2px_8px_rgb(0,0,0,0.04)] transition-all ring-1",
                         engineMode === "cloud"
                           ? "bg-indigo-50 ring-indigo-500/25"
                           : "bg-white ring-slate-900/5 hover:bg-slate-50",
@@ -1083,7 +1282,7 @@ export const UpscalerView = () => {
                       aria-checked={engineMode === "local"}
                       onClick={() => setEngineMode("local")}
                       className={cn(
-                        "rounded-2xl p-4 text-left shadow-[0_2px_8px_rgb(0,0,0,0.04)] transition-all ring-1",
+                        "rounded-xl p-4 text-left shadow-[0_2px_8px_rgb(0,0,0,0.04)] transition-all ring-1",
                         engineMode === "local"
                           ? "bg-indigo-50 ring-indigo-500/25"
                           : "bg-white ring-slate-900/5 hover:bg-slate-50",
@@ -1098,88 +1297,7 @@ export const UpscalerView = () => {
                     </button>
                   </div>
                 </fieldset>
-                {engineMode === "local" ? (
-                  <div className="mt-4 space-y-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                        Companion
-                      </span>
-                      {isChecking ? (
-                        <span className="text-xs font-medium text-slate-500">
-                          Pruefe …
-                        </span>
-                      ) : isOnline ? (
-                        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-emerald-700 ring-1 ring-emerald-500/20">
-                          Online
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-slate-600 ring-1 ring-slate-900/10">
-                          Offline
-                        </span>
-                      )}
-                    </div>
-                    {isOnline && !isOutdated ? (
-                      <CompanionLocalModelsPanel
-                        catalog={catalog}
-                        installedModelIds={installedModelIds}
-                        activeModelId={activeModelId}
-                        vulkanRuntimeInstalled={vulkanRuntimeInstalled}
-                        installingModelId={installingModelId}
-                        uninstallingModelId={uninstallingModelId}
-                        onInstall={(id) => void handleInstallCompanionModel(id)}
-                        onUninstall={(id) =>
-                          void handleUninstallCompanionModel(id)
-                        }
-                        onSelectActive={(id) =>
-                          void handleSelectCompanionActiveModel(id)
-                        }
-                        onUninstallVulkan={() =>
-                          void handleUninstallVulkanRuntime()
-                        }
-                      />
-                    ) : null}
-                    {engineMode === "local" && isOnline && isOutdated ? (
-                      <CompanionEngineOutdatedCallout
-                        engineVersion={engineVersion}
-                      />
-                    ) : null}
-                    {engineMode === "local" &&
-                    isOnline &&
-                    !isOutdated &&
-                    !isChecking ? (
-                      <Select
-                        label="Parallele Kacheln (lokal)"
-                        name="companion-parallel-tiles-queue"
-                        value={parallelTiles}
-                        onChange={(e) =>
-                          setParallelTiles(
-                            e.target.value as ParallelTilesOption,
-                          )
-                        }
-                        aria-label="Parallele Kacheln fuer lokales Upscaling"
-                      >
-                        <option value="1">1 (sequenziell)</option>
-                        <option value="2">2</option>
-                        <option value="auto">Auto (konservativ)</option>
-                      </Select>
-                    ) : null}
-                  </div>
-                ) : null}
               </div>
-
-              {engineMode === "local" && !isOnline && !isChecking ? (
-                <div className="space-y-3 border-b border-slate-100 px-5 py-4">
-                  <IntegrationMissingCallout
-                    variant="slate"
-                    title="Local Engine nicht gefunden"
-                    description="Um deine eigene Grafikkarte kostenlos zu nutzen, lade dir unsere Local Engine herunter. Führe die Datei nach dem Download einmalig aus."
-                    actionLabel="Local Engine Herunterladen (ca. 25 MB)"
-                    href={MOCKUP_LOCAL_ENGINE_HREF}
-                    download="MockupLocalEngine.exe"
-                  />
-                  <CompanionOfflineCopyUvicornCommand />
-                </div>
-              ) : null}
 
               <div className="border-b border-slate-100 px-5 py-4">
                 <label className="mb-2 block text-xs font-medium text-slate-500">
@@ -1203,12 +1321,13 @@ export const UpscalerView = () => {
                 </div>
               </div>
 
-              <div className="border-t border-slate-100 px-5 py-4">
+              <div className="border-b border-slate-100 px-5 py-4">
                 <Button
                   onClick={() => void handleBatchUpscale()}
                   className="w-full"
                   disabled={
-                    pendingCount === 0 ||
+                    isProcessing ||
+                    upscaleQueueCount === 0 ||
                     (engineMode === "cloud" && vertexReady === false) ||
                     (engineMode === "local" &&
                       (!canRunLocalUpscale ||
@@ -1217,19 +1336,130 @@ export const UpscalerView = () => {
                         uninstallingModelId !== null))
                   }
                 >
-                  <Maximize size={16} />
+                  <Maximize size={16} aria-hidden />
                   {items.length === 1
                     ? "Upscale starten"
-                    : `Alle hochskalieren (${pendingCount})`}
+                    : `Alle hochskalieren (${upscaleQueueCount})`}
                 </Button>
               </div>
+
+              {engineMode === "local" && !isOnline && !isChecking ? (
+                <div className="space-y-3 border-b border-slate-100 px-5 py-4">
+                  <IntegrationMissingCallout
+                    variant="slate"
+                    title="Local Engine nicht gefunden"
+                    description="Um deine eigene Grafikkarte kostenlos zu nutzen, lade dir unsere Local Engine herunter. Führe die Datei nach dem Download einmalig aus."
+                    actionLabel="Local Engine Herunterladen (ca. 25 MB)"
+                    href={MOCKUP_LOCAL_ENGINE_HREF}
+                    download="MockupLocalEngine.exe"
+                  />
+                  <CompanionOfflineCopyUvicornCommand />
+                </div>
+              ) : null}
+
+              {engineMode === "local" && isOnline ? (
+                <div className="border-b border-slate-100 px-5 py-4">
+                  {canRunLocalUpscale ? (
+                    <p className="mb-4 text-xs font-medium text-emerald-800">
+                      Aktives Modell bereit — du kannst hochskalieren.
+                    </p>
+                  ) : null}
+                  <button
+                    type="button"
+                    id="upscaler-local-companion-toggle-queue"
+                    aria-expanded={localCompanionOpen}
+                    aria-controls="upscaler-local-companion-panel-queue"
+                    onClick={() => setLocalCompanionOpen((o) => !o)}
+                    className="flex w-full items-center justify-between gap-2 rounded-lg py-1 text-left text-sm font-semibold text-slate-900 transition-colors hover:text-indigo-700"
+                  >
+                    <span>Lokale KI und Companion</span>
+                    <ChevronDown
+                      className={cn(
+                        "h-4 w-4 shrink-0 text-slate-500 transition-transform duration-200",
+                        localCompanionOpen && "rotate-180",
+                      )}
+                      aria-hidden
+                    />
+                  </button>
+                  {localCompanionOpen ? (
+                    <div
+                      id="upscaler-local-companion-panel-queue"
+                      className="mt-4 space-y-4"
+                      role="region"
+                      aria-labelledby="upscaler-local-companion-toggle-queue"
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                          Companion
+                        </span>
+                        {isChecking ? (
+                          <span className="text-xs font-medium text-slate-500">
+                            Pruefe …
+                          </span>
+                        ) : isOnline ? (
+                          <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-emerald-700 ring-1 ring-emerald-500/20">
+                            Online
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-slate-600 ring-1 ring-slate-900/10">
+                            Offline
+                          </span>
+                        )}
+                      </div>
+                      {!isOutdated ? (
+                        <CompanionLocalModelsPanel
+                          catalog={catalog}
+                          installedModelIds={installedModelIds}
+                          activeModelId={activeModelId}
+                          vulkanRuntimeInstalled={vulkanRuntimeInstalled}
+                          installingModelId={installingModelId}
+                          uninstallingModelId={uninstallingModelId}
+                          onInstall={(id) => void handleInstallCompanionModel(id)}
+                          onUninstall={(id) =>
+                            void handleUninstallCompanionModel(id)
+                          }
+                          onSelectActive={(id) =>
+                            void handleSelectCompanionActiveModel(id)
+                          }
+                          onUninstallVulkan={() =>
+                            void handleUninstallVulkanRuntime()
+                          }
+                        />
+                      ) : null}
+                      {isOutdated ? (
+                        <CompanionEngineOutdatedCallout
+                          engineVersion={engineVersion}
+                        />
+                      ) : null}
+                      {!isOutdated && !isChecking ? (
+                        <Select
+                          label="Parallele Kacheln (lokal)"
+                          name="companion-parallel-tiles-queue"
+                          value={parallelTiles}
+                          onChange={(e) =>
+                            setParallelTiles(
+                              e.target.value as ParallelTilesOption,
+                            )
+                          }
+                          aria-label="Parallele Kacheln fuer lokales Upscaling"
+                        >
+                          <option value="1">1 (sequenziell)</option>
+                          <option value="2">2</option>
+                          <option value="auto">Auto (konservativ)</option>
+                        </Select>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
-          </aside>
-        </div>
+            </>
+          }
+        />
       ) : null}
 
       {showResults && doneCount > 0 && singlePreviewItem ? (
-        <div className="overflow-hidden rounded-2xl bg-white shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5">
+        <div className="overflow-hidden rounded-xl bg-white shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
             <h2 className="text-lg font-semibold text-slate-900">Ergebnis</h2>
             <Button variant="outline" onClick={() => setShowResults(false)}>
@@ -1256,7 +1486,7 @@ export const UpscalerView = () => {
       ) : null}
 
       {showResults && doneCount > 0 && items.length > 1 ? (
-        <div className="overflow-hidden rounded-2xl bg-white shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5">
+        <div className="overflow-hidden rounded-xl bg-white shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
             <div>
               <h2 className="text-lg font-semibold text-slate-900">Ergebnisse</h2>
@@ -1370,17 +1600,13 @@ const UpscalerQueueList = ({
     <ul
       className={cn(
         "divide-y",
-        dark ? "divide-white/10" : "divide-slate-100",
+        dark
+          ? "divide-white/10"
+          : "divide-slate-100 overflow-hidden rounded-xl bg-white shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5",
       )}
     >
       {items.map((it) => {
-        const mult = parseInt(factor.slice(1), 10);
-        const targetW = it.originalWidth ? it.originalWidth * mult : null;
-        const targetH = it.originalHeight ? it.originalHeight * mult : null;
-        const needsTiling =
-          targetW != null &&
-          targetH != null &&
-          targetW * targetH > UPSCALE_MAX_OUTPUT_PIXELS;
+        const needsTiling = computeNeedsTiling(it, factor);
 
         return (
           <li key={it.id} className="flex gap-4 px-4 py-4 sm:px-5">

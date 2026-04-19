@@ -6,7 +6,6 @@ import {
   Loader2,
   Megaphone,
   Send,
-  Webhook,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
@@ -37,6 +36,8 @@ import { toast } from "../../lib/toast";
 import { useAppStore } from "../../store/appStore";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
+import { AppPageSectionHeader } from "../ui/AppPageSectionHeader";
+import { AppSubNavPageLayout } from "../ui/AppSubNavPageLayout";
 import { Input } from "../ui/Input";
 import { Select } from "../ui/Select";
 import { IntegrationMissingCallout } from "../ui/IntegrationMissingCallout";
@@ -77,16 +78,13 @@ export const MarketingDashboard = () => {
   const [boardId, setBoardId] = useState("");
   const [boardsLoaded, setBoardsLoaded] = useState(false);
   const [queueRunning, setQueueRunning] = useState(false);
-  const [webhookUrl, setWebhookUrl] = useState("");
-
-  useEffect(() => {
+  const [webhookUrl, setWebhookUrl] = useState(() => {
     try {
-      const v = localStorage.getItem(MARKETING_WEBHOOK_STORAGE_KEY);
-      if (v) setWebhookUrl(v);
+      return localStorage.getItem(MARKETING_WEBHOOK_STORAGE_KEY) ?? "";
     } catch {
-      /* ignore */
+      return "";
     }
-  }, []);
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -308,20 +306,21 @@ export const MarketingDashboard = () => {
   ).length;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8 pb-12">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-          Verbreiten &amp; Marketing
-        </h1>
-        <p className="mt-2 text-sm font-medium text-slate-500">
-          Mockups nach R2 laden, optional per Webhook an Make.com anbinden, KI-Captions erzeugen und zu
-          Pinterest posten. Pinterest zuerst unter{" "}
-          <span className="font-medium text-slate-600">Integrationen → Pinterest</span> verknüpfen.
-        </p>
-      </div>
+    <AppSubNavPageLayout
+      title="Verbreiten & Marketing"
+      description={
+        "Mockups nach R2 laden, optional per Webhook an Make.com anbinden, KI-Captions erzeugen und zu Pinterest posten. Pinterest zuerst unter Integrationen → Pinterest verknüpfen."
+      }
+    >
+      <div className="w-full min-w-0 space-y-8 pb-12">
+        <AppPageSectionHeader
+          icon={Megaphone}
+          title="Publikation & Pinterest"
+          description="Upload, Board, Warteschlange und Beiträge — Webhook und Make-Blueprint im linken Bereich."
+        />
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-5">
-        <div className="space-y-6 lg:col-span-3">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-5">
+          <div className="space-y-6 lg:col-span-3">
           {!integrationFlagsLoading && !pinterestConnected ? (
             <IntegrationMissingCallout
               title="Pinterest ist nicht verbunden"
@@ -332,14 +331,12 @@ export const MarketingDashboard = () => {
           ) : null}
 
           <Card variant="accent" padding="lg">
-            <div className="mb-6 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 ring-1 ring-inset ring-indigo-500/20">
-                <Webhook size={20} strokeWidth={2} aria-hidden />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold tracking-tight text-slate-900">Webhook-Anbindung</h2>
-                <p className="text-xs font-medium text-slate-500">Make.com, n8n oder Zapier</p>
-              </div>
+            <div className="mb-6">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                Webhook &amp; Automation
+              </p>
+              <h3 className="mt-1 text-base font-bold tracking-tight text-slate-900">Anbindung</h3>
+              <p className="mt-0.5 text-xs font-medium text-slate-500">Make.com, n8n oder Zapier</p>
             </div>
 
             <div className="space-y-5">
@@ -378,11 +375,14 @@ export const MarketingDashboard = () => {
           </Card>
 
           <Card padding="md">
-            <h2 id={dropId} className="text-sm font-semibold text-slate-900">
-              Bilder &amp; Board
-            </h2>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+              Upload &amp; Board
+            </p>
+            <h3 id={dropId} className="mt-1 text-base font-bold tracking-tight text-slate-900">
+              Bilder &amp; Pinterest
+            </h3>
             <p className="mt-1 text-xs font-medium text-slate-500">
-              Upload und Pinterest-Board für die Beiträge unten.
+              Dateien hierher ziehen und Ziel-Board wählen — Grundlage für die Tabelle unten.
             </p>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div
@@ -449,9 +449,14 @@ export const MarketingDashboard = () => {
 
         <div className="lg:col-span-2">
           <Card padding="md" className="h-full">
-            <div className="mb-6 flex items-center justify-between gap-2">
-              <h2 className="text-base font-bold tracking-tight text-slate-900">Warteschlange</h2>
-              <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-600">
+            <div className="mb-6 flex items-start justify-between gap-2">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                  Übersicht
+                </p>
+                <h3 className="mt-1 text-base font-bold tracking-tight text-slate-900">Warteschlange</h3>
+              </div>
+              <span className="inline-flex shrink-0 items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-600 ring-1 ring-inset ring-slate-900/5">
                 {pendingQueueCount} anstehend
               </span>
             </div>
@@ -520,10 +525,13 @@ export const MarketingDashboard = () => {
       </div>
 
       {rows.length > 0 && (
-        <Card padding="none" className="overflow-hidden shadow-[0_2px_8px_rgb(0,0,0,0.04)]">
-          <div className="border-b border-slate-100 px-5 py-3 sm:px-6">
-            <h2 className="text-sm font-bold tracking-tight text-slate-900">Beiträge bearbeiten</h2>
-            <p className="mt-0.5 text-xs font-medium text-slate-500">
+        <Card padding="none" className="overflow-hidden">
+          <div className="px-5 py-4 sm:px-6">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+              Tabelle
+            </p>
+            <h3 className="mt-1 text-base font-bold tracking-tight text-slate-900">Beiträge bearbeiten</h3>
+            <p className="mt-1 text-xs font-medium text-slate-500">
               Titel, Caption und Etsy-URL pro Zeile — dann veröffentlichen.
             </p>
           </div>
@@ -646,6 +654,7 @@ export const MarketingDashboard = () => {
           </div>
         </Card>
       )}
-    </div>
+      </div>
+    </AppSubNavPageLayout>
   );
 };

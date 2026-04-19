@@ -144,7 +144,8 @@ def _upscale_single_local(
         ncnn_model_name,
     )
     if progress_job_id:
-        tile_progress.reset_job(progress_job_id, 1)
+        tile_progress.reset_job(progress_job_id, 1, 1)
+        tile_progress.tile_start(progress_job_id)
     t0 = time.perf_counter()
     try:
         return _local_upscale_tile(pil_img, factor_str, ncnn_model_name)
@@ -195,6 +196,8 @@ def _tile_job_result(
     ncnn_model_name: str,
     progress_job_id: str | None = None,
 ) -> tuple[int, int, int, int, PILImage.Image]:
+    if progress_job_id:
+        tile_progress.tile_start(progress_job_id)
     t0 = time.perf_counter()
     try:
         upscaled = _local_upscale_tile(pil_tile, factor_str, ncnn_model_name)
@@ -297,9 +300,6 @@ def _upscale_tiled_local(
         overlap,
     )
 
-    if progress_job_id:
-        tile_progress.reset_job(progress_job_id, total_tiles)
-
     overlap_out = overlap * factor_int
     result = np.zeros((target_h, target_w, 3), dtype=np.float32)
     weights = np.zeros((target_h, target_w), dtype=np.float32)
@@ -308,6 +308,9 @@ def _upscale_tiled_local(
         1,
         min(max_tile_workers, MAX_TILE_WORKERS_CAP, total_tiles),
     )
+
+    if progress_job_id:
+        tile_progress.reset_job(progress_job_id, total_tiles, workers)
 
     jobs: list[tuple[int, int, int, int, int, int, PILImage.Image]] = []
     tile_idx = 0

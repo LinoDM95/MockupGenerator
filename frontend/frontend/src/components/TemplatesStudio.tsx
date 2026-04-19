@@ -7,7 +7,6 @@ import {
   FolderPlus,
   LayoutTemplate,
   Pencil,
-  Plus,
   Trash2,
   UploadCloud,
 } from "lucide-react";
@@ -24,15 +23,19 @@ import {
   patchTemplateSet,
 } from "../api/sets";
 import { compressImage, dataUrlToBlob, loadImage } from "../lib/canvas/image";
+import { cardSurfaceElevationDefault } from "../lib/cardSurface";
+import { cn } from "../lib/cn";
 import { newClientElementId } from "../lib/elementId";
 import { getErrorMessage } from "../lib/error";
 import { normalizeTemplateForEditor } from "../lib/normalizeTemplateForEditor";
 import { sanitizeFileName } from "../lib/sanitize";
 import { toast } from "../lib/toast";
+import { workspaceEmbeddedPaddedClassName } from "../lib/workspaceSurfaces";
 import { useLoadTemplateSets } from "../hooks/useLoadTemplateSets";
 import type { Template, TemplateElement } from "../types/mockup";
 import { useAppStore } from "../store/appStore";
 import { TemplateEditor } from "./editor/TemplateEditor";
+import { AppPageSectionHeader, appPageSectionTitleClassName } from "./ui/AppPageSectionHeader";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 import { LinearLoadingBar } from "./ui/LinearLoadingBar";
@@ -214,172 +217,225 @@ export const TemplatesStudio = () => {
     }
   };
 
+  const handleCloseTemplateEditor = () => {
+    setEditingTemplate(null);
+    setSelectedElementId(null);
+  };
+
   if (editingTemplate) {
     return (
-      <TemplateEditor
-        onClose={() => {
-          setEditingTemplate(null);
-          setSelectedElementId(null);
-        }}
-        onSaved={reloadSets}
-      />
+      <div className="w-full min-w-0 space-y-6">
+        <AppPageSectionHeader
+          icon={LayoutTemplate}
+          title="Vorlage bearbeiten"
+          description="Motive, Text und Rahmen — gleiche Logik wie im Generator und für Etsy. Den Namen der Vorlage kannst du im Feld darunter ändern."
+        />
+        <TemplateEditor onClose={handleCloseTemplateEditor} onSaved={reloadSets} />
+      </div>
     );
   }
 
   if (editingSetId) {
     const currentSet = templateSets.find((s) => s.id === editingSetId);
     return (
-      <Card>
+      <div className="space-y-6">
         {progressMessage ? <LinearLoadingBar message={progressMessage} /> : null}
-        <div className="mb-6 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
-          <div className="flex items-center gap-3">
+
+        <div className="w-full min-w-0 pb-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-50 ring-1 ring-inset ring-slate-900/5">
+              <Folder className="text-slate-700" size={22} strokeWidth={1.5} aria-hidden />
+            </div>
             <button
               type="button"
-              onClick={() => setEditingSetId(null)}
-              className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-800"
-              aria-label="Zurück"
-            >
-              <ArrowLeft size={20} strokeWidth={1.75} />
-            </button>
-            <button
-              type="button"
-              className="group flex cursor-pointer items-center text-left"
+              className="group flex min-w-0 cursor-pointer items-center text-left"
               onClick={() => currentSet && handleRenameSet(currentSet.id, currentSet.name)}
             >
-              <Folder className="mr-2 text-indigo-600" size={20} strokeWidth={1.75} />
-              <h2 className="max-w-sm truncate border-b border-dashed border-transparent text-xl font-semibold text-slate-900 group-hover:border-slate-400">
+              <h2
+                className={cn(
+                  "max-w-[min(100%,24rem)] truncate border-b border-dashed border-transparent group-hover:border-slate-400",
+                  appPageSectionTitleClassName,
+                )}
+              >
                 {currentSet?.name}
               </h2>
             </button>
           </div>
-          <label className="flex cursor-pointer items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-indigo-700">
-            <Plus size={18} strokeWidth={1.75} /> Neue Vorlage (JPG/PNG)
-            <input type="file" className="hidden" accept="image/*" onChange={startNewTemplate} />
-          </label>
         </div>
-        {!currentSet || currentSet.templates.length === 0 ? (
-          <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 py-12 text-center ring-1 ring-inset ring-slate-900/5">
-            <LayoutTemplate className="mx-auto mb-3 text-slate-300" size={48} strokeWidth={1} />
-            <p className="font-medium text-slate-600">Dieses Set ist noch leer.</p>
-            <p className="mt-1 text-sm text-slate-400">
-              Lade ein Hintergrundbild hoch, um eine Vorlage zu erstellen.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {currentSet.templates.map((tpl) => {
-              const phCount = tpl.elements.filter((e) => e.type === "placeholder").length;
-              const designCount = tpl.elements.length - phCount;
-              return (
-                <Card
-                  key={tpl.id}
-                  padding="none"
-                  interactive
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => editTemplate(tpl)}
-                  onKeyDown={(ev) => {
-                    if (ev.key === "Enter" || ev.key === " ") editTemplate(tpl);
-                  }}
-                  className="group relative flex flex-col overflow-hidden"
-                >
-                  <div className="relative flex h-40 items-center justify-center overflow-hidden border-b border-slate-100 bg-slate-100 p-2">
-                    <div
-                      className="relative flex max-h-full max-w-full items-center justify-center"
-                      style={{ aspectRatio: `${tpl.width}/${tpl.height}` }}
+
+        <div className="grid gap-6 lg:grid-cols-[minmax(17rem,22rem)_minmax(0,1fr)] lg:items-start">
+          <aside
+            aria-label="Set-Aktionen"
+            className="order-1 space-y-4 lg:sticky lg:top-4 lg:z-10 lg:self-start"
+          >
+            <div className={workspaceEmbeddedPaddedClassName}>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Aktionen</p>
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-3 w-full justify-start gap-2 font-medium tracking-normal"
+                onClick={() => setEditingSetId(null)}
+              >
+                <ArrowLeft size={18} strokeWidth={1.75} aria-hidden />
+                Alle Vorlagen-Sets
+              </Button>
+              <p className="mt-4 text-xs font-medium leading-relaxed text-slate-500">
+                Neue Vorlage aus JPG oder PNG — danach Motive und Text im Editor anpassen.
+              </p>
+              <label className="mt-3 flex w-full cursor-pointer items-center justify-center rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700">
+                Neue Vorlage (JPG/PNG)
+                <input type="file" className="hidden" accept="image/*" onChange={startNewTemplate} />
+              </label>
+            </div>
+          </aside>
+
+          <section aria-label="Vorlagen in diesem Set" className="order-2 min-w-0">
+            {!currentSet || currentSet.templates.length === 0 ? (
+              <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 py-12 text-center ring-1 ring-inset ring-slate-900/5">
+                <LayoutTemplate className="mx-auto mb-3 text-slate-300" size={48} strokeWidth={1} />
+                <p className="font-medium text-slate-600">Dieses Set ist noch leer.</p>
+                <p className="mt-1 text-sm text-slate-400">
+                  Nutze „Neue Vorlage“ im linken Panel, um ein Hintergrundbild hochzuladen.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                {currentSet.templates.map((tpl) => {
+                  const phCount = tpl.elements.filter((e) => e.type === "placeholder").length;
+                  const designCount = tpl.elements.length - phCount;
+                  return (
+                    <Card
+                      key={tpl.id}
+                      padding="none"
+                      interactive
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => editTemplate(tpl)}
+                      onKeyDown={(ev) => {
+                        if (ev.key === "Enter" || ev.key === " ") editTemplate(tpl);
+                      }}
+                      className="group relative flex flex-col overflow-hidden"
                     >
-                      <img src={tpl.bgImage} alt="" className="block max-h-full max-w-full object-contain" crossOrigin="anonymous" />
-                      <div className="absolute inset-0">
-                        {tpl.elements.map((el) => (
-                          <div
-                            key={el.id}
-                            className={`absolute border ${
-                              el.type === "placeholder"
-                                ? "border-indigo-400 bg-indigo-500/40"
-                                : "border-purple-400 bg-purple-500/40"
-                            }`}
-                            style={{
-                              left: `${(el.x / tpl.width) * 100}%`,
-                              top: `${(el.y / tpl.height) * 100}%`,
-                              width: `${(el.w / tpl.width) * 100}%`,
-                              height: `${(el.h / tpl.height) * 100}%`,
-                              transform: `rotate(${el.rotation ?? 0}deg)`,
-                            }}
-                          />
-                        ))}
+                      <div className="relative flex h-40 items-center justify-center overflow-hidden border-b border-slate-200/90 bg-white p-2 ring-1 ring-inset ring-slate-900/5">
+                        <div
+                          className="relative flex max-h-full max-w-full items-center justify-center"
+                          style={{ aspectRatio: `${tpl.width}/${tpl.height}` }}
+                        >
+                          <img src={tpl.bgImage} alt="" className="block max-h-full max-w-full object-contain" crossOrigin="anonymous" />
+                          <div className="absolute inset-0">
+                            {tpl.elements.map((el) => (
+                              <div
+                                key={el.id}
+                                className={`absolute border ${
+                                  el.type === "placeholder"
+                                    ? "border-indigo-400 bg-indigo-500/40"
+                                    : "border-purple-400 bg-purple-500/40"
+                                }`}
+                                style={{
+                                  left: `${(el.x / tpl.width) * 100}%`,
+                                  top: `${(el.y / tpl.height) * 100}%`,
+                                  width: `${(el.w / tpl.width) * 100}%`,
+                                  height: `${(el.h / tpl.height) * 100}%`,
+                                  transform: `rotate(${el.rotation ?? 0}deg)`,
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                  <div className="p-3 pr-10">
-                    <h3 className="truncate text-sm font-medium text-slate-800">{tpl.name}</h3>
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      {phCount} Motive · {designCount} Design
-                    </p>
-                  </div>
-                  <div className="absolute top-2 right-2 flex gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                    <button
-                      type="button"
-                      className="rounded-lg bg-white p-1.5 text-slate-500 ring-1 ring-slate-900/5 transition-colors hover:bg-slate-50 hover:text-indigo-600"
-                      onClick={(ev) => {
-                        ev.stopPropagation();
-                        handleRenameTemplate(tpl.id, tpl.name);
-                      }}
-                    >
-                      <Pencil size={14} strokeWidth={1.75} />
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded-lg bg-red-600 p-1.5 text-white ring-1 ring-red-700/20 transition-colors hover:bg-red-700"
-                      onClick={(ev) => {
-                        ev.stopPropagation();
-                        void handleDeleteTemplate(tpl.id);
-                      }}
-                    >
-                      <Trash2 size={14} strokeWidth={1.75} />
-                    </button>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-        )}
-      </Card>
+                      <div className="p-3 pr-10">
+                        <h3 className="truncate text-sm font-semibold text-slate-900">{tpl.name}</h3>
+                        <p className="mt-0.5 text-xs text-slate-500">
+                          {phCount} Motive · {designCount} Design
+                        </p>
+                      </div>
+                      <div className="absolute top-2 right-2 flex gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                        <button
+                          type="button"
+                          className="rounded-lg bg-white p-1.5 text-slate-500 ring-1 ring-slate-900/5 transition-colors hover:bg-slate-50 hover:text-indigo-600"
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            handleRenameTemplate(tpl.id, tpl.name);
+                          }}
+                        >
+                          <Pencil size={14} strokeWidth={1.75} />
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded-lg bg-red-600 p-1.5 text-white ring-1 ring-red-700/20 transition-colors hover:bg-red-700"
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            void handleDeleteTemplate(tpl.id);
+                          }}
+                        >
+                          <Trash2 size={14} strokeWidth={1.75} />
+                        </button>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Card>
+    <div className="space-y-6">
       {progressMessage ? <LinearLoadingBar message={progressMessage} /> : null}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
-          Deine Vorlagen-Sets
-        </h2>
-        <div className="flex flex-wrap gap-3">
-          <label className="flex cursor-pointer items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 transition-colors hover:bg-slate-50">
-            <UploadCloud size={18} strokeWidth={1.75} /> Set importieren
-            <input
-              type="file"
-              className="hidden"
-              accept=".mockup,.json,application/json"
-              onChange={(e) => void handleImportSet(e.target.files?.[0] ?? null)}
-            />
-          </label>
-          <Button type="button" onClick={() => void createNewSet()} className="gap-2">
-            <FolderPlus size={18} strokeWidth={1.75} /> Neues Set
-          </Button>
-        </div>
-      </div>
+      <AppPageSectionHeader
+        icon={Folder}
+        title="Deine Vorlagen-Sets"
+        description="Sets anlegen, importieren und Vorlagen bearbeiten."
+      />
 
-      {templateSets.length === 0 ? (
-        <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 py-16 text-center ring-1 ring-inset ring-slate-900/5">
-          <Folder className="mx-auto mb-3 text-slate-300" size={48} strokeWidth={1} />
-          <h3 className="mb-1 text-lg font-semibold text-slate-800">Noch keine Sets vorhanden</h3>
-          <p className="text-sm text-slate-500">
-            Erstelle ein neues Set oder importiere ein bestehendes.
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(17rem,22rem)_minmax(0,1fr)] lg:items-start">
+        <aside
+          aria-label="Sets anlegen und importieren"
+          className="order-1 space-y-4 lg:sticky lg:top-4 lg:z-10 lg:self-start"
+        >
+          <div className={workspaceEmbeddedPaddedClassName}>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Aktionen</p>
+            <p className="mt-2 text-xs font-medium leading-relaxed text-slate-500">
+              Importiere eine .mockup-Datei oder lege ein leeres Set an — Vorlagen legst du im Set an.
+            </p>
+            <label
+              className={cn(
+                "mt-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50",
+                cardSurfaceElevationDefault,
+              )}
+            >
+              <UploadCloud size={18} strokeWidth={1.75} aria-hidden /> Set importieren
+              <input
+                type="file"
+                className="hidden"
+                accept=".mockup,.json,application/json"
+                onChange={(e) => void handleImportSet(e.target.files?.[0] ?? null)}
+              />
+            </label>
+            <Button
+              type="button"
+              onClick={() => void createNewSet()}
+              className="mt-3 w-full gap-2"
+            >
+              <FolderPlus size={18} strokeWidth={1.75} /> Neues Set
+            </Button>
+          </div>
+        </aside>
+
+        <section className="order-2 min-w-0" aria-label="Deine Vorlagen-Sets">
+          {templateSets.length === 0 ? (
+            <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 py-16 text-center ring-1 ring-inset ring-slate-900/5">
+              <Folder className="mx-auto mb-3 text-slate-300" size={48} strokeWidth={1} />
+              <h3 className="mb-1 text-lg font-semibold text-slate-800">Noch keine Sets vorhanden</h3>
+              <p className="text-sm text-slate-500">
+                Erstelle ein neues Set oder importiere ein bestehendes — die Aktionen findest du links.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
           {templateSets.map((set) => (
             <Card
               key={set.id}
@@ -477,8 +533,10 @@ export const TemplatesStudio = () => {
               </p>
             </Card>
           ))}
-        </div>
-      )}
-    </Card>
+            </div>
+          )}
+        </section>
+      </div>
+    </div>
   );
 };

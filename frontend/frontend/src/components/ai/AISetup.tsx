@@ -251,7 +251,7 @@ export const AISetup = ({
         </div>
       ) : null}
 
-      <div className="mx-auto max-w-2xl space-y-8">
+      <div className="w-full min-w-0 space-y-8">
       {/* —— Google Gemini —— */}
       {showGeminiBlock ? (
       <section aria-labelledby="gemini-heading">

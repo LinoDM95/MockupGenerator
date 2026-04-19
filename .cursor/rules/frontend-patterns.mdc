@@ -1,19 +1,63 @@
 ---
-description: Frontend React/TypeScript/Tailwind Patterns und Canvas-Pipeline
+description: Frontend React/TypeScript/Tailwind Patterns, modulares Seiten-Layout und Canvas-Pipeline
 globs: frontend/**/*.{ts,tsx,css}
-alwaysApply: false
+alwaysApply: true
 ---
 
 # Frontend-Patterns
 
 **UI-Design (Calm Premium):** Siehe `.cursor/rules/design-system.mdc` — einheitliche Surfaces, `Card`/`Button`/`Input`, Rings statt harter Borders.
 
-## App Shell & Navigation
+## Modulares Seiten-Layout (Pflicht)
 
-- **Ein Raster für eingeloggte App:** `<main>` in `App.tsx` begrenzt mit `mx-auto max-w-7xl` + horizontales Padding. Feature-Views **kein** zweites `max-w-*` auf der **Root** — volle Breite innerhalb der Shell (`AppPage`: `w-full space-y-8`). Bewusst schmale Spalten (Formulare, Lesetext) nur **innen** z. B. mit `max-w-2xl mx-auto` auf dem jeweiligen Block.
-- **Hauptnavigation:** Tab-Labels und `shortLabel` **nur** in `App.tsx` (`mainTabs`) pflegen. Feste Token: Lucide-Icon **18px**, `strokeWidth={1.75}`, Label + Icon; Kurzlabels auf `sm:hidden` / voller Text `sm:inline` — wie in den Header-Buttons. Keine willkürliche Sonderbehandlung einzelner Tabs (z. B. abgeschwächte Farbe) ohne UX-Grund.
-- **Unter-Navigation** (Erstellen, Integrationen): `SubNavTab` in `src/components/ui/SubNavTab.tsx` — gleicher visueller Rhythmus wie die Hauptnavigation (inkl. aktivem Unterstrich).
-- **Copy / Überschriften:** Anzeigenamen an die Tabs koppeln: **Erstellen**, **Verbreiten**, **Automatisieren**, **Integrationen** (interne `AppTab`-IDs z. B. `marketing` unverändert).
+Neue und geänderte **eingeloggte App-Views** bauen **nicht** frei Überschriften, Tab-Leisten oder Breiten zusammen. Es gelten die Bausteine unter `src/components/ui/` — einheitliche Typo, Abstände, Flächen (Calm Premium, siehe `design-system.mdc`).
+
+### Ebenen
+
+1. **Haupt-Tab (App-weit)** — Erstellen, Verbreiten, Automatisieren, Integrationen  
+   - Steuerung nur in `App.tsx` (`mainTabs`). Keine zweite Hauptnav duplizieren.
+
+2. **Seitenkopf pro Haupt-Tab** — `AppSubNavPageLayout` (`AppSubNavPageLayout.tsx`)  
+   - **Immer** die Root jedes Haupt-Tab-Views, der Unter-Navigation oder nur Titel+Text braucht.  
+   - Props: `title`, `description`, optional `subNav` (Inhalt = `SubNavTab`-Buttons), optional `subNavAriaLabel`.  
+   - Kinder = Seiteninhalt unter dem Kopf.  
+   - **Kein** zusätzliches `max-w-5xl` / `max-w-6xl` auf Feature-Root — Inhalt nutzt **`w-full min-w-0`** und die Breite von `<main>` (`max-w-7xl` in `App.tsx`). Schmale Spalten nur **innen** (z. B. Formularblock mit `max-w-2xl`), nicht die ganze Seite.
+
+3. **Bereichs-/Tab-Titel unter dem Seitenkopf** — `AppPageSectionHeader` (`AppPageSectionHeader.tsx`)  
+   - Für jeden **Unterbereich** innerhalb eines Haupt-Tabs (z. B. „Motive verarbeiten“, „KI Upscaler“, „Alle Integrationen“, „Geführter Einrichtungsassistent“): **Icon-Kachel** + **H2** (`text-2xl font-bold tracking-tight`) + Beschreibung auf **Seitenhintergrund** (`bg-slate-50`), **nicht** in einer weißen `Card` nur für den Titel.  
+   - **Keine Buttons oder Steuerelemente** im Sektionskopf — Aktionen („Zurück“, „Aktualisieren“, Import …) in einer **eigenen Zeile/Toolbar direkt darunter** (z. B. `flex flex-wrap items-center justify-end gap-3`).  
+   - `align="centerSm"` nur wenn bewusst (z. B. Upscaler-Leerzustand).
+
+4. **Horizontale Unter-Tabs** (Erstellen: Generator / Vorlagen / …, Integrationen: Assistent / Alle) — `SubNavTab` (`SubNavTab.tsx`)  
+   - In `subNav` von `AppSubNavPageLayout` platzieren; `LayoutGroup` steckt **in** `AppSubNavPageLayout`.  
+   - Aktiver Tab: helle Pill (Animation); inaktiv: kein weißer Kartenhintergrund, nur Hover — **nicht** eigene `bg-white`-Tab-Zeilen erfinden.
+
+5. **Schritt-/Wizard-Tabs** (mehrere gleichwertige Schritte in einer Seite) — `AppTabStepButton` (`AppTabStepButton.tsx`)  
+   - Gleiche **Interaktionslogik** wie `SubNavTab` (inaktiv transparent + Hover, aktiv Pill); **`LayoutGroup`** um die Schritt-Leiste, **eigenes** `activePillLayoutId` pro Seite (z. B. `integration-wizard-step-pill`).  
+   - Kombination: darüber **`AppPageSectionHeader`** für Titel + Erklärung, darunter die Schritte — **kein** weißer Wrapper um Titel **und** Schritte.
+
+### Weitere Regeln
+
+- **`AppPage`** (`AppPage.tsx`): Optionaler Wrapper für vertikalen Rhythmus (`w-full min-w-0 space-y-8`) innerhalb eines Haupt-Tabs — **kein** zusätzliches `max-w-*` auf Root-Ebene.
+
+- **Vollbreite / Overflow:** Layout-Roots und flex/grid-Kinder nutzen bei Bedarf **`min-w-0`**, damit nichts aus der Shell „ausbricht“.
+
+- **Karten (`Card`):** Für **Inhalte** (Formulare, Listen, Einstellungen), **nicht** als reiner Behälter für Seiten- oder Sektionsüberschriften, die bereits durch `AppSubNavPageLayout` / `AppPageSectionHeader` abgedeckt sind.
+
+### Anti-Patterns
+
+- ❌ Eigene `h1`/`h2` + Beschreibung + Tab-Buttons mit frei gewählten Klassen statt der Bausteine oben.
+- ❌ **Buttons oder Aktionen in `AppPageSectionHeader`** (kein `right`-Slot) — immer Zeile darunter.
+- ❌ Tab- oder Schritt-Buttons mit **`bg-white`** im Standardzustand (inaktiv).
+- ❌ Durchgehende **Unterstriche** (`border-b`) unter jedem Seitenkopf — nur wenn es eine **bewusste** UX-Anforderung ist (Standard: ohne).
+
+### Hauptnavigation (Header-Leiste)
+
+- Tab-Labels und `shortLabel` **nur** in `App.tsx` (`mainTabs`). Feste Token: Lucide-Icon **16px** im Header (`size={16}`), `strokeWidth={2}`; Kurzlabels auf kleinen Viewports. Header-Container in `App.tsx` an **`max-w-7xl`** ausrichten (gleiche Spalte wie `main`).
+
+### Copy / Anzeigenamen
+
+- Anzeigenamen an die Tabs koppeln: **Erstellen**, **Verbreiten**, **Automatisieren**, **Integrationen** (interne `AppTab`-IDs z. B. `marketing` unverändert).
 
 ## Wiederverwendung & Auslagerung (Frontend)
 

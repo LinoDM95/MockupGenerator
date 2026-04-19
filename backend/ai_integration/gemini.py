@@ -328,6 +328,14 @@ _MAX_TAG_LEN = 20
 _REQUIRED_TAG_COUNT = 13
 
 
+def _strip_listing_description_markup(text: str) -> str:
+    """Remove ``**`` markers the model may use for keyword hints; keep plain Etsy text."""
+    s = str(text or "").replace("**", "")
+    s = re.sub(r"[ \t]{2,}", " ", s)
+    s = re.sub(r"\n{3,}", "\n\n", s)
+    return s.strip()
+
+
 def _truncate_tag(tag: str) -> str:
     """Shorten a tag to ≤ 20 chars at a word boundary."""
     tag = tag.strip()
@@ -378,6 +386,7 @@ def _normalise_result(data: dict) -> dict:
     description = data.get("description", "")
     if not isinstance(description, str):
         description = str(description)
+    description = _strip_listing_description_markup(description)
 
     return {"titles": titles, "tags": tags, "description": description}
 
@@ -389,8 +398,8 @@ _MAX_SOCIAL_HASHTAGS = 5
 
 def _normalise_social_caption_result(data: dict) -> dict:
     """Map Pinterest JSON (pin_title, caption, hashtags) to listing API shape."""
-    pin_title = str(data.get("pin_title") or "").strip()
-    caption = str(data.get("caption") or "").strip()
+    pin_title = _strip_listing_description_markup(str(data.get("pin_title") or ""))
+    caption = _strip_listing_description_markup(str(data.get("caption") or ""))
     raw_tags = data.get("hashtags")
     if not isinstance(raw_tags, list):
         raw_tags = []

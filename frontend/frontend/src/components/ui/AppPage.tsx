@@ -12,5 +12,5 @@ type AppPageProps = {
  * vertikaler Rhythmus — kein zusätzliches max-w auf Feature-Ebene.
  */
 export const AppPage = ({ children, className }: AppPageProps) => (
-  <div className={cn("w-full space-y-8", className)}>{children}</div>
+  <div className={cn("w-full min-w-0 space-y-8", className)}>{children}</div>
 );

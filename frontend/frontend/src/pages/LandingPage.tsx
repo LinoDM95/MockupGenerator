@@ -91,7 +91,7 @@ const bentoCardInnerLight =
   "pointer-events-none absolute inset-0 rounded-[2rem] shadow-[inset_0_1px_0_rgba(255,255,255,1)]";
 
 const primaryCtaClass =
-  "group relative inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-8 py-4 text-base font-semibold tracking-wide text-white shadow-lg transition-all duration-300 hover:bg-indigo-600 hover:shadow-[0_0_40px_-10px_rgba(79,70,229,0.6)]";
+  "group relative inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-8 py-4 text-base font-semibold tracking-wide text-white shadow-lg transition-all duration-300 hover:bg-indigo-700 hover:shadow-[0_0_40px_-10px_rgba(79,70,229,0.6)]";
 
 const secondaryCtaClass =
   "inline-flex items-center gap-2 rounded-2xl bg-white px-8 py-4 text-base font-semibold tracking-wide text-slate-800 shadow-[0_2px_10px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 transition-all duration-300 hover:bg-slate-50";
@@ -1177,7 +1177,7 @@ export const LandingPage = () => (
           </a>
           <Link
             to="/login"
-            className="rounded-full bg-slate-900 px-5 py-2 text-xs font-bold text-white shadow-md ring-1 ring-inset ring-white/15 transition-all hover:scale-[1.02] hover:bg-indigo-600"
+            className="rounded-full bg-indigo-600 px-5 py-2 text-xs font-bold text-white shadow-md ring-1 ring-inset ring-indigo-500/30 transition-all hover:scale-[1.02] hover:bg-indigo-700"
           >
             Anmelden
           </Link>

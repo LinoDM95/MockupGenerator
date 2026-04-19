@@ -24,7 +24,7 @@ frontend/frontend/ → React 19 + Vite 8 + TypeScript 6 + Tailwind 4 SPA
   src/types/      → Zentrale TypeScript-Definitionen
 ```
 
-**Layout & Navigation (Frontend):** App Shell, Hauptnavigation, Breitenregeln und `SubNavTab` — siehe `.cursor/rules/frontend-patterns.mdc` (Abschnitt „App Shell & Navigation“).
+**Layout & Navigation (Frontend):** Modulares Seiten-Layout ist **Pflicht** — `AppSubNavPageLayout`, `AppPageSectionHeader`, `SubNavTab` / `AppTabStepButton`, keine ad-hoc Seitenköpfe. Details: `.cursor/rules/frontend-patterns.mdc` (Abschnitt „Modulares Seiten-Layout“).
 
 **Visuelle Standards (Calm Premium):** Oberflächen, Ringe, Schatten, Typo und UI-Primitives — siehe `.cursor/rules/design-system.mdc`.
 
@@ -49,7 +49,7 @@ Etsy: `User → EtsyConnection (1:1, verschlüsselte Tokens) → EtsyBulkJob (Ce
 
 | Was | Wohin | Beispiel |
 |-----|-------|----------|
-| Gemeinsame UI-Bausteine | `src/components/ui/` | `Button`, `Modal`, `Select` – mit `variant`-Prop erweiterbar |
+| Gemeinsame UI-Bausteine | `src/components/ui/` | `Button`, `Modal`, `Select`; Seiten-Layout: `AppSubNavPageLayout`, `AppPageSectionHeader`, `AppTabStepButton`, `SubNavTab` |
 | Geteilte Logik zwischen Komponenten | `src/hooks/` als Custom Hook | `useCanvasRender` wird von Generator UND Etsy genutzt |
 | Reine Hilfsfunktionen (kein React) | `src/lib/` in thematischen Modulen | `canvas/frame.ts`, `canvas/image.ts`, `toast.ts` |
 | API-Aufrufe | `src/api/` pro Domäne | `sets.ts`, `etsy.ts` – nie `fetch` direkt in Komponenten |

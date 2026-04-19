@@ -17,8 +17,11 @@ import {
   toggleSideInMask,
 } from "../../lib/frameShadowSides";
 import { toast } from "../../lib/toast";
+import { cn } from "../../lib/cn";
+import { workspaceEmbeddedPaddedClassName } from "../../lib/workspaceSurfaces";
 import type { ElementType, FrameStyle, TemplateElement } from "../../types/mockup";
 import { useAppStore } from "../../store/appStore";
+import { appPageSectionTitleClassName } from "../ui/AppPageSectionHeader";
 import { Button } from "../ui/Button";
 import { LinearLoadingBar } from "../ui/LinearLoadingBar";
 import { Select } from "../ui/Select";
@@ -360,83 +363,81 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
   };
 
   return (
-    <div className="rounded-2xl bg-white p-4 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 md:p-6">
+    <div className="w-full min-w-0 space-y-6">
       {saving ? <LinearLoadingBar message="Vorlage wird gespeichert…" /> : null}
       {replacingBg ? <LinearLoadingBar message="Hintergrundbild wird gewechselt…" /> : null}
-      <div className="mb-4 flex flex-col items-start justify-between gap-4 border-b border-slate-100 pb-4 md:flex-row md:items-center">
-        <div className="flex w-full items-center gap-3 md:w-auto">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-800"
-            aria-label="Zurück"
-          >
-            <ArrowLeft size={20} strokeWidth={1.75} />
-          </button>
-          <input
-            type="text"
-            value={editingTemplate.name}
-            onChange={(e) =>
-              updateEditingTemplate((prev) => (prev ? { ...prev, name: e.target.value } : prev))
-            }
-            className="flex-1 cursor-text border-b border-dashed border-transparent bg-transparent pb-1 text-xl font-semibold text-slate-900 outline-none transition-colors hover:border-slate-300 focus:border-indigo-500"
-            title="Vorlage umbenennen"
-          />
-        </div>
-        <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:justify-end">
-          <label
-            className={`inline-flex cursor-pointer items-center gap-2 rounded-xl bg-white px-3 py-2.5 text-sm font-medium text-slate-700 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 transition-colors hover:bg-slate-50 ${
-              saving || replacingBg ? "pointer-events-none opacity-50" : ""
-            }`}
-            title="Neues JPG/PNG/Webp als Vorlagen-Hintergrund"
-          >
-            <ImageUp size={18} strokeWidth={1.75} aria-hidden />
-            Hintergrund ersetzen
-            <input
-              type="file"
-              className="hidden"
-              accept="image/jpeg,image/png,image/webp"
-              onChange={(ev) => void handleBackgroundReplace(ev)}
-              disabled={saving || replacingBg}
-            />
-          </label>
-          <Button
-            type="button"
-            onClick={handleSave}
-            disabled={saving || replacingBg}
-            className="gap-2 px-6"
-          >
-            <Save size={18} strokeWidth={1.75} /> {saving ? "Speichern…" : "Speichern"}
-          </Button>
-        </div>
+
+      <div className="min-w-0">
+        <input
+          type="text"
+          value={editingTemplate.name}
+          onChange={(e) =>
+            updateEditingTemplate((prev) => (prev ? { ...prev, name: e.target.value } : prev))
+          }
+          className={cn(
+            "w-full min-w-0 cursor-text border-b border-dashed border-transparent bg-transparent pb-1 outline-none transition-colors hover:border-slate-300 focus:border-indigo-500",
+            appPageSectionTitleClassName,
+          )}
+          title="Vorlage umbenennen"
+          aria-label="Vorlage umbenennen"
+        />
       </div>
 
-      <Toolbar
-        isDrawMode={isDrawMode}
-        onToggleDrawMode={handleToggleDraw}
-        onAddElement={addElement}
-        disabled={previewEndView}
-      />
+      <div className="grid grid-cols-1 gap-6 select-none lg:grid-cols-[minmax(18rem,26rem)_minmax(0,1fr)] lg:items-stretch lg:gap-6 lg:min-h-[500px] lg:h-[min(780px,calc(100vh-10rem))]">
+        <aside
+          aria-label="Editor-Einstellungen"
+          className="order-1 flex min-h-0 flex-col overflow-hidden lg:h-full lg:min-h-0"
+        >
+          <div className="space-y-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overflow-x-hidden lg:pr-1">
+          <div className={workspaceEmbeddedPaddedClassName}>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Aktionen</p>
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-3 w-full justify-start gap-2 font-medium tracking-normal"
+              onClick={onClose}
+            >
+              <ArrowLeft size={18} strokeWidth={1.75} aria-hidden />
+              Zurück zur Übersicht
+            </Button>
+            <label
+              className={cn(
+                "mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-white px-3 py-2.5 text-sm font-medium text-slate-700 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 transition-colors hover:bg-slate-50",
+                saving || replacingBg ? "pointer-events-none opacity-50" : "",
+              )}
+              title="Neues JPG/PNG/Webp als Vorlagen-Hintergrund"
+            >
+              <ImageUp size={18} strokeWidth={1.75} aria-hidden />
+              Hintergrund ersetzen
+              <input
+                type="file"
+                className="hidden"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(ev) => void handleBackgroundReplace(ev)}
+                disabled={saving || replacingBg}
+              />
+            </label>
+            <Button
+              type="button"
+              onClick={handleSave}
+              disabled={saving || replacingBg}
+              className="mt-3 w-full gap-2"
+            >
+              <Save size={18} strokeWidth={1.75} /> {saving ? "Speichern…" : "Speichern"}
+            </Button>
+          </div>
 
-      <div className="grid h-[650px] grid-cols-1 gap-6 select-none lg:grid-cols-4">
-        <CanvasViewport
-          editingTemplate={editingTemplate}
-          previewEndView={previewEndView}
-          previewMotifUrl={previewMotifUrl}
-          isSnapEnabled={isSnapEnabled}
-          setIsSnapEnabled={setIsSnapEnabled}
-          isGuideSnapEnabled={isGuideSnapEnabled}
-          setIsGuideSnapEnabled={setIsGuideSnapEnabled}
-          isDrawMode={isDrawMode}
-          setIsDrawMode={setIsDrawMode}
-          drawPoints={drawPoints}
-          setDrawPoints={setDrawPoints}
-          cursorPoint={cursorPoint}
-          setCursorPoint={setCursorPoint}
-        />
+          <div className={workspaceEmbeddedPaddedClassName}>
+            <Toolbar
+              layout="panel"
+              isDrawMode={isDrawMode}
+              onToggleDrawMode={handleToggleDraw}
+              onAddElement={addElement}
+              disabled={previewEndView}
+            />
+          </div>
 
-        <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1 lg:col-span-1">
-          <section className="shrink-0 rounded-2xl bg-white p-4 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5">
+          <div className={workspaceEmbeddedPaddedClassName}>
             <h3 className="text-sm font-semibold text-slate-900">
               Mockup & Export
             </h3>
@@ -655,7 +656,7 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                 </div>
               </div>
             </div>
-          </section>
+          </div>
 
           {previewEndView ? (
             <p className="shrink-0 rounded-xl bg-amber-50 px-4 py-3 text-center text-xs font-semibold text-amber-900 ring-1 ring-inset ring-amber-500/20">
@@ -675,7 +676,31 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
             />
             <PropertiesPanel activeEl={activeEl} onUpdate={updateActiveElement} />
           </div>
-        </div>
+          </div>
+        </aside>
+
+        <section
+          className="order-2 flex min-h-[500px] min-w-0 flex-col lg:h-full lg:min-h-0"
+          aria-label="Vorlagen-Canvas"
+        >
+          <div className="flex min-h-0 flex-1 flex-col">
+          <CanvasViewport
+            editingTemplate={editingTemplate}
+            previewEndView={previewEndView}
+            previewMotifUrl={previewMotifUrl}
+            isSnapEnabled={isSnapEnabled}
+            setIsSnapEnabled={setIsSnapEnabled}
+            isGuideSnapEnabled={isGuideSnapEnabled}
+            setIsGuideSnapEnabled={setIsGuideSnapEnabled}
+            isDrawMode={isDrawMode}
+            setIsDrawMode={setIsDrawMode}
+            drawPoints={drawPoints}
+            setDrawPoints={setDrawPoints}
+            cursorPoint={cursorPoint}
+            setCursorPoint={setCursorPoint}
+          />
+          </div>
+        </section>
       </div>
     </div>
   );

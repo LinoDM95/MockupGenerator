@@ -81,7 +81,7 @@ export const useDragAndDrop = ({
     if (!dragAction || !editingTemplate) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      let activeGuides: Guide[] = [];
+      const activeGuides: Guide[] = [];
 
       updateEditingTemplate((prev) => {
         if (!prev) return prev;
@@ -101,10 +101,10 @@ export const useDragAndDrop = ({
 
           if (isGuideSnapEnabled && !dragAction.actionType.includes("rotate")) {
             if (dragAction.actionType === "move") {
-              let targetX = dragAction.origX + dx;
-              let cX = snapVal(targetX + newEl.w / 2, targetXs, threshold);
-              let lX = snapVal(targetX, targetXs, threshold);
-              let rX = snapVal(targetX + newEl.w, targetXs, threshold);
+              const targetX = dragAction.origX + dx;
+              const cX = snapVal(targetX + newEl.w / 2, targetXs, threshold);
+              const lX = snapVal(targetX, targetXs, threshold);
+              const rX = snapVal(targetX + newEl.w, targetXs, threshold);
 
               if (cX !== null) {
                 newEl.x = snap(cX - newEl.w / 2);
@@ -119,10 +119,10 @@ export const useDragAndDrop = ({
                 newEl.x = snap(targetX);
               }
 
-              let targetY = dragAction.origY + dy;
-              let cY = snapVal(targetY + newEl.h / 2, targetYs, threshold);
-              let tY = snapVal(targetY, targetYs, threshold);
-              let bY = snapVal(targetY + newEl.h, targetYs, threshold);
+              const targetY = dragAction.origY + dy;
+              const cY = snapVal(targetY + newEl.h / 2, targetYs, threshold);
+              const tY = snapVal(targetY, targetYs, threshold);
+              const bY = snapVal(targetY + newEl.h, targetYs, threshold);
 
               if (cY !== null) {
                 newEl.y = snap(cY - newEl.h / 2);

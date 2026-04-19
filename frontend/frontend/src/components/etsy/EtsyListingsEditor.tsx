@@ -34,6 +34,7 @@ import { cn } from "../../lib/cn";
 import { toast } from "../../lib/toast";
 import { useAppStore } from "../../store/appStore";
 import type { Template } from "../../types/mockup";
+import { AppPageSectionHeader } from "../ui/AppPageSectionHeader";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { EmptyState } from "../ui/EmptyState";
@@ -290,18 +291,13 @@ export const EtsyListingsEditor = () => {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-6">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-50 ring-1 ring-inset ring-slate-900/5">
-            <Store className="text-slate-700" size={22} strokeWidth={1.5} aria-hidden />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight text-slate-900">Etsy Listings</h2>
-            <p className="mt-0.5 text-sm font-medium text-slate-500">
-              Vorschau, Bilder verwalten und Mockups per Bulk-Job senden.
-            </p>
-          </div>
-        </div>
+      <AppPageSectionHeader
+        icon={Store}
+        title="Etsy Listings"
+        description="Vorschau, Bilder verwalten und Mockups per Bulk-Job senden."
+      />
+
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <Button
           variant="outline"
           type="button"

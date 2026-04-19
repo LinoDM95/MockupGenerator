@@ -40,12 +40,27 @@ if errorlevel 1 (
 
 call :port_listening 8001
 if errorlevel 1 (
-  if exist "%ROOT%MockupLocalEngine.exe" (
-    echo Starte Mockup Local Engine - Port 8001 ist frei.
-    start "" /D "%ROOT%" "%ROOT%MockupLocalEngine.exe"
+  if exist "%BACKEND%\env\Scripts\activate.bat" (
+    echo Starte Local Engine - Port 8001 frei ^(minimiertes Konsolenfenster, venv env^).
+    start "" /MIN /HIGH /D "%ROOT%" cmd /k "call backend\env\Scripts\activate.bat && python -m uvicorn companion_app.main:app --host 127.0.0.1 --port 8001"
+    set "STARTED_SERVER=1"
+  ) else if exist "%BACKEND%\venv\Scripts\activate.bat" (
+    echo Starte Local Engine - Port 8001 frei ^(minimiertes Konsolenfenster, venv venv^).
+    start "" /MIN /HIGH /D "%ROOT%" cmd /k "call backend\venv\Scripts\activate.bat && python -m uvicorn companion_app.main:app --host 127.0.0.1 --port 8001"
     set "STARTED_SERVER=1"
   ) else (
-    echo Hinweis: MockupLocalEngine.exe nicht im Projektordner - lokalen Upscaler ggf. manuell starten.
+    where python >nul 2>&1
+    if not errorlevel 1 (
+      echo Starte Local Engine - Port 8001 frei ^(minimiertes Konsolenfenster, python aus PATH^).
+      start "" /MIN /HIGH /D "%ROOT%" cmd /k "python -m uvicorn companion_app.main:app --host 127.0.0.1 --port 8001"
+      set "STARTED_SERVER=1"
+    ) else if exist "%ROOT%MockupLocalEngine.exe" (
+      echo Starte MockupLocalEngine.exe - Port 8001 frei ^(Tray-App ohne Konsole; bei dev lieber venv nutzen^).
+      start "" /D "%ROOT%" "%ROOT%MockupLocalEngine.exe"
+      set "STARTED_SERVER=1"
+    ) else (
+      echo Hinweis: Kein backend\env|venv, kein python in PATH, keine MockupLocalEngine.exe - Local Engine nicht gestartet.
+    )
   )
 ) else (
   echo Local Engine laeuft bereits auf Port 8001 - kein neuer Start.

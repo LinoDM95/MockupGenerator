@@ -7,6 +7,8 @@ type Props = {
   previewUrl?: string;
   className?: string;
   imgClassName?: string;
+  /** Tailwind-Klassen für den Loader, wenn noch keine Vorschau (z. B. größer im Raster). */
+  placeholderLoaderClassName?: string;
   variant?: "light" | "dark";
 };
 
@@ -17,6 +19,7 @@ export const ArtworkListThumbnail = ({
   previewUrl,
   className,
   imgClassName,
+  placeholderLoaderClassName = "h-5 w-5",
   variant = "light",
 }: Props) => (
   <div
@@ -43,7 +46,8 @@ export const ArtworkListThumbnail = ({
       >
         <Loader2
           className={cn(
-            "h-5 w-5 animate-spin",
+            "animate-spin",
+            placeholderLoaderClassName,
             variant === "light" ? "text-slate-300" : "text-violet-400/55",
           )}
         />

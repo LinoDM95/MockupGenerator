@@ -18,17 +18,31 @@ def is_valid_job_id(job_id: str | None) -> bool:
     return bool(_JOB_ID_RE.match(job_id.strip()))
 
 
-def reset_job(job_id: str, total_tiles: int) -> None:
+def reset_job(job_id: str, total_tiles: int, parallel_cap: int = 1) -> None:
     if not is_valid_job_id(job_id):
         return
     tid = max(1, int(total_tiles))
+    cap = max(1, int(parallel_cap))
     jid = job_id.strip()
     with _LOCK:
         _JOBS[jid] = {
             "total_tiles": tid,
+            "parallel_cap": cap,
+            "in_flight": 0,
             "tile_durations_ms": [],
             "finished": False,
         }
+
+
+def tile_start(job_id: str | None) -> None:
+    if not is_valid_job_id(job_id):
+        return
+    jid = job_id.strip()
+    with _LOCK:
+        j = _JOBS.get(jid)
+        if not j or j.get("finished"):
+            return
+        j["in_flight"] = int(j.get("in_flight", 0)) + 1
 
 
 def tile_done(job_id: str | None, duration_ms: float) -> None:
@@ -50,6 +64,7 @@ def tile_done(job_id: str | None, duration_ms: float) -> None:
             hist = []
         hist.append(dm)
         j["tile_durations_ms"] = hist[-96:]
+        j["in_flight"] = max(0, int(j.get("in_flight", 0)) - 1)
 
 
 def finish_job(job_id: str | None) -> None:
@@ -60,6 +75,7 @@ def finish_job(job_id: str | None) -> None:
         j = _JOBS.get(jid)
         if j:
             j["finished"] = True
+            j["in_flight"] = 0
 
 
 def get_snapshot(job_id: str) -> dict[str, Any] | None:
@@ -70,9 +86,13 @@ def get_snapshot(job_id: str) -> dict[str, Any] | None:
         j = _JOBS.get(jid)
         if not j:
             return None
+        cap = int(j.get("parallel_cap", 1) or 1)
+        inflight = max(0, int(j.get("in_flight", 0)))
         return {
             "total_tiles": int(j.get("total_tiles", 1)),
             "completed_tiles": len(j.get("tile_durations_ms") or []),
             "tile_durations_ms": list(j.get("tile_durations_ms") or []),
+            "parallel_cap": max(1, cap),
+            "parallel_in_flight": inflight,
             "finished": bool(j.get("finished")),
         }

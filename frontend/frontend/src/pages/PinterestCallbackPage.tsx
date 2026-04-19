@@ -16,9 +16,11 @@ export const PinterestCallbackPage = () => {
     const code = params.get("code");
     const state = params.get("state");
     if (!code || !state) {
-      setMessage("Fehlende OAuth-Parameter.");
-      toast.error("Pinterest-Callback: code oder state fehlt.");
       const t = window.setTimeout(() => navigate("/", { replace: true }), 2500);
+      queueMicrotask(() => {
+        setMessage("Fehlende OAuth-Parameter.");
+        toast.error("Pinterest-Callback: code oder state fehlt.");
+      });
       return () => window.clearTimeout(t);
     }
     let cancelled = false;

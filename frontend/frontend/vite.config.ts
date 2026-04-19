@@ -30,9 +30,6 @@ export default defineConfig({
     },
   },
   preview: {
-    fs: {
-      allow: [REPO_ROOT],
-    },
     proxy: {
       '/__companion': companionProxy,
     },

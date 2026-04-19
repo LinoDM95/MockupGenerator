@@ -32,7 +32,8 @@ export const MarketingIntegrationSetup = () => {
   }, []);
 
   useEffect(() => {
-    void loadStatus();
+    const id = window.setTimeout(() => void loadStatus(), 0);
+    return () => window.clearTimeout(id);
   }, [loadStatus]);
 
   const handleConnect = useCallback(async () => {

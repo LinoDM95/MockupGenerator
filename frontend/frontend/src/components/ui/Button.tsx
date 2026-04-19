@@ -11,7 +11,7 @@ export type ButtonVariant = NonNullable<ButtonProps["variant"]>;
 
 const variantStyles: Record<NonNullable<ButtonProps["variant"]>, string> = {
   primary:
-    "bg-slate-900 text-white shadow-sm hover:bg-indigo-600 focus-visible:ring-indigo-500/50",
+    "bg-indigo-600 text-white shadow-sm hover:bg-indigo-700 focus-visible:ring-indigo-500/50",
   secondary:
     "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 focus-visible:ring-indigo-500/50",
   outline:
