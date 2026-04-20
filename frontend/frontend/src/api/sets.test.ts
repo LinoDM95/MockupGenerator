@@ -16,7 +16,12 @@ describe("fetchTemplateSets cache", () => {
   });
 
   it("deduplicates parallel list requests", async () => {
-    mockedApiJson.mockResolvedValue([]);
+    mockedApiJson.mockResolvedValue({
+      count: 0,
+      next: null,
+      previous: null,
+      results: [],
+    });
     const {
       __resetTemplateSetsListClientStateForTests,
       fetchTemplateSets,
@@ -25,7 +30,7 @@ describe("fetchTemplateSets cache", () => {
     __resetTemplateSetsListClientStateForTests();
     await Promise.all([fetchTemplateSets(), fetchTemplateSets()]);
     expect(mockedApiJson).toHaveBeenCalledTimes(1);
-    expect(mockedApiJson).toHaveBeenCalledWith("/api/sets/");
+    expect(mockedApiJson).toHaveBeenCalledWith("/api/sets/?limit=200");
     invalidateTemplateSetsListCache();
     await fetchTemplateSets();
     expect(mockedApiJson).toHaveBeenCalledTimes(2);

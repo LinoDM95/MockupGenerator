@@ -167,6 +167,20 @@ class AIStatusView(APIView):
                     "created_at": None,
                 }
             )
+        # Platzhalter-Zeile nach User-Create (Signal): noch keine Keys → wie „nicht verbunden“.
+        if not conn.api_key_enc and not conn.service_account_json_enc:
+            return Response(
+                {
+                    "connected": False,
+                    "vertex_upscaler_configured": False,
+                    "provider": None,
+                    "model_name": None,
+                    "use_grounding": False,
+                    "prefer_expert_mode": False,
+                    "is_active": False,
+                    "created_at": None,
+                }
+            )
         return Response(AIConnectionStatusSerializer(conn).data)
 
 

@@ -131,7 +131,7 @@
   a,
   select,
   input {
-    @apply transition-all duration-200 ease-in-out;
+    @apply transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-200 ease-in-out;
   }
 }
 

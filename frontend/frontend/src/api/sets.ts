@@ -109,6 +109,23 @@ export const normalizeSet = (raw: Record<string, unknown>): TemplateSet => ({
 
 const SETS_LIST_TTL_MS = 15_000;
 
+type PaginatedSetsPayload = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: Record<string, unknown>[];
+};
+
+const listPathFromPaginationNext = (next: string | null): string | null => {
+  if (!next) return null;
+  try {
+    const u = new URL(next, typeof window !== "undefined" ? window.location.origin : "http://localhost");
+    return `${u.pathname}${u.search}`;
+  } catch {
+    return null;
+  }
+};
+
 let setsListClientCache: { at: number; data: TemplateSet[] } | null = null;
 let setsListInFlight: Promise<TemplateSet[]> | null = null;
 let setsListFetchGen = 0;
@@ -125,14 +142,29 @@ export const invalidateTemplateSetsListCache = (): void => {
   setsListFetchGen += 1;
 };
 
-const runFetchTemplateSetsList = (gen: number): Promise<TemplateSet[]> =>
-  apiJson<Record<string, unknown>[]>("/api/sets/").then((data) => {
-    const normalized = data.map(normalizeSet);
-    if (gen === setsListFetchGen) {
-      setsListClientCache = { at: Date.now(), data: normalized };
+const runFetchTemplateSetsList = async (gen: number): Promise<TemplateSet[]> => {
+  const limit = 200;
+  let path: string | null = `/api/sets/?limit=${limit}`;
+  const merged: TemplateSet[] = [];
+
+  while (path) {
+    const raw = await apiJson<PaginatedSetsPayload | Record<string, unknown>[]>(path);
+    if (Array.isArray(raw)) {
+      const normalized = raw.map(normalizeSet);
+      if (gen === setsListFetchGen) {
+        setsListClientCache = { at: Date.now(), data: normalized };
+      }
+      return normalized;
     }
-    return normalized;
-  });
+    merged.push(...raw.results.map((r) => normalizeSet(r)));
+    path = listPathFromPaginationNext(raw.next);
+  }
+
+  if (gen === setsListFetchGen) {
+    setsListClientCache = { at: Date.now(), data: merged };
+  }
+  return merged;
+};
 
 /**
  * GET /api/sets/ — Client-TTL; nach Änderungen an Sets/Vorlagen invalidieren.

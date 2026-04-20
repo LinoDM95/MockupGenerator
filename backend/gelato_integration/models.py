@@ -21,7 +21,7 @@ class GelatoConnection(models.Model):
         related_name="gelato_connection",
     )
     api_key_enc = models.TextField(blank=True)
-    store_id = models.CharField(max_length=128, blank=True)
+    store_id = models.CharField(max_length=128, blank=True, db_index=True)
     store_name = models.CharField(max_length=255, blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -48,7 +48,7 @@ class GelatoTemplate(models.Model):
         on_delete=models.CASCADE,
         related_name="templates",
     )
-    gelato_template_id = models.CharField(max_length=255)
+    gelato_template_id = models.CharField(max_length=255, db_index=True)
     name = models.CharField(max_length=512)
     preview_url = models.URLField(max_length=1024, blank=True)
     is_active = models.BooleanField(default=True)

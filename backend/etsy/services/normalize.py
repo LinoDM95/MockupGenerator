@@ -8,6 +8,16 @@ def get_listing_id(listing: dict) -> int | None:
     return int(raw) if raw is not None else None
 
 
+def listing_images_from_embed(listing: dict) -> list | None:
+    """Wenn die Listing-Response Bilder inkludiert (`includes=Images`), hier extrahieren."""
+    raw = listing.get("images")
+    if raw is None:
+        raw = listing.get("Images")
+    if isinstance(raw, list):
+        return raw
+    return None
+
+
 def get_image_id(img: dict) -> int | None:
     raw = img.get("listing_image_id") or img.get("listingImageId")
     return int(raw) if raw is not None else None

@@ -69,9 +69,34 @@ class EtsyListingsApiTests(TestCase):
         conn.save()
 
         inst = mock_cls.return_value
+        inst.get_json.return_value = {
+            "count": 1,
+            "results": [{"listing_id": 1, "images": [{"listing_image_id": 9, "rank": 1}]}],
+        }
+        inst.close = MagicMock()
+
+        c = api_client_bearer(user)
+        r = c.get("/api/etsy/listings/")
+        self.assertEqual(r.status_code, 200)
+        body = json.loads(r.content)
+        self.assertEqual(len(body["results"]), 1)
+        self.assertEqual(len(body["results"][0].get("images") or []), 1)
+
+    @patch("etsy.views.EtsyOpenApiClient")
+    @patch("etsy.views.ensure_fresh_access_token", return_value="tok")
+    def test_listings_fetches_images_when_not_embedded(
+        self, _mock_tok: MagicMock, mock_cls: MagicMock
+    ) -> None:
+        user = create_user(username="e_lst2", password="pw")
+        conn = EtsyConnection.objects.create(user=user)
+        conn.set_access_token("x")
+        conn.shop_id = 99
+        conn.save()
+
+        inst = mock_cls.return_value
         inst.get_json.side_effect = [
-            {"count": 1, "results": [{"listing_id": 1}]},
-            {"results": []},
+            {"count": 1, "results": [{"listing_id": 2}]},
+            {"results": [{"listing_image_id": 3, "rank": 1}]},
         ]
         inst.close = MagicMock()
 
@@ -80,6 +105,7 @@ class EtsyListingsApiTests(TestCase):
         self.assertEqual(r.status_code, 200)
         body = json.loads(r.content)
         self.assertEqual(len(body["results"]), 1)
+        self.assertEqual(len(body["results"][0].get("images") or []), 1)
 
     def test_listings_400_without_connection(self) -> None:
         user = create_user(username="e_nc", password="pw")

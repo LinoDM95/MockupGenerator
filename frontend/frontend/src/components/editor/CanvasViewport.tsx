@@ -1,5 +1,6 @@
 import {
   Fragment,
+  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -184,7 +185,7 @@ type Props = {
   setCursorPoint: Dispatch<SetStateAction<Point | null>>;
 };
 
-export const CanvasViewport = ({
+const CanvasViewportInner = ({
   editingTemplate,
   previewEndView,
   previewMotifUrl,
@@ -202,6 +203,8 @@ export const CanvasViewport = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const viewportRootRef = useRef<HTMLDivElement>(null);
   const lastPointerInContainerRef = useRef<{ x: number; y: number } | null>(null);
+  const cursorMoveRafRef = useRef(0);
+  const pendingCursorRef = useRef<Point | null>(null);
   const panRef = useRef({ startX: 0, startY: 0, initialPanX: 0, initialPanY: 0 });
   const [viewport, setViewport] = useState<Viewport>({ zoom: 1, pan: { x: 0, y: 0 } });
   const { zoom, pan } = viewport;
@@ -310,6 +313,12 @@ export const CanvasViewport = ({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isDrawMode, setCursorPoint, setDrawPoints, setIsDrawMode]);
+
+  useEffect(() => {
+    return () => {
+      if (cursorMoveRafRef.current) cancelAnimationFrame(cursorMoveRafRef.current);
+    };
+  }, []);
 
   const handleViewportPointerMove = (e: React.PointerEvent) => {
     const c = containerRef.current;
@@ -435,7 +444,7 @@ export const CanvasViewport = ({
         ix = drawPoints[1].x;
         isSnappedX = true;
       }
-    } else if (drawPoints.length === 3) {
+    } else     if (drawPoints.length === 3) {
       if (Math.abs(iy - drawPoints[2].y) < SNAP_DIST) {
         iy = drawPoints[2].y;
         isSnappedY = true;
@@ -445,7 +454,13 @@ export const CanvasViewport = ({
         isSnappedX = true;
       }
     }
-    setCursorPoint({ x: ix, y: iy, isSnappedX, isSnappedY });
+    pendingCursorRef.current = { x: ix, y: iy, isSnappedX, isSnappedY };
+    if (cursorMoveRafRef.current) return;
+    cursorMoveRafRef.current = requestAnimationFrame(() => {
+      cursorMoveRafRef.current = 0;
+      const p = pendingCursorRef.current;
+      if (p) setCursorPoint(p);
+    });
   };
 
   return (
@@ -953,3 +968,5 @@ export const CanvasViewport = ({
     </div>
   );
 };
+
+export const CanvasViewport = memo(CanvasViewportInner);

@@ -37,7 +37,7 @@ class EtsyConnection(models.Model):
         on_delete=models.CASCADE,
         related_name="etsy_connection",
     )
-    shop_id = models.BigIntegerField(null=True, blank=True)
+    shop_id = models.BigIntegerField(null=True, blank=True, db_index=True)
     etsy_user_id = models.BigIntegerField(null=True, blank=True)
     access_token_enc = models.TextField(blank=True)
     refresh_token_enc = models.TextField(blank=True)

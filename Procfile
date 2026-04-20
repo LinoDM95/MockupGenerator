@@ -1,1 +1,1 @@
-web: cd backend && gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 300 --graceful-timeout 300
+web: cd backend && gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --worker-class gthread --workers 2 --threads 4 --timeout 300 --graceful-timeout 300 --max-requests 1000 --max-requests-jitter 100

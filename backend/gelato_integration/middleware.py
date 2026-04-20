@@ -16,6 +16,7 @@ class R2TempCleanupMiddleware:
         self.get_response = get_response
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
-        if request.path.startswith("/api/"):
+        # Nur bei schreibenden API-Calls — vermeidet Overhead pro GET (Listing/Polling).
+        if request.path.startswith("/api/") and request.method not in ("GET", "HEAD", "OPTIONS"):
             cleanup_expired_r2_temp_uploads()
         return self.get_response(request)

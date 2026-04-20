@@ -21,7 +21,13 @@ from .serializers import (
     validate_asset_belongs_user,
 )
 from .services.etsy_client import EtsyOpenApiClient, exchange_authorization_code
-from .services.normalize import get_listing_id, get_results, get_shop_id, get_user_id
+from .services.normalize import (
+    get_listing_id,
+    get_results,
+    get_shop_id,
+    get_user_id,
+    listing_images_from_embed,
+)
 from .services.rate_limit import EtsyRateLimiter
 from .services.tokens import ensure_fresh_access_token
 from .tasks import process_etsy_bulk_job
@@ -197,7 +203,7 @@ class EtsyListingsView(APIView):
             listings_data = client.get_json(
                 f"/shops/{conn.shop_id}/listings/active",
                 refresh_fn=refresh_fn,
-                params={"limit": limit, "offset": offset},
+                params={"limit": limit, "offset": offset, "includes": "Images"},
             )
         except httpx.HTTPStatusError as e:
             return Response(
@@ -208,9 +214,9 @@ class EtsyListingsView(APIView):
             client.close()
 
         results = get_results(listings_data)
-        out = []
+        out: list[dict] = []
         rate2 = EtsyRateLimiter(settings.ETSY_API_RPS)
-        client2 = EtsyOpenApiClient(ensure_fresh_access_token(conn), rate_limiter=rate2)
+        client2: EtsyOpenApiClient | None = None
 
         def rf2():
             return ensure_fresh_access_token(conn)
@@ -220,6 +226,12 @@ class EtsyListingsView(APIView):
                 lid = get_listing_id(listing)
                 if lid is None:
                     continue
+                embedded = listing_images_from_embed(listing)
+                if embedded is not None:
+                    out.append({**listing, "images": embedded})
+                    continue
+                if client2 is None:
+                    client2 = EtsyOpenApiClient(ensure_fresh_access_token(conn), rate_limiter=rate2)
                 try:
                     imgs = client2.get_json(
                         f"/shops/{conn.shop_id}/listings/{lid}/images",
@@ -230,7 +242,8 @@ class EtsyListingsView(APIView):
                     listing = {**listing, "images": []}
                 out.append(listing)
         finally:
-            client2.close()
+            if client2 is not None:
+                client2.close()
 
         return Response(
             {

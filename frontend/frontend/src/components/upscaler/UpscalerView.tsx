@@ -1,4 +1,3 @@
-import JSZip from "jszip";
 import {
   AlertCircle,
   CheckCircle2,
@@ -354,6 +353,7 @@ export const UpscalerView = () => {
     });
 
     try {
+      const { default: JSZip } = await import("jszip");
       const zip = new JSZip();
       for (let index = 0; index < done.length; index++) {
         const it = done[index]!;

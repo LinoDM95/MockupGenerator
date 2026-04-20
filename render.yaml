@@ -16,7 +16,7 @@ services:
       cd frontend/frontend && npm ci && npm run build &&
       cd ../../backend && python manage.py collectstatic --noinput
     # --timeout 300: Gemini (Expert + Grounding + AFC) kann >30s brauchen; sonst WORKER TIMEOUT / HTTP 500.
-    startCommand: cd backend && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 300 --graceful-timeout 300
+    startCommand: cd backend && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --worker-class gthread --workers ${WEB_CONCURRENCY:-2} --threads ${WEB_THREADS:-4} --timeout 300 --graceful-timeout 300 --max-requests 1000 --max-requests-jitter 100
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.8"

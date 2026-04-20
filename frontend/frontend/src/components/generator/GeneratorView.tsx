@@ -7,8 +7,6 @@ import {
   useRef,
   useState,
 } from "react";
-import JSZip from "jszip";
-
 import type { ArtworkMetadata, GelatoTemplate as GelatoTpl } from "../../api/gelato";
 import { refreshAccessTokenIfExpiringSoon } from "../../api/client";
 import {
@@ -297,6 +295,7 @@ export const GeneratorView = () => {
     });
 
     try {
+      const { default: JSZip } = await import("jszip");
       const zip = new JSZip();
       let filesAdded = 0;
       let rendered = 0;
@@ -448,6 +447,7 @@ export const GeneratorView = () => {
 
       try {
         if (downloadZip) {
+          const { default: JSZip } = await import("jszip");
           const zip = new JSZip();
 
           const items = artworks.map((art, idx) => ({

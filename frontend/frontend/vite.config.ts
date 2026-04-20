@@ -25,6 +25,23 @@ export default defineConfig(({ command }) => ({
   },
   // Production: Django/WhiteNoise serviert Assets unter STATIC_URL (/static/).
   base: command === 'build' ? '/static/' : '/',
+  esbuild:
+    command === 'build'
+      ? {
+          drop: ['console', 'debugger'],
+        }
+      : undefined,
+  build:
+    command === 'build'
+      ? {
+          target: 'es2022',
+          cssCodeSplit: true,
+          minify: 'esbuild',
+          sourcemap: false,
+          reportCompressedSize: false,
+          chunkSizeWarningLimit: 600,
+        }
+      : undefined,
   plugins: [react(), tailwindcss()],
   server: {
     fs: {

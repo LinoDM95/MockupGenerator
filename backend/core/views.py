@@ -358,6 +358,7 @@ class TemplateViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAuthenticated,)
     parser_classes = (JSONParser, FormParser, MultiPartParser)
     http_method_names = ["get", "patch", "put", "delete", "head", "options"]
+    pagination_class = None
 
     def get_queryset(self):
         return (

@@ -35,18 +35,12 @@ export const LayerManager = ({
         {[...editingTemplate.elements].reverse().map((el) => (
           <motion.div
             key={el.id}
-            layout
-            initial={{ opacity: 0, y: 2 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{
-              opacity: 0,
-              height: 0,
-              marginTop: 0,
-              marginBottom: 0,
-              paddingTop: 0,
-              paddingBottom: 0,
-            }}
-            transition={{ duration: 0.2, layout: { duration: 0.2, ease: "easeOut" } }}
+            layout="position"
+            initial={{ opacity: 0, scale: 0.97 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
+            style={{ willChange: "transform, opacity" }}
             className="overflow-hidden"
           >
             <div

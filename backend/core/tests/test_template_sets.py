@@ -24,7 +24,10 @@ class TemplateSetViewSetTests(TestCase):
     def test_list_empty(self) -> None:
         r = self.client.get("/api/sets/")
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(json.loads(r.content), [])
+        body = json.loads(r.content)
+        self.assertIn("results", body)
+        self.assertEqual(body["results"], [])
+        self.assertEqual(body.get("count"), 0)
 
     def test_create_and_retrieve(self) -> None:
         r = self.client.post("/api/sets/", data={"name": "My Set"}, format="json")
