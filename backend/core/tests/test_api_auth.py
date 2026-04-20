@@ -109,6 +109,10 @@ class CurrentUserTests(TestCase):
         data = json.loads(r.content)
         self.assertEqual(data["username"], "meuser")
         self.assertEqual(data["email"], "me@example.com")
+        self.assertIn("is_staff", data)
+        self.assertIn("is_superuser", data)
+        self.assertFalse(data["is_staff"])
+        self.assertFalse(data["is_superuser"])
 
     def test_me_patch_username(self) -> None:
         u = create_user(username="oldname", password="pw")

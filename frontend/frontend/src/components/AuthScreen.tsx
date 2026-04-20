@@ -45,7 +45,7 @@ export const AuthScreen = () => {
   if (isAuthenticated) return <Navigate to="/app" replace />;
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-slate-50 p-4">
+    <div className="relative flex min-h-0 flex-1 items-center justify-center bg-slate-50 p-4">
       <div className="absolute right-4 top-4 z-10">
         <ThemeToggle size="sm" />
       </div>

@@ -6,6 +6,8 @@ export type CurrentUser = {
   email: string;
   date_joined: string | null;
   last_login: string | null;
+  is_staff: boolean;
+  is_superuser: boolean;
 };
 
 export type AccountDataExport = {

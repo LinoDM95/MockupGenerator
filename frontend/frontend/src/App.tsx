@@ -1,12 +1,11 @@
 import type { ComponentType } from "react";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
-import { Compass, Link2, Layers, LogOut, RefreshCw, UserCircle, Zap } from "lucide-react";
+import { Compass, Link2, Layers, LogOut, MessageCircle, RefreshCw, UserCircle, Zap } from "lucide-react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { cn } from "./lib/cn";
-import { NAV_LOCKED_BUSY_CLASS } from "./lib/globalBusyCursor";
 import { Button } from "./components/ui/Button";
 import { ThemeToggle } from "./components/ui/ThemeToggle";
 import { DialogHost } from "./components/DialogHost";
@@ -26,7 +25,9 @@ const MainTabFallback = () => (
     Laden…
   </div>
 );
+import { FeedbackNotificationPoller } from "./components/feedback/FeedbackNotificationPoller";
 import { AccountPage } from "./pages/AccountPage";
+import { FeedbackPage } from "./pages/FeedbackPage";
 import type { AppTab } from "./store/appStore";
 import { useAppStore } from "./store/appStore";
 
@@ -45,6 +46,7 @@ const tabContent: Record<AppTab, ComponentType> = {
 const NAV_LOCK_TITLE = "Während eines laufenden Vorgangs ist die Navigation gesperrt.";
 
 const ACCOUNT_PATH = "/app/konto";
+const FEEDBACK_PATH = "/app/feedback";
 
 function App() {
   const isAuthenticated = useAppStore((s) => s.isAuthenticated);
@@ -57,23 +59,19 @@ function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const isAccountPage = location.pathname === ACCOUNT_PATH;
+  const isFeedbackPage = location.pathname === FEEDBACK_PATH;
+  const isSecondaryPage = isAccountPage || isFeedbackPage;
   const [showBatchLauncherRefresh] = useState(
     () => typeof sessionStorage !== "undefined" && sessionStorage.getItem("mockupLauncherBatch") === "1",
   );
-
-  useEffect(() => {
-    const el = document.documentElement;
-    if (navigationLocked) el.classList.add(NAV_LOCKED_BUSY_CLASS);
-    else el.classList.remove(NAV_LOCKED_BUSY_CLASS);
-    return () => el.classList.remove(NAV_LOCKED_BUSY_CLASS);
-  }, [navigationLocked]);
 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   const ActiveView = tabContent[activeTab];
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-indigo-500/20">
+    <div className="flex min-h-0 flex-1 flex-col bg-slate-50 font-sans text-slate-900 selection:bg-indigo-500/20">
+      <FeedbackNotificationPoller />
       <AIActivityPanel />
       <DialogHost />
 
@@ -113,7 +111,7 @@ function App() {
                     navigationLocked
                       ? "cursor-not-allowed opacity-50"
                       : "hover:text-indigo-600",
-                    isActive && !isAccountPage
+                    isActive && !isSecondaryPage
                       ? "bg-indigo-50/50 text-indigo-600"
                       : "text-slate-500",
                   )}
@@ -143,22 +141,53 @@ function App() {
                 Aktualisieren
               </Button>
             ) : null}
-            
+
             <button
               type="button"
-              onClick={() => navigate(ACCOUNT_PATH)}
+              disabled={navigationLocked}
+              title={navigationLocked ? NAV_LOCK_TITLE : "Feedback an das Team"}
+              onClick={() => {
+                if (navigationLocked) return;
+                navigate(FEEDBACK_PATH);
+              }}
               className={cn(
                 "group flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all duration-300 ease-out",
-                !reduceMotion && "hover:scale-105 active:scale-95",
-                isAccountPage
-                  // Aktiv: Gleiche Farben wie die aktiven Haupt-Tabs
+                navigationLocked
+                  ? "cursor-not-allowed opacity-50"
+                  : !reduceMotion && "hover:scale-105 active:scale-95",
+                isFeedbackPage
                   ? "bg-indigo-50/50 text-indigo-600"
-                  // Inaktiv: Gleiche Farben wie ThemeToggle und Logout
-                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-900",
+                  : navigationLocked
+                    ? "text-slate-400"
+                    : "text-slate-500 hover:bg-slate-100 hover:text-slate-900",
+              )}
+              aria-current={isFeedbackPage ? "page" : undefined}
+              aria-label="Feedback an das Team"
+            >
+              <MessageCircle size={18} strokeWidth={2} className="shrink-0" aria-hidden />
+            </button>
+
+            <button
+              type="button"
+              disabled={navigationLocked}
+              title={navigationLocked ? NAV_LOCK_TITLE : "Konto — Profil, Daten und Sicherheit"}
+              onClick={() => {
+                if (navigationLocked) return;
+                navigate(ACCOUNT_PATH);
+              }}
+              className={cn(
+                "group flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all duration-300 ease-out",
+                navigationLocked
+                  ? "cursor-not-allowed opacity-50"
+                  : !reduceMotion && "hover:scale-105 active:scale-95",
+                isAccountPage
+                  ? "bg-indigo-50/50 text-indigo-600"
+                  : navigationLocked
+                    ? "text-slate-400"
+                    : "text-slate-500 hover:bg-slate-100 hover:text-slate-900",
               )}
               aria-current={isAccountPage ? "page" : undefined}
               aria-label="Konto — Profil, Daten und Sicherheit"
-              title="Konto — Profil, Daten und Sicherheit"
             >
               <UserCircle
                 size={18}
@@ -207,10 +236,14 @@ function App() {
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto w-full min-w-0 max-w-7xl px-3 pb-10 pt-8 sm:px-6 sm:pb-12 sm:pt-10 lg:px-8">
+      <main className="relative z-10 mx-auto flex min-h-0 w-full min-w-0 max-w-7xl flex-1 flex-col px-3 pb-10 pt-8 sm:px-6 sm:pb-12 sm:pt-10 lg:px-8">
         {isAccountPage ? (
           <div className="w-full min-w-0">
             <AccountPage />
+          </div>
+        ) : isFeedbackPage ? (
+          <div className="w-full min-w-0">
+            <FeedbackPage />
           </div>
         ) : (
           <AnimatePresence mode="wait">

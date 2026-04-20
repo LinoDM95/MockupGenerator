@@ -48,7 +48,7 @@ export const PinterestCallbackPage = () => {
   }, [navigate, params]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
+    <div className="flex min-h-0 flex-1 items-center justify-center bg-slate-50 p-6">
       <Card padding="lg" className="max-w-md text-center">
         <Loader2
           className="mx-auto mb-4 h-8 w-8 animate-spin text-rose-600"

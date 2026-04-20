@@ -16,7 +16,7 @@ export const LegalPageLayout = ({ title, children }: Props) => {
   const showDevHint = import.meta.env.DEV && legalConfigLooksIncomplete(cfg);
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
+    <div className="flex min-h-0 flex-1 flex-col bg-slate-50 font-sans text-slate-900">
       <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/95 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 backdrop-blur-sm">
         <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-3 px-4 sm:px-6">
           <Link
@@ -38,7 +38,7 @@ export const LegalPageLayout = ({ title, children }: Props) => {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 py-10 pb-16 sm:px-6">
+      <main className="mx-auto flex min-h-0 flex-1 flex-col max-w-3xl px-4 py-10 pb-10 sm:px-6">
         <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
           Rechtliches · {cfg.appName}
         </p>

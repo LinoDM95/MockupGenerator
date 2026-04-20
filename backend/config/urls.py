@@ -68,6 +68,7 @@ urlpatterns = [
     path("api/automation/", include("automation.urls")),
     path("api/marketing/", include("marketing_integration.urls")),
     path("api/settings/", include("user_settings.urls")),
+    path("api/feedback/", include("feedback.urls")),
 ]
 
 if settings.DEBUG:

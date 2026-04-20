@@ -135,8 +135,16 @@ class UserMeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ("id", "username", "email", "date_joined", "last_login")
-        read_only_fields = ("id", "date_joined", "last_login")
+        fields = (
+            "id",
+            "username",
+            "email",
+            "date_joined",
+            "last_login",
+            "is_staff",
+            "is_superuser",
+        )
+        read_only_fields = ("id", "date_joined", "last_login", "is_staff", "is_superuser")
 
     def validate_username(self, value: str) -> str:
         value = (value or "").strip()

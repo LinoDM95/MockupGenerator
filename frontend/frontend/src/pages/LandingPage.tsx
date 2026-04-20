@@ -1310,7 +1310,7 @@ const LandingScrollToTop = () => {
 /* PAGE                                                               */
 /* ------------------------------------------------------------------ */
 export const LandingPage = () => (
-  <div className="min-h-screen bg-slate-50 font-sans">
+  <div className="flex min-h-0 flex-1 flex-col bg-slate-50 font-sans">
     <LandingScrollToTop />
     <header className="fixed inset-x-0 top-4 z-50 px-4 sm:px-6">
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between rounded-full border border-white/40 bg-white/70 px-4 shadow-[0_8px_30px_rgb(0,0,0,0.06)] ring-1 ring-slate-900/5 backdrop-blur-xl sm:px-6">

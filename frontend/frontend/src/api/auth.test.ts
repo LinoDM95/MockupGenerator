@@ -31,6 +31,8 @@ describe("auth API helpers", () => {
       email: "a@b.de",
       date_joined: null,
       last_login: null,
+      is_staff: false,
+      is_superuser: false,
     });
     const { patchCurrentUser } = await import("./auth");
     await patchCurrentUser({ email: "a@b.de" });

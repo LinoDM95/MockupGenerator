@@ -83,6 +83,7 @@ INSTALLED_APPS = [
     "automation",
     "marketing_integration",
     "user_settings",
+    "feedback",
 ]
 
 MIDDLEWARE = [

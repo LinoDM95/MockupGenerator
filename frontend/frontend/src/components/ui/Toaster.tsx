@@ -20,7 +20,7 @@ export const Toaster = () => {
 
   return (
     <div
-      className="pointer-events-none fixed bottom-6 right-6 z-[9999] flex w-[min(100vw-3rem,24rem)] flex-col gap-3"
+      className="pointer-events-none fixed right-6 top-6 z-[9999] flex w-[min(100vw-3rem,24rem)] flex-col gap-3"
       aria-live="polite"
       aria-relevant="additions text"
     >
@@ -31,9 +31,9 @@ export const Toaster = () => {
               key={t.id}
               layout
               role="status"
-              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 12, scale: 0.95 }}
+              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -10, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.95 }}
+              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6, scale: 0.98 }}
               transition={{
                 layout: { duration: 0.2, ease: "easeOut" },
                 duration: 0.2,
