@@ -14,6 +14,8 @@ type Props = {
   onConfirm: () => void;
   onCancel: () => void;
   className?: string;
+  /** Ersetzt die Standard-Abbrechen/Bestätigen-Leiste (z. B. Formular mit eigenem Absenden). */
+  footer?: ReactNode;
 };
 
 const appleEase: [number, number, number, number] = [0.22, 1, 0.36, 1];
@@ -28,6 +30,7 @@ export const Modal = ({
   onConfirm,
   onCancel,
   className,
+  footer,
 }: Props) => (
   <AnimatePresence>
     {isOpen ? (
@@ -63,14 +66,18 @@ export const Modal = ({
             </p>
           ) : null}
           {children}
-          <div className="mt-8 flex justify-end gap-3">
-            <Button variant="outline" type="button" onClick={onCancel}>
-              {cancelLabel}
-            </Button>
-            <Button type="button" onClick={onConfirm}>
-              {confirmLabel}
-            </Button>
-          </div>
+          {footer !== undefined ? (
+            <div className="mt-8">{footer}</div>
+          ) : (
+            <div className="mt-8 flex justify-end gap-3">
+              <Button variant="outline" type="button" onClick={onCancel}>
+                {cancelLabel}
+              </Button>
+              <Button type="button" onClick={onConfirm}>
+                {confirmLabel}
+              </Button>
+            </div>
+          )}
         </motion.div>
       </motion.div>
     ) : null}

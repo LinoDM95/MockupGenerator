@@ -8,13 +8,12 @@ fertig ist — bei vielen Bildern ggf. hohe Latenz; später optional wieder Queu
 from __future__ import annotations
 
 import logging
-import os
 import zipfile
 from io import BytesIO
 from pathlib import Path
 
-from django.conf import settings
 from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.db import transaction
 
 from .models import AutomationJob, ImageTask
@@ -28,7 +27,7 @@ from .services import (
 logger = logging.getLogger(__name__)
 
 
-def _finalize_job_zip(job_id: str, media_root: Path) -> None:
+def _finalize_job_zip(job_id: str) -> None:
     with transaction.atomic():
         try:
             job = AutomationJob.objects.select_for_update().get(pk=job_id)
@@ -70,20 +69,24 @@ def _finalize_job_zip(job_id: str, media_root: Path) -> None:
             for t in done_qs.iterator():
                 base = Path(t.original_image.name).stem[:60] or str(t.id)[:8]
                 for rel in t.mockup_paths or []:
-                    abs_path = media_root / rel.replace("/", os.sep)
-                    if not abs_path.is_file():
-                        logger.warning(
-                            "Missing mockup file for zip: %s", abs_path
-                        )
+                    rel_norm = rel.replace("\\", "/")
+                    if not default_storage.exists(rel_norm):
+                        logger.warning("Missing mockup in storage: %s", rel_norm)
                         continue
-                    leaf = Path(rel).name
+                    try:
+                        with default_storage.open(rel_norm, "rb") as f:
+                            data = f.read()
+                    except OSError:
+                        logger.warning("Could not read mockup from storage: %s", rel_norm)
+                        continue
+                    leaf = Path(rel_norm).name
                     arc = f"{base}/{leaf}"
-                    zf.write(abs_path, arcname=arc)
+                    zf.writestr(arc, data)
                     added += 1
             if added == 0:
                 raise ValueError(
-                    "ZIP konnte nicht erstellt werden: keine Mockup-Dateien auf der "
-                    "Platte gefunden (erwartete Pfade fehlen oder waren leer)."
+                    "ZIP konnte nicht erstellt werden: keine Mockup-Dateien im Storage "
+                    "gefunden (erwartete Pfade fehlen oder waren leer)."
                 )
 
         buf.seek(0)
@@ -97,10 +100,8 @@ def _finalize_job_zip(job_id: str, media_root: Path) -> None:
 
 def finalize_job(job_id: str) -> None:
     """Alle Mockup-PNGs erfolgreicher Tasks packen; idempotent."""
-    media_root = Path(settings.MEDIA_ROOT)
-
     try:
-        _finalize_job_zip(job_id, media_root)
+        _finalize_job_zip(job_id)
     except Exception as exc:
         logger.exception("finalize_job failed job=%s", job_id)
         AutomationJob.objects.filter(pk=job_id).update(

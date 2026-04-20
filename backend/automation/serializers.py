@@ -49,11 +49,13 @@ class ImageTaskSerializer(serializers.ModelSerializer):
         return None
 
     def get_high_res_image(self, obj: ImageTask) -> str | None:
+        """Ohne echtes Upscale (Stub) entfällt ``high_res_image`` — URL vom Original."""
+        field = obj.high_res_image if obj.high_res_image else obj.original_image
         request = self.context.get("request")
-        if obj.high_res_image and getattr(request, "build_absolute_uri", None):
-            return request.build_absolute_uri(obj.high_res_image.url)
-        if obj.high_res_image:
-            return obj.high_res_image.url
+        if field and getattr(request, "build_absolute_uri", None):
+            return request.build_absolute_uri(field.url)
+        if field:
+            return field.url
         return None
 
 

@@ -28,7 +28,12 @@ from core.auth_cookie_views import (
     CookieTokenRefreshView,
     CsrfBootstrapView,
 )
-from core.views import ChangePasswordView, CurrentUserView
+from core.views import (
+    AccountDataExportView,
+    ChangePasswordView,
+    CurrentUserView,
+    DeleteAccountView,
+)
 
 
 def healthz(_request):
@@ -51,8 +56,10 @@ urlpatterns = [
     path("api/auth/login/", CookieLoginView.as_view(), name="auth-login"),
     path("api/auth/refresh/", CookieTokenRefreshView.as_view(), name="auth-refresh"),
     path("api/auth/logout/", CookieLogoutView.as_view(), name="auth-logout"),
-    # Explizit vor include("core.urls"), damit /api/auth/me/ sicher gematcht wird (Profil / Passwort).
+    # Explizit vor include("core.urls"); längere Pfade vor /api/auth/me/.
+    path("api/auth/me/export/", AccountDataExportView.as_view(), name="auth-me-export"),
     path("api/auth/me/", CurrentUserView.as_view(), name="auth-me"),
+    path("api/auth/delete-account/", DeleteAccountView.as_view(), name="auth-delete-account"),
     path("api/auth/change-password/", ChangePasswordView.as_view(), name="auth-change-password"),
     path("api/", include("core.urls")),
     path("api/gelato/", include("gelato_integration.urls")),

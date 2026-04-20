@@ -1,3 +1,5 @@
+"""Upscaler: reine Service-/Hilfsfunktionen (ohne DB)."""
+
 from django.test import SimpleTestCase
 
 from upscaler.services import (

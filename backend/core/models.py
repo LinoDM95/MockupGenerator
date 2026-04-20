@@ -1,8 +1,6 @@
-import os
 import uuid
 
 from django.conf import settings
-from django.core.files.storage import FileSystemStorage
 from django.core.validators import FileExtensionValidator, MaxValueValidator, MinValueValidator
 from django.db import models
 
@@ -11,16 +9,11 @@ from .validators import validate_real_image
 
 
 def template_background_storage():
-    """Speicher für Vorlagen-Hintergründe: R2 in Produktion, sonst lokales MEDIA_ROOT.
+    """Nur für ältere Migrationen (0007/0008); entspricht dem Default-Storage aus ``STORAGES``."""
 
-    Pfade: ``template_backgrounds/users/<user_id>/…`` — getrennt von Gelato-``temp_designs/``,
-    die nur via ``TemporaryDesignUpload`` + Cleanup gelöscht werden.
-    """
     from django.core.files.storage import storages
 
-    if os.environ.get("AWS_STORAGE_BUCKET_NAME", "").strip():
-        return storages["r2"]
-    return FileSystemStorage()
+    return storages["default"]
 
 
 class TemplateSet(models.Model):
@@ -65,7 +58,7 @@ class Template(models.Model):
     height = models.PositiveIntegerField()
     background_image = models.ImageField(
         upload_to=template_background_upload_to,
-        storage=template_background_storage,
+        max_length=512,
         validators=[
             FileExtensionValidator(allowed_extensions=["jpg", "jpeg", "png", "webp"]),
             validate_real_image,

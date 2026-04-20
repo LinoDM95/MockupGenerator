@@ -124,10 +124,10 @@ export const IntegrationSetupWizard = () => {
     setIntegrationWizardInitialStep(null);
   }, [integrationWizardInitialStep, setIntegrationWizardInitialStep]);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (force?: boolean) => {
     setLoading(true);
     try {
-      const s = await fetchIntegrationStatus();
+      const s = await fetchIntegrationStatus(force ? { force: true } : undefined);
       setStatus(s);
     } catch {
       setStatus(null);
@@ -139,10 +139,6 @@ export const IntegrationSetupWizard = () => {
   useEffect(() => {
     void load();
   }, [load]);
-
-  useEffect(() => {
-    void load();
-  }, [step, load]);
 
   const step1Done = !!status?.gelato;
   const step2Done = !!status?.gemini;
@@ -174,7 +170,10 @@ export const IntegrationSetupWizard = () => {
                     done={done}
                     stepNumber={n}
                     activePillLayoutId="integration-wizard-step-pill"
-                    onClick={() => setStep(n)}
+                    onClick={() => {
+                      setStep(n);
+                      void load(true);
+                    }}
                   >
                     {n}. {WIZARD_STEPS[n - 1].stepLabel}
                   </AppTabStepButton>
@@ -222,7 +221,10 @@ export const IntegrationSetupWizard = () => {
             <Button
               type="button"
               variant="primary"
-              onClick={() => setStep((s) => Math.min(STEP_COUNT, s + 1))}
+              onClick={() => {
+                setStep((s) => Math.min(STEP_COUNT, s + 1));
+                void load(true);
+              }}
             >
               Weiter
               <ChevronRight className="h-4 w-4" aria-hidden />

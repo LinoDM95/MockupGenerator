@@ -5,6 +5,7 @@ from django.db import models
 from django.utils import timezone
 
 from .crypto import decrypt_token, encrypt_token
+from .upload_paths import etsy_bulk_asset_upload_to
 
 
 class EtsyOAuthState(models.Model):
@@ -67,7 +68,7 @@ class EtsyBulkAsset(models.Model):
         on_delete=models.CASCADE,
         related_name="etsy_bulk_assets",
     )
-    image = models.ImageField(upload_to="etsy_bulk_assets/%Y/%m/")
+    image = models.ImageField(upload_to=etsy_bulk_asset_upload_to, max_length=512)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

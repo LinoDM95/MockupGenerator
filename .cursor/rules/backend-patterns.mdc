@@ -107,3 +107,11 @@ def get_queryset(self):
 - RESTful: `/api/sets/`, `/api/templates/`, `/api/etsy/oauth/start/`
 - Verschachtelte Routen für Beziehungen: `/api/sets/{id}/templates/`
 - Alle Endpoints unter `/api/` – kein HTML-Serving durch Django (außer Admin)
+
+## Tests
+
+- **Mit jedem neuen Feature:** Gleichzeitig `backend/<app>/tests/test_*.py` anlegen oder erweitern — siehe `.cursor/rules/project-conventions.mdc` (Abschnitt „Tests“).
+- **Struktur:** `tests/`-Paket pro Django-App (`__init__.py`); Import-Hilfen: `from core.tests.support import api_client_bearer, create_user, …`
+- **API:** `APIClient` mit Bearer-Token (`RefreshToken.for_user`); Status-Codes und JSON-Body prüfen; **Owner-Scoping** testen (fremde `pk` → 404/403).
+- **Externe Dienste:** `unittest.mock.patch` auf `httpx`, Etsy/Gelato/Vertex-Clients, Celery `.delay` — keine Live-Keys in Tests.
+- **Ausführung:** `python manage.py test <app_label>` oder gesamte Suite; vor Abschluss der Aufgabe relevante Tests grün.

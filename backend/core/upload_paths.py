@@ -7,9 +7,11 @@ import uuid
 
 from django.utils import timezone
 
+from .object_storage_layout import P_CORE_TEMPLATE_BACKGROUNDS
+
 
 def template_background_upload_to(instance, filename: str) -> str:
-    """``template_backgrounds/users/<user_id>/YYYY/MM/<uuid>.<ext>``"""
+    """``ce/core/template_backgrounds/users/<user_id>/YYYY/MM/<uuid>.<ext>``"""
     ext = os.path.splitext(filename or "")[1].lower()
     if ext not in (".jpg", ".jpeg", ".png", ".webp"):
         ext = ".jpg"
@@ -23,4 +25,7 @@ def template_background_upload_to(instance, filename: str) -> str:
         )
     user_id = template_set.user_id if template_set is not None else "unknown"
     now = timezone.now()
-    return f"template_backgrounds/users/{user_id}/{now:%Y}/{now:%m}/{uuid.uuid4().hex}{ext}"
+    return (
+        f"{P_CORE_TEMPLATE_BACKGROUNDS}/users/{user_id}/"
+        f"{now:%Y}/{now:%m}/{uuid.uuid4().hex}{ext}"
+    )

@@ -108,6 +108,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isAuthenticated: null,
   setAuthenticated: (v) => set({ isAuthenticated: v }),
   logoutLocal: () => {
+    void import("../api/settings").then((m) => m.invalidateIntegrationStatusClientCache());
     set({ isAuthenticated: false, templateSets: [] });
   },
   logout: async () => {

@@ -18,6 +18,11 @@ const companionProxy = {
 
 // https://vite.dev/config/
 export default defineConfig(({ command }) => ({
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    include: ['src/**/*.test.ts'],
+  },
   // Production: Django/WhiteNoise serviert Assets unter STATIC_URL (/static/).
   base: command === 'build' ? '/static/' : '/',
   plugins: [react(), tailwindcss()],

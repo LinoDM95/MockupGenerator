@@ -23,7 +23,7 @@ export const useIntegrationFlags = (): IntegrationFlags => {
   const refetch = useCallback(async () => {
     setLoading(true);
     try {
-      const s = await fetchIntegrationStatus();
+      const s = await fetchIntegrationStatus({ force: true });
       setStatus(s);
     } catch {
       setStatus(null);

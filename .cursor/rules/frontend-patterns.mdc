@@ -142,6 +142,13 @@ function MyComponent(props: any) { ... }
 - Offscreen-Canvas für Export: keine DOM-Manipulation, reines Canvas-2D
 - Maximale Bildgröße 2400px (`compressImage`) um Memory-Probleme zu vermeiden
 
+## Tests
+
+- **Mit jedem neuen Feature:** Passende Vitest-Dateien im selben Arbeitsgang — siehe `.cursor/rules/project-conventions.mdc` (Abschnitt „Tests“).
+- **Ort:** `*.test.ts` / `*.test.tsx` neben dem Modul (z. B. `src/api/foo.test.ts`, `src/lib/bar.test.ts`) oder in einem bestehenden Test-Ordner des Projekts; Konfiguration: `vitest` + `jsdom` wie im Repo.
+- **API/Hooks:** `vi.mock` für `apiJson`/`apiFetch` oder Fetch; Fokus auf **Kontrakt** (Payload, Fehlerbehandlung), nicht auf Pixel-Perfect-UI.
+- **Ausführung:** `npm run test`; vor Abschluss der Aufgabe relevante Tests grün.
+
 ## Tailwind CSS 4
 
 - Tailwind über `@import "tailwindcss"` in `index.css` + Vite-Plugin (keine `tailwind.config`)

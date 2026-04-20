@@ -1,13 +1,27 @@
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Folder, Layers, Maximize } from "lucide-react";
+import { lazy, Suspense } from "react";
 
 import type { WorkspaceTab } from "../store/appStore";
 import { useAppStore } from "../store/appStore";
 import { AppSubNavPageLayout } from "./ui/AppSubNavPageLayout";
 import { SubNavTab } from "./ui/SubNavTab";
-import { GeneratorView } from "./GeneratorView";
-import { TemplatesStudio } from "./TemplatesStudio";
-import { UpscalerView } from "./upscaler/UpscalerView";
+
+const GeneratorView = lazy(() =>
+  import("./GeneratorView").then((m) => ({ default: m.GeneratorView })),
+);
+const TemplatesStudio = lazy(() =>
+  import("./TemplatesStudio").then((m) => ({ default: m.TemplatesStudio })),
+);
+const UpscalerView = lazy(() =>
+  import("./upscaler/UpscalerView").then((m) => ({ default: m.UpscalerView })),
+);
+
+const WorkspacePanelFallback = () => (
+  <div className="flex min-h-[280px] items-center justify-center rounded-2xl bg-slate-50/80 text-sm font-medium text-slate-500 ring-1 ring-inset ring-slate-900/5">
+    Laden…
+  </div>
+);
 
 const NAV_LOCK_TITLE =
   "Während eines laufenden Vorgangs ist die Navigation gesperrt. Bitte warten oder Vorgang abbrechen.";
@@ -60,9 +74,11 @@ export const WorkspaceView = () => {
           exit={{ opacity: 0, y: reduceMotion ? 0 : 2 }}
           transition={{ duration: 0.18, ease: "easeOut" }}
         >
-          {workspaceTab === "generator" ? <GeneratorView /> : null}
-          {workspaceTab === "templates" ? <TemplatesStudio /> : null}
-          {workspaceTab === "upscaler" ? <UpscalerView /> : null}
+          <Suspense fallback={<WorkspacePanelFallback />}>
+            {workspaceTab === "generator" ? <GeneratorView /> : null}
+            {workspaceTab === "templates" ? <TemplatesStudio /> : null}
+            {workspaceTab === "upscaler" ? <UpscalerView /> : null}
+          </Suspense>
         </motion.div>
       </AnimatePresence>
     </AppSubNavPageLayout>

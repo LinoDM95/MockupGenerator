@@ -89,6 +89,18 @@ Etsy: `User → EtsyConnection (1:1, verschlüsselte Tokens) → EtsyBulkJob (Ce
 4. **Migrationen:** Nach jeder Model-Änderung `makemigrations` + `migrate` ausführen
 5. **Environment:** Secrets NIE in Code – immer über `.env` und `os.environ.get()`
 6. **Keine leeren catch-Blöcke:** Fehler immer loggen oder dem User anzeigen
+7. **Tests mitliefern:** Siehe Abschnitt „Tests“ — nicht erst später nachziehen
+
+## Tests (Pflicht bei neuen Features)
+
+Neue oder geänderte **Funktionalität** wird **im selben Arbeitsgang** wie die Produktiv-Code-Änderung getestet — nicht in einem separaten, optionalen Schritt.
+
+- **Backend:** Automatisierte Tests für neue Endpoints, Serializer-Regeln, Owner-Isolation, Tasks und kritische Services (`django.test.TestCase` oder `APITestCase`). Pro App unter `backend/<app>/tests/` (Paket mit `__init__.py`), gemeinsame Helfer aus `core.tests.support` (`api_client_bearer`, `create_user`, …). Externe APIs und I/O mit Mocks/Fakes — keine echten Netzwerkaufrufe in Unit-Tests.
+- **Frontend:** Vitest für neue oder geänderte Logik in `src/api/`, `src/lib/`, Hooks und reine Utilities; bei UI-Komponenten mindestens dort, wo sich verifizierbare Logik oder Kontrakte ergeben (Props, Normalisierung). `npm run test` muss grün sein.
+- **Umfang:** Pro Feature mindestens die **Happy Paths** der geänderten API/Oberfläche plus **einen** relevanten Fehlerfall (400/403/404) oder Grenzfall, wo sinnvoll.
+- **Anti-Pattern:** Feature mergen oder als „fertig“ markieren, ohne passende Tests zu ergänzen oder bestehende Tests anzupassen.
+
+Details: `.cursor/rules/backend-patterns.mdc` (Abschnitt Tests), `.cursor/rules/frontend-patterns.mdc` (Abschnitt Tests).
 
 ## Abhängigkeiten
 

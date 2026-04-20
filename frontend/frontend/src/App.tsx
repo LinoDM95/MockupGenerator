@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 import { Compass, Link2, Layers, LogOut, RefreshCw, UserCircle, Zap } from "lucide-react";
@@ -11,9 +11,21 @@ import { Button } from "./components/ui/Button";
 import { ThemeToggle } from "./components/ui/ThemeToggle";
 import { DialogHost } from "./components/DialogHost";
 import { AIActivityPanel } from "./components/ai/AIActivityPanel";
-import { IntegrationsView } from "./components/IntegrationsView";
-import { WorkspaceView } from "./components/WorkspaceView";
-import { RoadmapView } from "./components/RoadmapView";
+const WorkspaceView = lazy(() =>
+  import("./components/WorkspaceView").then((m) => ({ default: m.WorkspaceView })),
+);
+const RoadmapView = lazy(() =>
+  import("./components/RoadmapView").then((m) => ({ default: m.RoadmapView })),
+);
+const IntegrationsView = lazy(() =>
+  import("./components/IntegrationsView").then((m) => ({ default: m.IntegrationsView })),
+);
+
+const MainTabFallback = () => (
+  <div className="flex min-h-[40vh] items-center justify-center text-sm font-medium text-slate-500">
+    Laden…
+  </div>
+);
 import { AccountPage } from "./pages/AccountPage";
 import type { AppTab } from "./store/appStore";
 import { useAppStore } from "./store/appStore";
@@ -145,8 +157,8 @@ function App() {
                   : "text-slate-500 hover:bg-slate-100 hover:text-slate-900",
               )}
               aria-current={isAccountPage ? "page" : undefined}
-              aria-label="Konto — Profil und Abrechnung"
-              title="Konto — Profil und Abrechnung"
+              aria-label="Konto — Profil, Daten und Sicherheit"
+              title="Konto — Profil, Daten und Sicherheit"
             >
               <UserCircle
                 size={18}
@@ -210,7 +222,9 @@ function App() {
               exit={{ opacity: 0, y: reduceMotion ? 0 : -4 }}
               transition={{ duration: 0.25, ease: "easeOut" }}
             >
-              <ActiveView />
+              <Suspense fallback={<MainTabFallback />}>
+                <ActiveView />
+              </Suspense>
             </motion.div>
           </AnimatePresence>
         )}

@@ -1,40 +1,34 @@
 """
 Stub services for automation pipeline (replace with real Vertex/Gemini/Gelato later).
 
-All file outputs under MEDIA_ROOT for local dev.
+Dateiausgaben über Django ``default_storage`` (lokal oder R2 je nach Settings).
 """
 
 from __future__ import annotations
 
 import logging
 import time
+from io import BytesIO
 from pathlib import Path
 
-from django.conf import settings
 from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
+
+from core.object_storage_layout import P_AUTOMATION
 
 from .models import ImageTask
 
 logger = logging.getLogger(__name__)
 
 
-def _media_path(*parts: str) -> Path:
-    return Path(settings.MEDIA_ROOT).joinpath(*parts)
-
-
 def service_upscale_image(task: ImageTask) -> None:
-    """Stub: wait, copy original bytes as fake high-res PNG (same pixels)."""
-    time.sleep(2)
-    task.original_image.open("rb")
-    try:
-        raw = task.original_image.read()
-    finally:
-        task.original_image.close()
+    """Stub: wartet nur — **kein** zweites Objekt im Storage (Original reicht für Pipeline).
 
-    name = f"hr_{task.id}.png"
-    task.high_res_image.save(name, ContentFile(raw), save=False)
-    task.save(update_fields=["high_res_image", "updated_at"])
-    logger.info("service_upscale_image done task=%s", task.id)
+    Echtes Upscale (Vertex o. ä.) würde hier ``high_res_image`` befüllen; Mockups nutzen
+    dann ``high_res_image``, sonst ``original_image``.
+    """
+    time.sleep(2)
+    logger.info("service_upscale_image stub (no duplicate R2 object) task=%s", task.id)
 
 
 def service_generate_seo(task: ImageTask, ai_model_name: str) -> None:
@@ -80,14 +74,15 @@ def service_render_server_mockups(task: ImageTask, template_set_id: str) -> None
             "Vorlagen-Set nicht gefunden oder gehoert nicht zu diesem Nutzer."
         )
 
-    if not task.high_res_image:
-        raise ValueError("high_res_image fehlt vor Mockup-Rendering.")
+    base_img = task.high_res_image if task.high_res_image else task.original_image
+    if not base_img:
+        raise ValueError("original_image fehlt vor Mockup-Rendering.")
 
-    task.high_res_image.open("rb")
+    base_img.open("rb")
     try:
-        img = Image.open(task.high_res_image).convert("RGBA")
+        img = Image.open(base_img).convert("RGBA")
     finally:
-        task.high_res_image.close()
+        base_img.close()
 
     w, h = img.size
     try:
@@ -98,9 +93,7 @@ def service_render_server_mockups(task: ImageTask, template_set_id: str) -> None
         font_sm = font_lg
 
     job_id = task.job_id
-    rel_dir = Path("automation") / "jobs" / str(job_id) / str(task.id)
-    abs_dir = _media_path(*rel_dir.parts)
-    abs_dir.mkdir(parents=True, exist_ok=True)
+    rel_dir = f"{P_AUTOMATION}/jobs/{job_id}/tasks/{task.id}/mockups"
 
     templates = list(ts.templates.order_by("order", "name"))
     paths: list[str] = []
@@ -117,9 +110,11 @@ def service_render_server_mockups(task: ImageTask, template_set_id: str) -> None
             font=font_sm,
         )
         combined = Image.alpha_composite(img, overlay).convert("RGB")
-        out = abs_dir / filename
-        combined.save(out, format="PNG", optimize=True)
-        rel = str(rel_dir / filename).replace("\\", "/")
+        buffer = BytesIO()
+        combined.save(buffer, format="PNG", optimize=True)
+        buffer.seek(0)
+        rel = f"{rel_dir}/{filename}".replace("\\", "/")
+        default_storage.save(rel, ContentFile(buffer.read()))
         paths.append(rel)
 
     if not templates:

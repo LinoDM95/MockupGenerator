@@ -5,6 +5,12 @@ import uuid
 from django.conf import settings
 from django.db import models
 
+from .upload_paths import (
+    automation_job_result_upload_to,
+    image_task_high_res_upload_to,
+    image_task_original_upload_to,
+)
+
 
 class AutomationJob(models.Model):
     """Batch automation run (upscale, SEO, mockups, Gelato, ZIP)."""
@@ -32,7 +38,8 @@ class AutomationJob(models.Model):
     mockup_set = models.CharField(max_length=255)
     gelato_profile = models.CharField(max_length=255)
     result_zip = models.FileField(
-        upload_to="automation/results/%Y/%m/",
+        upload_to=automation_job_result_upload_to,
+        max_length=512,
         blank=True,
         null=True,
     )
@@ -65,9 +72,13 @@ class ImageTask(models.Model):
         on_delete=models.CASCADE,
         related_name="tasks",
     )
-    original_image = models.ImageField(upload_to="automation/uploads/%Y/%m/")
+    original_image = models.ImageField(
+        upload_to=image_task_original_upload_to,
+        max_length=512,
+    )
     high_res_image = models.ImageField(
-        upload_to="automation/upscaled/%Y/%m/",
+        upload_to=image_task_high_res_upload_to,
+        max_length=512,
         blank=True,
         null=True,
     )
@@ -84,7 +95,7 @@ class ImageTask(models.Model):
     mockup_paths = models.JSONField(
         default=list,
         blank=True,
-        help_text="Relative paths under MEDIA_ROOT for server-rendered mockup PNGs.",
+        help_text="Speicher-relative Pfade der gerenderten Mockup-PNGs (Default-Storage: lokal oder R2).",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

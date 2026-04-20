@@ -14,6 +14,8 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from core.object_storage_layout import P_GELATO_ARTWORKS
+
 from .models import GelatoConnection, GelatoExportTask, GelatoTemplate, TemporaryDesignUpload
 from .serializers import (
     ConnectSerializer,
@@ -392,7 +394,7 @@ class GelatoExportView(APIView):
             tags = str(meta.get("tags", ""))[:1024]
 
             logger.debug("[%s] upload %r → R2", idx, art_file.name)
-            artwork_url = _upload_to_r2(art_file, "gelato_artworks", request.user)
+            artwork_url = _upload_to_r2(art_file, P_GELATO_ARTWORKS, request.user)
 
             task = GelatoExportTask.objects.create(
                 user=request.user,

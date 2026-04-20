@@ -10,6 +10,7 @@ from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Max, Prefetch
+from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
 from rest_framework import status, viewsets
@@ -23,6 +24,7 @@ from .helpers import apply_frame_fields, read_image_dimensions
 from .models import Template, TemplateElement, TemplateSet
 from .serializers import (
     ChangePasswordSerializer,
+    DeleteAccountSerializer,
     TemplateSerializer,
     TemplateSetCreateUpdateSerializer,
     TemplateSetSerializer,
@@ -75,6 +77,69 @@ class ChangePasswordView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@method_decorator(csrf_protect, name="dispatch")
+class AccountDataExportView(APIView):
+    """GET — DSGVO-nahe Zusammenstellung eigener Stammdaten & Vorlagen-Metadaten (ohne Bilddateien)."""
+
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+        user = request.user
+        sets = (
+            TemplateSet.objects.filter(user=user)
+            .prefetch_related(
+                Prefetch(
+                    "templates",
+                    queryset=Template.objects.order_by("order", "created_at"),
+                ),
+            )
+            .order_by("name", "id")
+        )
+        payload = {
+            "export_version": 1,
+            "exported_at": timezone.now().isoformat(),
+            "user": {
+                "username": user.username,
+                "email": user.email or "",
+                "date_joined": user.date_joined.isoformat() if user.date_joined else None,
+                "last_login": user.last_login.isoformat() if user.last_login else None,
+            },
+            "template_sets": [
+                {
+                    "id": str(ts.id),
+                    "name": ts.name,
+                    "created_at": ts.created_at.isoformat(),
+                    "updated_at": ts.updated_at.isoformat(),
+                    "templates": [
+                        {
+                            "id": str(t.id),
+                            "name": t.name,
+                            "width": t.width,
+                            "height": t.height,
+                            "order": t.order,
+                        }
+                        for t in ts.templates.all()
+                    ],
+                }
+                for ts in sets
+            ],
+        }
+        return Response(payload)
+
+
+@method_decorator(csrf_protect, name="dispatch")
+class DeleteAccountView(APIView):
+    """POST — Konto und abhängige Daten endgültig löschen (CASCADE)."""
+
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request):
+        ser = DeleteAccountSerializer(data=request.data, context={"request": request})
+        ser.is_valid(raise_exception=True)
+        request.user.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 def _same_host_url(request, url: str) -> bool:
     try:
         p = urlparse(url)
@@ -107,19 +172,21 @@ def _trusted_r2_template_bg_netlocs() -> set[str]:
 
 
 def _durable_template_bg_url_path(url: str) -> bool:
-    """Nur Keys unter template_backgrounds/ — nie temp_designs/ oder andere Präfixe."""
+    """Nur dauerhafte Vorlagen-Hintergründe (neu: ce/core/…, legacy: template_backgrounds/)."""
     try:
         p = urlparse(url)
         path = (p.path or "").replace("\\", "/").lower()
         if not path.startswith("/"):
             path = "/" + path
-        return path.startswith("/template_backgrounds/")
+        return path.startswith("/ce/core/template_backgrounds/") or path.startswith(
+            "/template_backgrounds/"
+        )
     except Exception:
         return False
 
 
 def _import_bg_url_allowed(request, url: str) -> bool:
-    """Gleiche Origin wie API oder öffentliche R2-URL unter template_backgrounds/."""
+    """Gleiche Origin wie API oder öffentliche R2-URL unter Vorlagen-Hintergründen (ce/core/…)."""
     if _same_host_url(request, url):
         return True
     try:
@@ -217,7 +284,8 @@ class TemplateSetViewSet(viewsets.ModelViewSet):
         """
         POST …/import/ — exportiertes Set-JSON.
         Lädt Hintergrundbilder nur von derselben Origin wie die API oder von R2
-        (AWS_S3_CUSTOM_DOMAIN / Endpoint), ausschließlich unter ``template_backgrounds/`` (SSRF).
+        (AWS_S3_CUSTOM_DOMAIN / Endpoint), ausschließlich unter
+        ``ce/core/template_backgrounds/`` bzw. Legacy ``template_backgrounds/`` (SSRF).
         """
         body = request.data
         if not isinstance(body, dict):
@@ -241,7 +309,8 @@ class TemplateSetViewSet(viewsets.ModelViewSet):
                 return Response(
                     {
                         "detail": "bgImage muss unter derselben Origin wie die API erreichbar sein "
-                        "oder eine erlaubte R2-URL unter template_backgrounds/ sein."
+                        "oder eine erlaubte R2-URL unter ce/core/template_backgrounds/ "
+                        "(oder legacy template_backgrounds/) sein."
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )

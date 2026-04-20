@@ -131,12 +131,12 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
 
 class UserMeSerializer(serializers.ModelSerializer):
-    """Aktueller Nutzer: Lesen inkl. E-Mail; Schreiben nur Benutzername."""
+    """Aktueller Nutzer: Lesen inkl. E-Mail und Metadaten; Schreiben Benutzername + E-Mail."""
 
     class Meta:
         model = User
-        fields = ("id", "username", "email")
-        read_only_fields = ("id", "email")
+        fields = ("id", "username", "email", "date_joined", "last_login")
+        read_only_fields = ("id", "date_joined", "last_login")
 
     def validate_username(self, value: str) -> str:
         value = (value or "").strip()
@@ -148,6 +148,41 @@ class UserMeSerializer(serializers.ModelSerializer):
             if User.objects.filter(username=value).exclude(pk=user.pk).exists():
                 raise serializers.ValidationError("Dieser Benutzername ist bereits vergeben.")
         return value
+
+    def validate_email(self, value: str) -> str:
+        raw = "" if value is None else str(value).strip()
+        if raw == "":
+            return ""
+        request = self.context.get("request")
+        user = getattr(request, "user", None) if request else None
+        if user and user.is_authenticated:
+            if User.objects.filter(email__iexact=raw).exclude(pk=user.pk).exists():
+                raise serializers.ValidationError("Diese E-Mail ist bereits vergeben.")
+        return raw.lower()
+
+
+class DeleteAccountSerializer(serializers.Serializer):
+    """Kontolöschung: Passwort + exakter Benutzername als Bestätigung."""
+
+    password = serializers.CharField(write_only=True)
+    confirm_username = serializers.CharField(write_only=True)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        request = self.context.get("request")
+        user = getattr(request, "user", None) if request else None
+        if not user or not user.is_authenticated:
+            raise serializers.ValidationError("Nicht angemeldet.")
+        if not user.check_password(attrs["password"]):
+            raise serializers.ValidationError({"password": "Das Passwort ist nicht korrekt."})
+        if (attrs.get("confirm_username") or "").strip() != user.username:
+            raise serializers.ValidationError(
+                {
+                    "confirm_username": (
+                        "Benutzername stimmt nicht — gib deinen exakten Benutzernamen ein."
+                    ),
+                },
+            )
+        return attrs
 
 
 class ChangePasswordSerializer(serializers.Serializer):

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
+from django.core.cache import cache
 from marketing_integration.models import SocialPlatform
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -83,10 +85,23 @@ def _resolve_gelato_key(user: AbstractUser) -> str:
     return ""
 
 
+def _integrations_status_cache_key(user_id: int) -> str:
+    return f"integrations_status:v1:{user_id}"
+
+
+def invalidate_integrations_status_cache(user_id: int) -> None:
+    cache.delete(_integrations_status_cache_key(user_id))
+
+
 class IntegrationsStatusView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        cache_key = _integrations_status_cache_key(request.user.pk)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+
         user_model = request.user.__class__
         user = user_model.objects.select_related(
             "etsy_connection",
@@ -108,7 +123,13 @@ class IntegrationsStatusView(APIView):
         }
         ser = IntegrationsStatusSerializer(data=data)
         ser.is_valid(raise_exception=True)
-        return Response(ser.validated_data)
+        payload = dict(ser.validated_data)
+        cache.set(
+            cache_key,
+            payload,
+            getattr(settings, "INTEGRATIONS_STATUS_CACHE_SECONDS", 12),
+        )
+        return Response(payload)
 
 
 class IntegrationsSaveView(APIView):
@@ -127,6 +148,7 @@ class IntegrationsSaveView(APIView):
             ui.set_gemini_key(key)
             ui.save(update_fields=["gemini_api_key_enc", "updated_at"])
             sync_gemini_to_ai_connection(user, key)
+            invalidate_integrations_status_cache(user.pk)
             return Response({"ok": True, "integration": integration})
 
         if integration == "gelato":
@@ -134,6 +156,7 @@ class IntegrationsSaveView(APIView):
             ui.set_gelato_key(key)
             ui.save(update_fields=["gelato_api_key_enc", "updated_at"])
             sync_gelato_to_connection(user, key)
+            invalidate_integrations_status_cache(user.pk)
             return Response({"ok": True, "integration": integration})
 
         # cloudflare_r2
@@ -150,6 +173,7 @@ class IntegrationsSaveView(APIView):
                 "updated_at",
             ]
         )
+        invalidate_integrations_status_cache(user.pk)
         return Response({"ok": True, "integration": integration})
 
 

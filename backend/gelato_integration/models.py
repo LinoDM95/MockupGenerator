@@ -6,6 +6,10 @@ from django.db import models
 from django.utils import timezone
 
 from core.crypto import decrypt_token, encrypt_token
+from core.object_storage_layout import (
+    P_GELATO_PRODUCT_EXPORTS,
+    P_GELATO_TEMP_DESIGNS,
+)
 
 
 class GelatoConnection(models.Model):
@@ -58,6 +62,18 @@ class GelatoTemplate(models.Model):
         return self.name
 
 
+def gelato_export_upload_to(instance, filename: str) -> str:
+    """``ce/gelato/product_exports/users/<user_id>/<YYYY>/<MM>/<uuid>.<ext>``"""
+    ext = os.path.splitext(filename or "")[1].lower()
+    if ext not in (".jpg", ".jpeg", ".png", ".webp"):
+        ext = ".jpg"
+    now = timezone.now()
+    uid = instance.user_id if getattr(instance, "user_id", None) else "unknown"
+    return (
+        f"{P_GELATO_PRODUCT_EXPORTS}/users/{uid}/{now:%Y}/{now:%m}/{uuid.uuid4().hex}{ext}"
+    )
+
+
 class GelatoExportTask(models.Model):
     """Tracks a single design -> Gelato product creation."""
 
@@ -81,7 +97,10 @@ class GelatoExportTask(models.Model):
         related_name="export_tasks",
     )
     design_image = models.ImageField(
-        upload_to="gelato_exports/%Y/%m/", blank=True, null=True,
+        upload_to=gelato_export_upload_to,
+        max_length=512,
+        blank=True,
+        null=True,
     )
     artwork_r2_url = models.URLField(max_length=1024, blank=True)
     mockup_r2_url = models.URLField(max_length=1024, blank=True)
@@ -115,13 +134,15 @@ def _r2_storage():
 
 
 def temp_design_upload_to(instance, filename: str) -> str:
-    """``temp_designs/users/<user_id>/YYYY/MM/<uuid>.<ext>`` (ohne User: ``anonymous``)."""
+    """``ce/gelato/temp_designs/users/<user_id>/YYYY/MM/<uuid>.<ext>`` (ohne User: ``anonymous``)."""
     ext = os.path.splitext(filename or "")[1].lower()
     if ext not in (".jpg", ".jpeg", ".png", ".webp"):
         ext = ".jpg"
     uid = instance.user_id if getattr(instance, "user_id", None) is not None else "anonymous"
     now = timezone.now()
-    return f"temp_designs/users/{uid}/{now:%Y}/{now:%m}/{uuid.uuid4().hex}{ext}"
+    return (
+        f"{P_GELATO_TEMP_DESIGNS}/users/{uid}/{now:%Y}/{now:%m}/{uuid.uuid4().hex}{ext}"
+    )
 
 
 class TemporaryDesignUpload(models.Model):
@@ -139,7 +160,11 @@ class TemporaryDesignUpload(models.Model):
         null=True,
         blank=True,
     )
-    image = models.ImageField(upload_to=temp_design_upload_to, storage=_r2_storage)
+    image = models.ImageField(
+        upload_to=temp_design_upload_to,
+        storage=_r2_storage,
+        max_length=512,
+    )
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

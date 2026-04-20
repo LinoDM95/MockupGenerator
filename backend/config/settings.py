@@ -127,6 +127,20 @@ DATABASES = {
     )
 }
 
+# Kurzzeit-Cache (z. B. Integrations-Status); LocMem pro Prozess — bei mehreren Gunicorn-Workern
+# ggf. kurze TTL oder später Redis als DEFAULT.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "mockup-generator",
+    }
+}
+
+INTEGRATIONS_STATUS_CACHE_SECONDS = max(
+    3,
+    int(os.environ.get("INTEGRATIONS_STATUS_CACHE_SECONDS", "12")),
+)
+
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
@@ -161,6 +175,21 @@ else:
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# R2/S3-Optionen (benanntes Backend "r2" + optional Default für alle FileField/ImageField).
+_R2_STORAGE_OPTIONS = {
+    "access_key": os.environ.get("AWS_ACCESS_KEY_ID", ""),
+    "secret_key": os.environ.get("AWS_SECRET_ACCESS_KEY", ""),
+    "bucket_name": os.environ.get("AWS_STORAGE_BUCKET_NAME", ""),
+    "endpoint_url": os.environ.get("AWS_S3_ENDPOINT_URL", ""),
+    "custom_domain": os.environ.get("AWS_S3_CUSTOM_DOMAIN", ""),
+    "default_acl": None,
+    "querystring_auth": False,
+    "object_parameters": {"CacheControl": "max-age=86400"},
+}
+_USE_R2_AS_DEFAULT_MEDIA = bool(
+    (os.environ.get("AWS_STORAGE_BUCKET_NAME") or "").strip()
+)
+
 CORS_ALLOWED_ORIGINS = [
     origin.strip()
     for origin in os.environ.get(
@@ -176,21 +205,17 @@ CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = list(CORS_ALLOWED_ORIGINS)
 
 STORAGES = {
-    "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
-    },
+    "default": (
+        {
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+            "OPTIONS": _R2_STORAGE_OPTIONS,
+        }
+        if _USE_R2_AS_DEFAULT_MEDIA
+        else {"BACKEND": "django.core.files.storage.FileSystemStorage"}
+    ),
     "r2": {
         "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
-        "OPTIONS": {
-            "access_key": os.environ.get("AWS_ACCESS_KEY_ID", ""),
-            "secret_key": os.environ.get("AWS_SECRET_ACCESS_KEY", ""),
-            "bucket_name": os.environ.get("AWS_STORAGE_BUCKET_NAME", ""),
-            "endpoint_url": os.environ.get("AWS_S3_ENDPOINT_URL", ""),
-            "custom_domain": os.environ.get("AWS_S3_CUSTOM_DOMAIN", ""),
-            "default_acl": None,
-            "querystring_auth": False,
-            "object_parameters": {"CacheControl": "max-age=86400"},
-        },
+        "OPTIONS": _R2_STORAGE_OPTIONS,
     },
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",

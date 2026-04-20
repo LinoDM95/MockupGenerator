@@ -123,10 +123,10 @@ export const SetupHub = () => {
   const [fieldTone, setFieldTone] = useState<"neutral" | "success" | "error">("neutral");
   const [feedback, setFeedback] = useState("");
 
-  const loadStatus = useCallback(async () => {
+  const loadStatus = useCallback(async (force?: boolean) => {
     setLoadingStatus(true);
     try {
-      const j = await fetchIntegrationStatus();
+      const j = await fetchIntegrationStatus(force ? { force: true } : undefined);
       setStatus(j);
     } catch {
       setStatus(null);
@@ -185,7 +185,7 @@ export const SetupHub = () => {
         bucket_name: r2Bucket.trim(),
       });
       toast.success("Gespeichert.");
-      await loadStatus();
+      await loadStatus(true);
     } catch (e) {
       toast.error(getErrorMessage(e));
     } finally {
