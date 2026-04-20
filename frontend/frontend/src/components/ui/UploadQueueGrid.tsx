@@ -75,9 +75,7 @@ export const UploadQueueGrid = ({
   dropzoneIcon,
   children,
 }: UploadQueueGridProps) => {
-  const hasQueueItems =
-    Children.toArray(children).filter((c) => c != null && c !== false && c !== true)
-      .length > 0;
+  const hasQueueItems = Children.toArray(children).length > 0;
 
   return (
     <div className="min-w-0">

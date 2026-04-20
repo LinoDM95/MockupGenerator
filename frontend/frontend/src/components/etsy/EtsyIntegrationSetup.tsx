@@ -23,7 +23,8 @@ export const EtsyIntegrationSetup = ({ isConnected = false }: EtsyIntegrationSet
 
   const handleConnect = useCallback(async () => {
     try {
-      const { authorization_url: url } = await etsyOAuthStart();
+      const { authorization_url: url, state } = await etsyOAuthStart();
+      if (state) sessionStorage.setItem("etsy_oauth_state", state);
       window.location.href = url;
     } catch (e) {
       toast.error(`OAuth-Start fehlgeschlagen: ${getErrorMessage(e)}`);

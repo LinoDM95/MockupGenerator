@@ -25,6 +25,22 @@ logger = logging.getLogger(__name__)
 
 _JSON_BLOCK_RE = re.compile(r"```(?:json)?\s*([\s\S]*?)```")
 
+MAX_AI_OUTPUT_CHARS = 10_000
+_SUS_AI_OUTPUT = re.compile(
+    r"<script|javascript:|data:text/html|on\w+\s*=",
+    flags=re.IGNORECASE,
+)
+
+
+def _sanitize_ai_output(raw: str) -> str:
+    """Truncate and block obvious script/HTML injection in model text (F-021)."""
+    if not raw:
+        return ""
+    text = raw[:MAX_AI_OUTPUT_CHARS]
+    if _SUS_AI_OUTPUT.search(text):
+        raise ValueError("AI-Response enthält verdächtige Tokens.")
+    return text
+
 
 def _root_to_dict(obj: Any) -> dict | None:
     """If the model returns [...] with one object or a bare object, normalise to dict."""
@@ -761,6 +777,11 @@ class GeminiProvider(BaseAIProvider):
                     break
 
                 text = response.text or ""
+                try:
+                    text = _sanitize_ai_output(text)
+                except ValueError:
+                    logger.warning("Gemini output rejected by output safety filter")
+                    continue
 
                 if not text and hasattr(response, "candidates") and response.candidates:
                     candidate = response.candidates[0]

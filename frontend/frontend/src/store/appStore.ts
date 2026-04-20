@@ -29,10 +29,11 @@ interface DialogState {
 }
 
 interface AppState {
-  accessToken: string | null;
-  refreshToken: string | null;
-  setTokens: (access: string | null, refresh?: string | null) => void;
-  logout: () => void;
+  /** null = Session noch nicht geprüft (Hydration). */
+  isAuthenticated: boolean | null;
+  setAuthenticated: (v: boolean | null) => void;
+  logoutLocal: () => void;
+  logout: () => Promise<void>;
 
   activeTab: AppTab;
   setActiveTab: (t: AppTab) => void;
@@ -104,25 +105,19 @@ const emptyDialog = (): DialogState => ({
 });
 
 export const useAppStore = create<AppState>((set, get) => ({
-  accessToken: localStorage.getItem("access_token"),
-  refreshToken: localStorage.getItem("refresh_token"),
-  setTokens: (access, refresh) => {
-    if (access) localStorage.setItem("access_token", access);
-    else localStorage.removeItem("access_token");
-    if (refresh !== undefined) {
-      if (refresh) localStorage.setItem("refresh_token", refresh);
-      else localStorage.removeItem("refresh_token");
-    }
-    set({
-      accessToken: access,
-      refreshToken: refresh ?? get().refreshToken,
-    });
+  isAuthenticated: null,
+  setAuthenticated: (v) => set({ isAuthenticated: v }),
+  logoutLocal: () => {
+    set({ isAuthenticated: false, templateSets: [] });
   },
-  logout: () => {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
-    set({ accessToken: null, refreshToken: null, templateSets: [] });
-    void import("../api/client").then((m) => m.clearProactiveTokenRefresh());
+  logout: async () => {
+    const { apiLogout } = await import("../api/auth");
+    try {
+      await apiLogout();
+    } catch {
+      /* Session ggf. schon ungültig */
+    }
+    get().logoutLocal();
   },
 
   activeTab: "workspace",

@@ -592,10 +592,10 @@ export const GeneratorView = () => {
     <div className="relative min-h-[min(80vh,720px)]">
       {manualZipOffer ? (
         <div
-          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-950 ring-1 ring-inset ring-amber-500/20"
+          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-inset ring-amber-500/20 dark:ring-amber-400/30"
           role="status"
         >
-          <p className="min-w-0 flex-1">
+          <p className="min-w-0 flex-1 font-medium">
             Kein Speichern-Dialog? Browser blockiert manchmal automatische Downloads nach
             langer Verarbeitung — hier erneut mit Klick starten:
           </p>
@@ -603,7 +603,7 @@ export const GeneratorView = () => {
             <Button
               type="button"
               variant="outline"
-              className="gap-2 border-amber-300 bg-white text-amber-900 hover:bg-amber-100"
+              className="gap-2 border-amber-300 bg-white text-amber-900 hover:bg-amber-100 dark:border-amber-500/45 dark:bg-amber-100/15 dark:text-amber-50 dark:hover:bg-amber-100/25"
               onClick={handleManualZipDownload}
             >
               <Download size={16} strokeWidth={2} aria-hidden />
@@ -612,7 +612,7 @@ export const GeneratorView = () => {
             <button
               type="button"
               onClick={() => setManualZipOffer(null)}
-              className="rounded-lg p-2 text-amber-800 transition-colors hover:bg-amber-100"
+              className="rounded-lg p-2 text-amber-900 transition-colors hover:bg-amber-100 dark:text-amber-50 dark:hover:bg-amber-100/20"
               aria-label="Hinweis schliessen"
             >
               <X size={18} strokeWidth={2} />

@@ -9,13 +9,14 @@ import httpx
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Max
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_protect
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .helpers import apply_frame_fields, read_image_dimensions
 from .models import Template, TemplateSet
@@ -30,12 +31,10 @@ from .serializers import (
 )
 
 
-class LoginView(TokenObtainPairView):
-    permission_classes = (AllowAny,)
-
-
+@method_decorator(csrf_protect, name="dispatch")
 class RegisterView(APIView):
     permission_classes = (AllowAny,)
+    throttle_scope = "register"
 
     def post(self, request):
         ser = UserRegistrationSerializer(data=request.data)
@@ -44,6 +43,7 @@ class RegisterView(APIView):
         return Response(status=status.HTTP_201_CREATED)
 
 
+@method_decorator(csrf_protect, name="dispatch")
 class CurrentUserView(APIView):
     permission_classes = (IsAuthenticated,)
 
@@ -62,6 +62,7 @@ class CurrentUserView(APIView):
         return Response(UserMeSerializer(request.user).data)
 
 
+@method_decorator(csrf_protect, name="dispatch")
 class ChangePasswordView(APIView):
     permission_classes = (IsAuthenticated,)
 

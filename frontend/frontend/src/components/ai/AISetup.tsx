@@ -172,14 +172,20 @@ export const AISetup = ({
   const handleVertexFilePick = useCallback((files: FileList | null) => {
     const f = files?.[0];
     if (!f) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const text = typeof reader.result === "string" ? reader.result : "";
-      setVertexJsonDraft(text.trim());
-      toast.success("JSON-Datei eingelesen.");
-    };
-    reader.onerror = () => toast.error("Datei konnte nicht gelesen werden.");
-    reader.readAsText(f);
+    void (async () => {
+      setSavingVertex(true);
+      try {
+        const text = (await f.text()).trim();
+        const result = await aiUpdateVertexServiceAccount(text);
+        setConnection(result);
+        setVertexJsonDraft("");
+        toast.success("Vertex-Dienstkonto gespeichert.");
+      } catch (e) {
+        toast.error(`Upload fehlgeschlagen: ${getErrorMessage(e)}`);
+      } finally {
+        setSavingVertex(false);
+      }
+    })();
   }, []);
 
   const handleSaveVertex = async () => {
@@ -187,6 +193,7 @@ export const AISetup = ({
     try {
       const result = await aiUpdateVertexServiceAccount(vertexJsonDraft);
       setConnection(result);
+      setVertexJsonDraft("");
       toast.success("Vertex-Dienstkonto gespeichert.");
     } catch (e) {
       toast.error(`Speichern fehlgeschlagen: ${getErrorMessage(e)}`);
@@ -430,6 +437,9 @@ export const AISetup = ({
                 <Input
                   label="Gemini API-Key"
                   type={showKey ? "text" : "password"}
+                  name="gemini-api-key"
+                  autoComplete="off"
+                  spellCheck={false}
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
                   placeholder="Dein Google Gemini API-Key…"

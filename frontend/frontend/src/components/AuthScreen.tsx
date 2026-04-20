@@ -6,14 +6,15 @@ import { motion } from "framer-motion";
 import { login, register } from "../api/auth";
 import { getErrorMessage } from "../lib/error";
 import { useAppStore } from "../store/appStore";
+import { LegalFooterNav } from "./legal/LegalFooterNav";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 import { ThemeToggle } from "./ui/ThemeToggle";
 
 export const AuthScreen = () => {
-  const accessToken = useAppStore((s) => s.accessToken);
-  const setTokens = useAppStore((s) => s.setTokens);
+  const isAuthenticated = useAppStore((s) => s.isAuthenticated);
+  const setAuthenticated = useAppStore((s) => s.setAuthenticated);
   const navigate = useNavigate();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [username, setUsername] = useState("");
@@ -31,8 +32,8 @@ export const AuthScreen = () => {
         await register({ username, password, email: email || undefined });
         setMode("login");
       } else {
-        const tokens = await login(username, password);
-        setTokens(tokens.access, tokens.refresh);
+        await login(username, password);
+        setAuthenticated(true);
         navigate("/app", { replace: true });
       }
     } catch (err) {
@@ -42,7 +43,7 @@ export const AuthScreen = () => {
     }
   };
 
-  if (accessToken) return <Navigate to="/app" replace />;
+  if (isAuthenticated) return <Navigate to="/app" replace />;
 
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-slate-50 p-4">
@@ -123,6 +124,7 @@ export const AuthScreen = () => {
             {mode === "login" ? "Noch kein Konto? Registrieren" : "Schon ein Konto? Einloggen"}
           </button>
         </Card>
+        <LegalFooterNav className="mt-8 text-slate-400" dense />
       </motion.div>
     </div>
   );

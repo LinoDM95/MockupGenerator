@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 
 from rest_framework import status
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -30,6 +31,33 @@ logger = logging.getLogger(__name__)
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 MAX_IMAGE_SIZE = 20 * 1024 * 1024  # 20 MB
 MAX_JSON_PAYLOAD = 256 * 1024  # 256 KB
+
+MAX_CONTEXT_LENGTH = 4000
+MAX_STYLE_LENGTH = 500
+_CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+_EMAIL = re.compile(r"[\w\.\-]+@[\w\.\-]+\.\w+")
+_PHONE = re.compile(r"\+?\d[\d\s\-()]{7,}")
+
+
+def _sanitize_for_prompt(raw: str, max_len: int) -> str:
+    if raw is None:
+        return ""
+    text = str(raw).strip()
+    if len(text) > max_len:
+        text = text[:max_len]
+    text = _CONTROL_CHARS.sub("", text)
+    text = (
+        text.replace("</user>", "")
+        .replace("<system>", "")
+        .replace("</system>", "")
+    )
+    return text
+
+
+def _mask_pii(text: str) -> str:
+    text = _EMAIL.sub("[EMAIL]", text)
+    text = _PHONE.sub("[PHONE]", text)
+    return text
 
 
 def _truthy(val) -> bool:
@@ -190,19 +218,22 @@ class GenerateListingDataView(APIView):
     """
 
     parser_classes = (MultiPartParser, FormParser)
+    throttle_scope = "ai_generate"
 
     def post(self, request):
         conn, err = _get_ai_connection(request.user)
         if err:
             return err
 
-        context_text = request.data.get("context", "")
-        if not isinstance(context_text, str):
-            context_text = str(context_text)
-        style_reference = request.data.get("style_reference", "")
-        if not isinstance(style_reference, str):
-            style_reference = str(style_reference)
-        target_type = request.data.get("target", "all").lower().strip()
+        raw_context = request.data.get("context", "")
+        if not isinstance(raw_context, str):
+            raw_context = str(raw_context)
+        raw_style = request.data.get("style_reference", "")
+        if not isinstance(raw_style, str):
+            raw_style = str(raw_style)
+        context_text = _mask_pii(_sanitize_for_prompt(raw_context, MAX_CONTEXT_LENGTH))
+        style_reference = _mask_pii(_sanitize_for_prompt(raw_style, MAX_STYLE_LENGTH))
+        target_type = str(request.data.get("target", "all")).lower().strip()
 
         if target_type not in VALID_TARGET_TYPES:
             return Response(
@@ -316,11 +347,11 @@ class GenerateListingDataView(APIView):
                 {"detail": str(exc), "error_type": "provider_error"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-        except Exception as exc:
+        except Exception:
             logger.exception("Unexpected AI generation error")
             return Response(
                 {
-                    "detail": f"Unerwarteter Fehler bei der KI-Generierung: {exc}",
+                    "detail": "Unerwarteter Fehler bei der KI-Generierung.",
                     "error_type": "unexpected",
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -410,13 +441,15 @@ class GenerateListingDataView(APIView):
                 {"detail": str(exc), "error_type": "provider_error"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-        except Exception as exc:
+        except Exception:
             logger.exception("Unexpected AI expert error")
             if step in (2, 3) and scout_data is not None:
-                return self._expert_fallback_response(step, scout_data, str(exc))
+                return self._expert_fallback_response(
+                    step, scout_data, "Unerwarteter Fehler bei der KI-Generierung."
+                )
             return Response(
                 {
-                    "detail": f"Unerwarteter Fehler bei der KI-Generierung: {exc}",
+                    "detail": "Unerwarteter Fehler bei der KI-Generierung.",
                     "error_type": "unexpected",
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

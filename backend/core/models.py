@@ -4,6 +4,8 @@ from django.conf import settings
 from django.core.validators import FileExtensionValidator, MaxValueValidator, MinValueValidator
 from django.db import models
 
+from .validators import validate_real_image
+
 
 class TemplateSet(models.Model):
     """Vorlagen-Set pro Benutzer (entspricht JSON `templateSets[]`)."""
@@ -47,7 +49,10 @@ class Template(models.Model):
     height = models.PositiveIntegerField()
     background_image = models.ImageField(
         upload_to="template_backgrounds/%Y/%m/",
-        validators=[FileExtensionValidator(allowed_extensions=["jpg", "jpeg", "png", "webp"])],
+        validators=[
+            FileExtensionValidator(allowed_extensions=["jpg", "jpeg", "png", "webp"]),
+            validate_real_image,
+        ],
     )
     order = models.PositiveIntegerField(default=0)
     default_frame_style = models.CharField(

@@ -38,7 +38,8 @@ export const MarketingIntegrationSetup = () => {
 
   const handleConnect = useCallback(async () => {
     try {
-      const { authorization_url: url } = await marketingOAuthStart();
+      const { authorization_url: url, state } = await marketingOAuthStart();
+      if (state) sessionStorage.setItem("pinterest_oauth_state", state);
       window.location.href = url;
     } catch (e) {
       toast.error(`OAuth-Start fehlgeschlagen: ${getErrorMessage(e)}`);

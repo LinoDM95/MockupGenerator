@@ -71,6 +71,7 @@ def _parse_positive_int(raw: str | None) -> int | None:
 class UpscaleImageView(APIView):
     """POST -- upload an image and receive the AI-upscaled version back."""
 
+    throttle_scope = "upload"
     parser_classes = (MultiPartParser, FormParser)
 
     def post(self, request):

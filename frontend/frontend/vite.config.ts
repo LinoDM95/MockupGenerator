@@ -17,7 +17,9 @@ const companionProxy = {
 } as const
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ command }) => ({
+  // Production: Django/WhiteNoise serviert Assets unter STATIC_URL (/static/).
+  base: command === 'build' ? '/static/' : '/',
   plugins: [react(), tailwindcss()],
   server: {
     fs: {
@@ -34,4 +36,4 @@ export default defineConfig({
       '/__companion': companionProxy,
     },
   },
-})
+}))

@@ -55,7 +55,10 @@
 
   --color-amber-50: oklch(28% 0.07 80);
   --color-amber-100: oklch(34% 0.11 80);
+  /* Text auf amber-50/100-Flächen: ohne Flip bleiben 800/950 aus dem Light-Theme → Kontrastbruch */
+  --color-amber-800: oklch(82% 0.08 80);
   --color-amber-900: oklch(88% 0.09 80);
+  --color-amber-950: oklch(93% 0.06 80);
 
   --color-sky-50: oklch(28% 0.08 230);
   --color-sky-100: oklch(34% 0.1 230);

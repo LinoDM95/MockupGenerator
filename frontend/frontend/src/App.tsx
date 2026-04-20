@@ -1,11 +1,10 @@
 import type { ComponentType } from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 import { Compass, Link2, Layers, LogOut, RefreshCw, UserCircle, Zap } from "lucide-react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
-import { clearProactiveTokenRefresh, scheduleProactiveAccessRefresh } from "./api/client";
 import { cn } from "./lib/cn";
 import { Button } from "./components/ui/Button";
 import { ThemeToggle } from "./components/ui/ThemeToggle";
@@ -35,7 +34,7 @@ const NAV_LOCK_TITLE = "Während eines laufenden Vorgangs ist die Navigation ges
 const ACCOUNT_PATH = "/app/konto";
 
 function App() {
-  const accessToken = useAppStore((s) => s.accessToken);
+  const isAuthenticated = useAppStore((s) => s.isAuthenticated);
   const logout = useAppStore((s) => s.logout);
   const activeTab = useAppStore((s) => s.activeTab);
   const setActiveTab = useAppStore((s) => s.setActiveTab);
@@ -49,15 +48,7 @@ function App() {
     () => typeof sessionStorage !== "undefined" && sessionStorage.getItem("mockupLauncherBatch") === "1",
   );
 
-  useEffect(() => {
-    if (!accessToken) {
-      clearProactiveTokenRefresh();
-      return;
-    }
-    scheduleProactiveAccessRefresh();
-  }, [accessToken]);
-
-  if (!accessToken) return <Navigate to="/" replace />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   const ActiveView = tabContent[activeTab];
 
@@ -181,7 +172,7 @@ function App() {
               title={navigationLocked ? NAV_LOCK_TITLE : undefined}
               onClick={() => {
                 if (navigationLocked) return;
-                logout();
+                void logout();
               }}
               className={cn(
                 "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors",

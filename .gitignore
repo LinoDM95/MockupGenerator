@@ -6,11 +6,21 @@ Desktop.ini
 # --- IDE / Editor ---
 .idea/
 .vscode/
+.claude/
 *.code-workspace
 
 # --- Geheimnisse ---
 backend/.env
 .env
+.env.local
+.env.production
+.env.staging
+*.pem
+*.key
+*.p12
+credentials.json
+service-account*.json
+secrets.json
 
 # --- Backend: Django / Python ---
 backend/db.sqlite3

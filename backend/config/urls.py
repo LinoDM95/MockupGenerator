@@ -14,15 +14,37 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+from pathlib import Path
+
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path
+from django.http import FileResponse, Http404
+from django.urls import include, path, re_path
 
+from core.auth_cookie_views import (
+    CookieLoginView,
+    CookieLogoutView,
+    CookieTokenRefreshView,
+    CsrfBootstrapView,
+)
 from core.views import ChangePasswordView, CurrentUserView
+
+
+def spa_entry(_request):
+    """Serve built Vite ``index.html`` (production: ``collectstatic``)."""
+    index = Path(settings.STATIC_ROOT) / "index.html"
+    if not index.is_file():
+        raise Http404("SPA build missing (run frontend build + collectstatic).")
+    return FileResponse(index.open("rb"), content_type="text/html")
+
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("api/auth/csrf/", CsrfBootstrapView.as_view(), name="auth-csrf"),
+    path("api/auth/login/", CookieLoginView.as_view(), name="auth-login"),
+    path("api/auth/refresh/", CookieTokenRefreshView.as_view(), name="auth-refresh"),
+    path("api/auth/logout/", CookieLogoutView.as_view(), name="auth-logout"),
     # Explizit vor include("core.urls"), damit /api/auth/me/ sicher gematcht wird (Profil / Passwort).
     path("api/auth/me/", CurrentUserView.as_view(), name="auth-me"),
     path("api/auth/change-password/", ChangePasswordView.as_view(), name="auth-change-password"),
@@ -37,3 +59,7 @@ urlpatterns = [
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+else:
+    urlpatterns += [
+        re_path(r"^(?!api|admin|media|static).*$", spa_entry),
+    ]

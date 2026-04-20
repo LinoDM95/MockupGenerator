@@ -11,29 +11,35 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 import os
+import sys
 from datetime import timedelta
 from pathlib import Path
 
+import dj_database_url
 from dotenv import load_dotenv
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Lokale Entwicklung: Variablen aus backend/.env (existierende OS-Env hat Vorrang)
 load_dotenv(BASE_DIR / ".env", override=False)
 
+REPO_ROOT = BASE_DIR.parent
+FRONTEND_DIST = REPO_ROOT / "frontend" / "frontend" / "dist"
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
+_IS_TEST = "test" in sys.argv
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get(
-    "DJANGO_SECRET_KEY",
-    "django-insecure-4t88#mt1%2l8f0qz0s-i@u-*2jej^rv(#+rf!9l^exe(hqq)1#",
-)
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "").strip()
+if not SECRET_KEY and _IS_TEST:
+    SECRET_KEY = "django-insecure-test-only-not-for-production"
+elif not SECRET_KEY:
+    raise RuntimeError(
+        "DJANGO_SECRET_KEY is not set. "
+        "Generate with: python -c \"from django.core.management.utils import "
+        "get_random_secret_key; print(get_random_secret_key())\""
+    )
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get("DJANGO_DEBUG", "true").lower() in ("1", "true", "yes")
+DEBUG = os.environ.get("DJANGO_DEBUG", "false").lower() in ("1", "true", "yes")
+if _IS_TEST:
+    DEBUG = True
 
 ALLOWED_HOSTS = [
     h.strip()
@@ -41,18 +47,31 @@ ALLOWED_HOSTS = [
     if h.strip()
 ]
 
+TOKEN_ENCRYPTION_KEY = (
+    os.environ.get("TOKEN_ENCRYPTION_KEY", "").strip()
+    or os.environ.get("ETSY_TOKEN_ENCRYPTION_KEY", "").strip()
+)
+if not TOKEN_ENCRYPTION_KEY and _IS_TEST:
+    from cryptography.fernet import Fernet
 
-# Application definition
+    TOKEN_ENCRYPTION_KEY = Fernet.generate_key().decode()
+elif not TOKEN_ENCRYPTION_KEY:
+    raise RuntimeError(
+        "TOKEN_ENCRYPTION_KEY is not set. "
+        "Generate with: python -c \"from cryptography.fernet import Fernet; "
+        'print(Fernet.generate_key().decode())"'
+    )
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
     "rest_framework",
     "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
     "storages",
     "core",
@@ -66,89 +85,81 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'gelato_integration.middleware.R2TempCleanupMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "csp.middleware.CSPMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "gelato_integration.middleware.R2TempCleanupMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = 'config.urls'
+ROOT_URLCONF = "config.urls"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'config.wsgi.application'
-
-
-# Database
-# https://docs.djangoproject.com/en/6.0/ref/settings/#databases
+WSGI_APPLICATION = "config.wsgi.application"
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    "default": dj_database_url.config(
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        conn_max_age=600,
+        conn_health_checks=True,
+        ssl_require=not DEBUG,
+    )
 }
-
-
-# Password validation
-# https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
 
+LANGUAGE_CODE = "en-us"
 
-# Internationalization
-# https://docs.djangoproject.com/en/6.0/topics/i18n/
-
-LANGUAGE_CODE = 'en-us'
-
-TIME_ZONE = 'UTC'
+TIME_ZONE = "UTC"
 
 USE_I18N = True
 
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/6.0/howto/static-files/
-
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+if FRONTEND_DIST.is_dir():
+    STATICFILES_DIRS = [FRONTEND_DIST]
+else:
+    STATICFILES_DIRS = []
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-# CORS: Dev SPA (Vite). In Produktion über ENV einschränken.
 CORS_ALLOWED_ORIGINS = [
     origin.strip()
     for origin in os.environ.get(
@@ -159,9 +170,10 @@ CORS_ALLOWED_ORIGINS = [
 ]
 CORS_ALLOW_CREDENTIALS = True
 
-# Cloudflare R2 (S3-kompatibel) via django-storages.
-# NICHT als globaler Default – nur per-Field für TemporaryDesignUpload (gelato_integration).
-# Template-Hintergrundbilder und andere Uploads bleiben lokal in /media/.
+# SPA auf anderem Origin (Vite): Trusted Origins für CSRF müssen auch in DEBUG gesetzt sein,
+# sonst schlagen POST /api/auth/login/ etc. mit „Origin checking failed“ fehl.
+CSRF_TRUSTED_ORIGINS = list(CORS_ALLOWED_ORIGINS)
+
 STORAGES = {
     "default": {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
@@ -180,19 +192,17 @@ STORAGES = {
         },
     },
     "staticfiles": {
-        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
     },
 }
 
 AWS_S3_CUSTOM_DOMAIN = os.environ.get("AWS_S3_CUSTOM_DOMAIN", "")
 
-# Gelato TemporaryDesignUpload auf R2: Bereinigung ohne Celery (Middleware bei /api/* + Upload-Hook).
-# Optional: ``python manage.py cleanup_r2_temp_designs`` per Cron (force, ohne Cooldown).
 R2_TEMP_DESIGN_MAX_AGE_HOURS = int(os.environ.get("R2_TEMP_DESIGN_MAX_AGE_HOURS", "24"))
-R2_TEMP_CLEANUP_COOLDOWN_SECONDS = float(os.environ.get("R2_TEMP_CLEANUP_COOLDOWN_SECONDS", "300"))
+R2_TEMP_CLEANUP_COOLDOWN_SECONDS = float(
+    os.environ.get("R2_TEMP_CLEANUP_COOLDOWN_SECONDS", "300")
+)
 
-# Marketing / Pinterest: optional comma-separated hostnames for pin image URLs (HTTPS only).
-# If non-empty, the URL host must match one entry (lowercased). If empty, any HTTPS URL is allowed.
 MARKETING_PIN_IMAGE_URL_ALLOWED_HOSTS = [
     h.strip().lower()
     for h in os.environ.get("MARKETING_PIN_IMAGE_URL_ALLOWED_HOSTS", "").split(",")
@@ -201,23 +211,40 @@ MARKETING_PIN_IMAGE_URL_ALLOWED_HOSTS = [
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "core.auth_cookie.JWTCookieAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+    "DEFAULT_THROTTLE_CLASSES": (
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.ScopedRateThrottle",
+    ),
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "60/min",
+        "user": "600/min",
+        "login": "5/min",
+        "register": "3/min",
+        "ai_generate": "20/min",
+        "upload": "30/min",
+    },
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "UPDATE_LAST_LOGIN": True,
+    "ALGORITHM": "HS256",
+    "AUDIENCE": None,
+    "ISSUER": "mockup-generator",
 }
 
-# Ingress-Limit: Original-Artworks für POD können 100+ MB sein (PNG).
-# Die serverseitige Optimierung in gelato_integration komprimiert vor dem R2-Upload.
-DATA_UPLOAD_MAX_MEMORY_SIZE = 200 * 1024 * 1024
-FILE_UPLOAD_MAX_MEMORY_SIZE = 200 * 1024 * 1024
+# Stream große Uploads auf Platte (RAM-Schutz); Gelato prüft MAX_FILE_SIZE gesondert.
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
+DATA_UPLOAD_MAX_MEMORY_SIZE = 12 * 1024 * 1024
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
 
-# Celery / Redis
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://127.0.0.1:6379/0")
 CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", CELERY_BROKER_URL)
 CELERY_TASK_TRACK_STARTED = True
@@ -225,9 +252,10 @@ CELERY_TASK_TIME_LIMIT = 60 * 60
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
-CELERY_TASK_ALWAYS_EAGER = os.environ.get("CELERY_TASK_ALWAYS_EAGER", "false").lower() in ("1", "true", "yes")
+CELERY_TASK_ALWAYS_EAGER = os.environ.get(
+    "CELERY_TASK_ALWAYS_EAGER", "false"
+).lower() in ("1", "true", "yes")
 
-# Etsy API v3 (OAuth + OpenAPI)
 ETSY_CLIENT_ID = (os.environ.get("ETSY_CLIENT_ID", "") or "").strip()
 ETSY_CLIENT_SECRET = (os.environ.get("ETSY_CLIENT_SECRET", "") or "").strip()
 ETSY_REDIRECT_URI = (
@@ -237,23 +265,13 @@ ETSY_SCOPES = os.environ.get(
     "ETSY_SCOPES",
     "shops_r listings_r listings_w",
 ).replace(",", " ")
-# Fernet-Schlüssel (urlsafe base64, 32 Bytes); fallback: aus SECRET_KEY abgeleitet (nur Dev)
-ETSY_TOKEN_ENCRYPTION_KEY = os.environ.get("ETSY_TOKEN_ENCRYPTION_KEY", "")
 
-# Gelato API
 GELATO_API_BASE_URL = os.environ.get(
     "GELATO_API_BASE_URL", "https://ecommerce.gelatoapis.com/v1"
 ).rstrip("/")
 
-# Shared Fernet key used by core.crypto (Gelato + future integrations).
-# Falls nicht gesetzt, wird ETSY_TOKEN_ENCRYPTION_KEY als Fallback verwendet;
-# letztlich wird SECRET_KEY herangezogen (nur Dev).
-TOKEN_ENCRYPTION_KEY = (
-    os.environ.get("TOKEN_ENCRYPTION_KEY", "") or ETSY_TOKEN_ENCRYPTION_KEY
-)
 ETSY_API_RPS = float(os.environ.get("ETSY_API_RPS", "10"))
 
-# Pinterest API v5 (OAuth — App-ID und Secret aus developers.pinterest.com)
 PINTEREST_APP_ID = (os.environ.get("PINTEREST_APP_ID", "") or "").strip()
 PINTEREST_APP_SECRET = (os.environ.get("PINTEREST_APP_SECRET", "") or "").strip()
 PINTEREST_REDIRECT_URI = (
@@ -268,4 +286,91 @@ PINTEREST_SCOPES = (
     or ""
 ).strip()
 
-# AI Integration (per-user keys stored in DB, no global API key needed)
+# --- Content Security Policy (django-csp) ---
+CSP_DEFAULT_SRC = ("'self'",)
+CSP_SCRIPT_SRC = ("'self'",)
+CSP_STYLE_SRC = ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com")
+CSP_FONT_SRC = ("'self'", "https://fonts.gstatic.com", "data:")
+CSP_IMG_SRC = ("'self'", "data:", "blob:", "https:")
+CSP_CONNECT_SRC = (
+    "'self'",
+    "http://127.0.0.1:8001",
+    "http://localhost:8001",
+    "https://*.googleapis.com",
+)
+CSP_FRAME_ANCESTORS = ("'none'",)
+CSP_BASE_URI = ("'self'",)
+CSP_FORM_ACTION = ("'self'",)
+CSP_INCLUDE_NONCE_IN = ("script-src",)
+
+if DEBUG:
+    CSP_CONNECT_SRC = CSP_CONNECT_SRC + (
+        "ws://127.0.0.1:5173",
+        "ws://localhost:5173",
+    )
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {
+        "redact_secrets": {
+            "()": "core.logging_filters.SecretRedactingFilter",
+        },
+    },
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {name} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+            "filters": ["redact_secrets"],
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+    "loggers": {
+        "django.security": {"level": "WARNING", "propagate": True},
+        "django.request": {"level": "WARNING", "propagate": True},
+    },
+}
+
+SENTRY_DSN = os.environ.get("SENTRY_DSN", "").strip()
+if SENTRY_DSN and not DEBUG:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+
+    def _traces_sampler(sampling_context):
+        if sampling_context.get("wsgi_environ", {}).get("PATH_INFO", "").startswith(
+            "/api/"
+        ):
+            return 0.1
+        return 0.0
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[DjangoIntegration()],
+        traces_sampler=_traces_sampler,
+        send_default_pii=False,
+    )
+
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_HSTS_SECONDS = 60 * 60 * 24 * 365
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SESSION_COOKIE_SECURE = True
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    CSRF_COOKIE_SECURE = True
+    CSRF_COOKIE_HTTPONLY = False
+    CSRF_COOKIE_SAMESITE = "Lax"
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+    X_FRAME_OPTIONS = "DENY"

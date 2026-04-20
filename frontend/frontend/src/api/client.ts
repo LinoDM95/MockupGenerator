@@ -1,100 +1,44 @@
 import { useAppStore } from "../store/appStore";
 
-const getToken = () => localStorage.getItem("access_token");
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
 
-/** Access-Token ~5 Min vor Ablauf erneuern (lange Sessions / Batch-Jobs). */
-const PROACTIVE_BUFFER_MS = 5 * 60 * 1000;
-const PROACTIVE_MIN_DELAY_MS = 5_000;
-
-let proactiveRefreshTimer: ReturnType<typeof setTimeout> | null = null;
-
-const parseJwtExpMs = (token: string): number | null => {
-  try {
-    const part = token.split(".")[1];
-    if (!part) return null;
-    const b64 = part.replace(/-/g, "+").replace(/_/g, "/");
-    const pad = "=".repeat((4 - (b64.length % 4)) % 4);
-    const payload = JSON.parse(atob(b64 + pad)) as { exp?: number };
-    return typeof payload.exp === "number" ? payload.exp * 1000 : null;
-  } catch {
-    return null;
-  }
+const buildUrl = (path: string): string => {
+  if (path.startsWith("http")) return path;
+  return `${API_BASE}${path}`;
 };
 
-/** Timer abbrechen (z. B. bei Logout). */
-export const clearProactiveTokenRefresh = (): void => {
-  if (proactiveRefreshTimer !== null) {
-    clearTimeout(proactiveRefreshTimer);
-    proactiveRefreshTimer = null;
-  }
+const readCookie = (name: string): string | null => {
+  const match = document.cookie.split("; ").find((row) => row.startsWith(`${name}=`));
+  return match ? decodeURIComponent(match.split("=")[1] ?? "") : null;
 };
 
-/**
- * Plant ein Access-Token-Refresh kurz vor Ablauf. Nach erfolgreichem Login oder
- * manuellem Refresh erneut aufrufen (z. B. aus App.tsx bei accessToken-Änderung).
- */
-export const scheduleProactiveAccessRefresh = (): void => {
-  clearProactiveTokenRefresh();
-  const token = localStorage.getItem("access_token");
-  if (!token) return;
-  const expMs = parseJwtExpMs(token);
-  if (!expMs) return;
-  const dueIn = expMs - PROACTIVE_BUFFER_MS - Date.now();
-  const delayMs = dueIn <= 0 ? PROACTIVE_MIN_DELAY_MS : dueIn;
-
-  proactiveRefreshTimer = setTimeout(() => {
-    proactiveRefreshTimer = null;
-    void (async () => {
-      const ok = await refreshAccessToken();
-      if (ok) {
-        scheduleProactiveAccessRefresh();
-      }
-    })();
-  }, delayMs);
+/** Einmalig beim App-Start: csrftoken-Cookie setzen. */
+export const bootstrapCsrf = async (): Promise<void> => {
+  await fetch(buildUrl("/api/auth/csrf/"), {
+    credentials: "include",
+  });
 };
 
-/** Vor langen Operationen: Token erneuern, wenn es in wenigen Minuten abläuft. */
-export const refreshAccessTokenIfExpiringSoon = async (): Promise<void> => {
-  const token = localStorage.getItem("access_token");
-  if (!token) return;
-  const expMs = parseJwtExpMs(token);
-  if (!expMs) return;
-  if (expMs - Date.now() >= PROACTIVE_BUFFER_MS) return;
-  const ok = await refreshAccessToken();
-  if (ok) {
-    scheduleProactiveAccessRefresh();
-  }
-};
-
-/** Kein Refresh bei Login/Register/Refresh-Endpoint (Endlosschleifen vermeiden). */
-const shouldTryRefreshOn401 = (path: string): boolean => {
-  const base = path.split("?")[0] ?? path;
-  if (base.startsWith("/api/auth/token/refresh")) return false;
-  if (base === "/api/auth/token" || base === "/api/auth/token/") return false;
-  if (base.startsWith("/api/auth/register")) return false;
-  return true;
-};
+const isUnsafeMethod = (method?: string): boolean =>
+  ["POST", "PUT", "PATCH", "DELETE"].includes((method ?? "GET").toUpperCase());
 
 let refreshInFlight: Promise<boolean> | null = null;
 
-/** Einmaliges Refresh (z. B. vor langen Batch-Jobs). Bei Erfolg wird der Proaktiv-Timer neu geplant. */
 export const refreshAccessToken = async (): Promise<boolean> => {
   if (!refreshInFlight) {
     refreshInFlight = (async () => {
       try {
-        const refresh = localStorage.getItem("refresh_token");
-        if (!refresh) return false;
-        const res = await fetch("/api/auth/token/refresh/", {
+        const csrf = readCookie("csrftoken") ?? "";
+        const res = await fetch(buildUrl("/api/auth/refresh/"), {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refresh }),
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrf,
+          },
+          body: "{}",
         });
-        if (!res.ok) return false;
-        const data = (await res.json()) as { access?: string; refresh?: string };
-        if (!data.access) return false;
-        useAppStore.getState().setTokens(data.access, data.refresh ?? refresh);
-        scheduleProactiveAccessRefresh();
-        return true;
+        return res.ok;
       } catch {
         return false;
       } finally {
@@ -103,6 +47,36 @@ export const refreshAccessToken = async (): Promise<boolean> => {
     })();
   }
   return refreshInFlight;
+};
+
+/** Vor langen Operationen: Refresh (Access-Expiry ist im HttpOnly-Cookie nicht lesbar). */
+export const refreshAccessTokenIfExpiringSoon = async (): Promise<void> => {
+  await refreshAccessToken();
+};
+
+/** Kompatibilität: proaktiver Timer entfällt bei Cookie-JWT. */
+export const clearProactiveTokenRefresh = (): void => {};
+
+export const scheduleProactiveAccessRefresh = (): void => {};
+
+const shouldTryRefreshOn401 = (path: string): boolean => {
+  const base = path.split("?")[0] ?? path;
+  if (base.startsWith("/api/auth/")) return false;
+  return true;
+};
+
+const apiFetchOnce = async (path: string, init: RequestInit): Promise<Response> => {
+  const url = buildUrl(path);
+  const headers = new Headers(init.headers);
+  if (init.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  const method = init.method ?? "GET";
+  if (isUnsafeMethod(method)) {
+    const csrf = readCookie("csrftoken");
+    if (csrf) headers.set("X-CSRFToken", csrf);
+  }
+  return fetch(url, { ...init, headers, credentials: "include" });
 };
 
 export class ApiError extends Error {
@@ -133,16 +107,6 @@ export class ApiError extends Error {
   }
 }
 
-const apiFetchOnce = async (path: string, init: RequestInit): Promise<Response> => {
-  const headers = new Headers(init.headers);
-  const token = getToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
-  if (init.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
-  }
-  return fetch(path, { ...init, headers });
-};
-
 export const apiFetch = async (path: string, init: RequestInit = {}): Promise<Response> => {
   const res = await apiFetchOnce(path, init);
   if (res.status !== 401 || !shouldTryRefreshOn401(path)) return res;
@@ -150,7 +114,7 @@ export const apiFetch = async (path: string, init: RequestInit = {}): Promise<Re
   const refreshed = await refreshAccessToken();
   if (refreshed) return apiFetchOnce(path, init);
 
-  useAppStore.getState().logout();
+  useAppStore.getState().logoutLocal();
   return res;
 };
 

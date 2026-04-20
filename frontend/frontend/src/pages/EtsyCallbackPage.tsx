@@ -14,11 +14,13 @@ export const EtsyCallbackPage = () => {
   useEffect(() => {
     const code = params.get("code");
     const state = params.get("state");
-    if (!code || !state) {
+    const savedState = sessionStorage.getItem("etsy_oauth_state");
+    sessionStorage.removeItem("etsy_oauth_state");
+    if (!code || !state || state !== savedState) {
       const t = window.setTimeout(() => navigate("/", { replace: true }), 2500);
       queueMicrotask(() => {
-        setMessage("Fehlende OAuth-Parameter.");
-        toast.error("Etsy-Callback: code oder state fehlt.");
+        setMessage("Ungültiger oder fehlender OAuth-State.");
+        toast.error("Etsy-Callback: State ungültig oder Parameter fehlen.");
       });
       return () => window.clearTimeout(t);
     }

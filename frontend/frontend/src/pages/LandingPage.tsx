@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
+import { LegalFooterNav } from "../components/legal/LegalFooterNav";
 import { ThemeToggle } from "../components/ui/ThemeToggle";
 import { cn } from "../lib/cn";
 import {
@@ -1223,12 +1224,15 @@ const FinalCTA = () => (
 /* ------------------------------------------------------------------ */
 const Footer = () => (
   <footer className="border-t border-slate-200/60 bg-slate-50 py-12">
-    <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6 lg:px-8">
-      <span className="flex items-center gap-2 text-base font-bold tracking-tight text-slate-900">
-        <Zap size={18} className="text-indigo-600" fill="currentColor" strokeWidth={2} />
-        Creative Engine
-      </span>
-      <p className="text-sm font-medium text-slate-400">
+    <div className="mx-auto flex max-w-7xl flex-col items-center justify-center gap-5 px-4 sm:px-6 lg:px-8">
+      <div className="flex w-full flex-col items-center justify-between gap-4 sm:flex-row sm:items-center">
+        <span className="flex items-center gap-2 text-base font-bold tracking-tight text-slate-900">
+          <Zap size={18} className="text-indigo-600" fill="currentColor" strokeWidth={2} />
+          Creative Engine
+        </span>
+        <LegalFooterNav className="text-slate-500" />
+      </div>
+      <p className="text-center text-sm font-medium text-slate-400">
         &copy; {new Date().getFullYear()} Alle Rechte vorbehalten.
       </p>
     </div>

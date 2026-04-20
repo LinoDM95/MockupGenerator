@@ -311,6 +311,7 @@ class GelatoTemplateSyncView(APIView):
 class GelatoExportView(APIView):
     """POST – upload original artworks to R2, create draft products in Gelato."""
 
+    throttle_scope = "upload"
     parser_classes = (MultiPartParser, FormParser)
 
     def post(self, request):
@@ -429,6 +430,7 @@ class GelatoTaskStatusView(APIView):
 class UploadTempDesignView(APIView):
     """POST – upload a single image to Cloudflare R2 and return its public URL."""
 
+    throttle_scope = "upload"
     parser_classes = (MultiPartParser, FormParser)
 
     def post(self, request):

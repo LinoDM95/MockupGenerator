@@ -1,18 +1,24 @@
 import { apiJson } from "./client";
 
-type TokenResponse = { access: string; refresh: string };
-
 export type CurrentUser = {
   id: number;
   username: string;
   email: string;
 };
 
-export const login = async (username: string, password: string): Promise<TokenResponse> =>
-  apiJson<TokenResponse>("/api/auth/token/", {
+export const login = async (username: string, password: string): Promise<void> => {
+  await apiJson<{ detail?: string }>("/api/auth/login/", {
     method: "POST",
     body: JSON.stringify({ username, password }),
   });
+};
+
+export const apiLogout = async (): Promise<void> => {
+  await apiJson<{ detail?: string }>("/api/auth/logout/", {
+    method: "POST",
+    body: "{}",
+  });
+};
 
 export const register = async (payload: {
   username: string;
