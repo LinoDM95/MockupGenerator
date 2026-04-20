@@ -563,7 +563,6 @@ export const CanvasViewport = ({
             alt="Hintergrund"
             className="pointer-events-none block h-full w-full"
             draggable={false}
-            crossOrigin="anonymous"
           />
 
           {!isDrawMode && !previewEndView && snapGuides.length > 0 && (

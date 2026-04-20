@@ -321,7 +321,7 @@ export const TemplatesStudio = () => {
                           className="relative flex max-h-full max-w-full items-center justify-center"
                           style={{ aspectRatio: `${tpl.width}/${tpl.height}` }}
                         >
-                          <img src={tpl.bgImage} alt="" className="block max-h-full max-w-full object-contain" crossOrigin="anonymous" />
+                          <img src={tpl.bgImage} alt="" className="block max-h-full max-w-full object-contain" />
                           <div className="absolute inset-0">
                             {tpl.elements.map((el) => (
                               <div

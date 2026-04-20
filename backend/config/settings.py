@@ -14,6 +14,7 @@ import os
 import sys
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import urlparse
 
 import dj_database_url
 from dotenv import load_dotenv
@@ -292,11 +293,24 @@ CSP_SCRIPT_SRC = ("'self'",)
 CSP_STYLE_SRC = ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com")
 CSP_FONT_SRC = ("'self'", "https://fonts.gstatic.com", "data:")
 CSP_IMG_SRC = ("'self'", "data:", "blob:", "https:")
+_CSP_CONNECT_EXTRA: list[str] = []
+_r2_pub = (AWS_S3_CUSTOM_DOMAIN or "").strip()
+if _r2_pub:
+    _d = _r2_pub.rstrip("/")
+    if _d.lower().startswith(("http://", "https://")):
+        _p = urlparse(_d)
+        if _p.scheme and _p.netloc:
+            _CSP_CONNECT_EXTRA.append(f"{_p.scheme}://{_p.netloc}")
+    else:
+        _host = _d.split("/")[0].strip()
+        if _host:
+            _CSP_CONNECT_EXTRA.append(f"https://{_host}")
 CSP_CONNECT_SRC = (
     "'self'",
     "http://127.0.0.1:8001",
     "http://localhost:8001",
     "https://*.googleapis.com",
+    *_CSP_CONNECT_EXTRA,
 )
 CSP_FRAME_ANCESTORS = ("'none'",)
 CSP_BASE_URI = ("'self'",)
