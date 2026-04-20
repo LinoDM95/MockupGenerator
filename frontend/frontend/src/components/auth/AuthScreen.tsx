@@ -8,19 +8,22 @@ import { getErrorMessage } from "../../lib/common/error";
 import { cn } from "../../lib/ui/cn";
 import { getLegalSiteConfig } from "../../lib/legal/config";
 import { useAppStore } from "../../store/appStore";
-import { AnimatedGridBackground } from "../marketing/AnimatedGridBackground";
+import {
+  AnimatedGridBackground,
+  animatedGridHeroSurfaceClassName,
+} from "../marketing/AnimatedGridBackground";
 import { Button } from "../ui/primitives/Button";
 import { Input } from "../ui/primitives/Input";
 import { ThemeToggle } from "../ui/primitives/ThemeToggle";
 
 const glassBar = cn(
   "rounded-full border border-white/40 bg-white/70 shadow-[0_8px_30px_rgb(0,0,0,0.06)] ring-1 ring-slate-900/5 backdrop-blur-xl",
-  "dark:border-white/10 dark:bg-slate-950/65 dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)] dark:ring-white/10",
+  "dark:border-white/10 dark:bg-slate-100/55 dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)] dark:ring-white/10",
 );
 
 const glassCard = cn(
   "rounded-[2rem] border border-white/40 bg-white/70 p-8 shadow-[0_8px_30px_rgb(0,0,0,0.06)] ring-1 ring-slate-900/5 backdrop-blur-xl sm:p-10",
-  "dark:border-white/10 dark:bg-slate-950/65 dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)] dark:ring-white/10",
+  "dark:border-white/10 dark:bg-slate-100/62 dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)] dark:ring-white/10",
 );
 
 export const AuthScreen = () => {
@@ -58,12 +61,12 @@ export const AuthScreen = () => {
   if (isAuthenticated) return <Navigate to="/app" replace />;
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-50 font-sans text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-50 font-sans text-slate-900">
       <AnimatedGridBackground
         width={40}
         height={40}
-        numSquares={36}
-        className="z-0 opacity-80 [mask-image:radial-gradient(ellipse_at_center,white,transparent_72%)] dark:opacity-100 dark:[mask-image:radial-gradient(ellipse_at_center,rgba(248,250,252,0.12),transparent_70%)]"
+        numSquares={40}
+        className={animatedGridHeroSurfaceClassName}
       />
       <div
         className="pointer-events-none absolute left-1/2 top-0 -z-10 h-[min(100vw,52rem)] w-[min(100vw,52rem)] -translate-x-1/2 -translate-y-[28%] rounded-full bg-indigo-500/15 blur-[100px] mix-blend-multiply dark:bg-indigo-600/20 dark:mix-blend-normal"
@@ -75,7 +78,7 @@ export const AuthScreen = () => {
           <Link
             to="/"
             className={cn(
-              "inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:text-indigo-600 dark:text-slate-200 dark:hover:text-indigo-400",
+              "inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:text-indigo-600 dark:hover:text-indigo-400",
               glassBar,
             )}
           >
@@ -101,7 +104,7 @@ export const AuthScreen = () => {
               <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-md shadow-indigo-500/25">
                 <Zap size={26} className="text-white" fill="currentColor" strokeWidth={2} aria-hidden />
               </div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-3xl">
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
                 {appName}
               </h1>
               <p className="mt-2 text-sm font-medium text-slate-600 dark:text-slate-400">
@@ -140,7 +143,7 @@ export const AuthScreen = () => {
 
               {error ? (
                 <p
-                  className="rounded-xl bg-red-50/90 px-4 py-3 text-sm font-medium text-red-700 ring-1 ring-inset ring-red-500/20 dark:bg-red-950/40 dark:text-red-200 dark:ring-red-500/30"
+                  className="rounded-xl bg-red-50/90 px-4 py-3 text-sm font-medium text-red-700 ring-1 ring-inset ring-red-500/20 dark:ring-red-500/30"
                   role="alert"
                 >
                   {error}
@@ -154,7 +157,7 @@ export const AuthScreen = () => {
 
             <button
               type="button"
-              className="mt-6 w-full text-center text-sm font-semibold text-slate-600 transition-colors hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400"
+              className="mt-6 w-full text-center text-sm font-semibold text-slate-600 transition-colors hover:text-indigo-600 dark:hover:text-indigo-400"
               onClick={() => {
                 setMode((m) => (m === "login" ? "register" : "login"));
                 setError(null);

@@ -4,7 +4,7 @@ import { cn } from "../../../lib/ui/cn";
 
 /** Tab- bzw. Bereichstitel (zweite Ebene unter `AppSubNavPageLayout`) — auch für Sonderköpfe (z. B. Zurück + Set-Name). */
 export const appPageSectionTitleClassName =
-  "text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100";
+  "text-2xl font-bold tracking-tight text-slate-900";
 
 type AppPageSectionHeaderProps = {
   icon: LucideIcon;
@@ -34,12 +34,12 @@ export const AppPageSectionHeader = ({
     return (
       <div className={cn("w-full min-w-0 pb-6", className)}>
         <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-center">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-50 ring-1 ring-inset ring-slate-900/5 dark:bg-slate-800/60 dark:ring-white/10">
-            <Icon className="text-slate-700 dark:text-slate-200" size={22} strokeWidth={1.5} aria-hidden />
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-50 ring-1 ring-inset ring-slate-900/5 dark:ring-white/10">
+            <Icon className="text-slate-700" size={22} strokeWidth={1.5} aria-hidden />
           </div>
           <div className="text-center sm:text-left">
             <h2 className={appPageSectionTitleClassName}>{title}</h2>
-            <p className="mt-0.5 text-sm font-medium text-slate-500 dark:text-slate-400">{description}</p>
+            <p className="mt-0.5 text-sm font-medium text-slate-500">{description}</p>
           </div>
         </div>
       </div>
@@ -49,12 +49,12 @@ export const AppPageSectionHeader = ({
   return (
     <div className={cn("w-full min-w-0 pb-6", className)}>
       <div className="flex min-w-0 items-center gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-50 ring-1 ring-inset ring-slate-900/5 dark:bg-slate-800/60 dark:ring-white/10">
-          <Icon className="text-slate-700 dark:text-slate-200" size={22} strokeWidth={1.5} aria-hidden />
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-50 ring-1 ring-inset ring-slate-900/5 dark:ring-white/10">
+          <Icon className="text-slate-700" size={22} strokeWidth={1.5} aria-hidden />
         </div>
         <div className="min-w-0">
           <h2 className={appPageSectionTitleClassName}>{title}</h2>
-          <p className="mt-0.5 text-sm font-medium text-slate-500 dark:text-slate-400">{description}</p>
+          <p className="mt-0.5 text-sm font-medium text-slate-500">{description}</p>
         </div>
       </div>
     </div>

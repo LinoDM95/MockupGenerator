@@ -13,7 +13,7 @@ export const LegalFooterNav = ({ className, dense, align = "center" }: Props) =>
   <nav
     aria-label="Rechtliches"
     className={cn(
-      "flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold text-slate-500 dark:text-slate-400",
+      "flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold text-slate-500",
       align === "start" ? "justify-start" : "justify-center",
       !dense && "sm:gap-x-5 sm:text-sm",
       className,
@@ -34,7 +34,7 @@ export const LegalFooterNav = ({ className, dense, align = "center" }: Props) =>
     >
       Datenschutz
     </Link>
-    <span className="text-slate-300 dark:text-slate-600" aria-hidden>
+    <span className="text-slate-300" aria-hidden>
       ·
     </span>
     <Link to="/agb" className="transition-colors hover:text-indigo-600 dark:hover:text-indigo-400">

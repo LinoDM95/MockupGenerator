@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { AnimatedGridBackground } from "../components/marketing/AnimatedGridBackground";
+import {
+  AnimatedGridBackground,
+  animatedGridHeroSurfaceClassName,
+} from "../components/marketing/AnimatedGridBackground";
 import { ThemeToggle } from "../components/ui/primitives/ThemeToggle";
 import { cn } from "../lib/ui/cn";
 import {
@@ -107,12 +110,7 @@ const Hero = () => {
   return (
   <section className="relative overflow-hidden bg-slate-50 pb-16 pt-24 sm:pb-20 sm:pt-28 md:pb-24 md:pt-32">
     {/* Neues animiertes Grid mit weicher Kante (radial-gradient) */}
-    <AnimatedGridBackground 
-      width={40} 
-      height={40} 
-      numSquares={40} 
-      className="z-0 opacity-80 [mask-image:radial-gradient(ellipse_at_center,white,transparent_75%)]" 
-    />
+    <AnimatedGridBackground width={40} height={40} numSquares={40} className={animatedGridHeroSurfaceClassName} />
     <div className="pointer-events-none absolute left-1/2 top-0 -z-10 h-[800px] w-[800px] -translate-x-1/2 -translate-y-[30%] rounded-full bg-indigo-500/15 blur-[120px] mix-blend-multiply" />
 
     <div className="relative z-10 mx-auto max-w-5xl px-3 text-center sm:px-6 lg:px-8">
@@ -1186,8 +1184,8 @@ const LandingScrollToTop = () => {
             "hover:scale-[1.04] hover:bg-indigo-50/90 hover:text-indigo-700",
             "hover:shadow-[0_16px_48px_rgba(79,70,229,0.2)] hover:ring-indigo-500/25",
             "focus:outline-none focus-visible:ring-4 focus-visible:ring-indigo-500/20",
-            "active:scale-[0.97] dark:bg-slate-800 dark:text-indigo-300 dark:ring-white/10",
-            "dark:hover:bg-slate-700/95 dark:hover:text-indigo-200 dark:hover:ring-indigo-400/25",
+            "active:scale-[0.97] dark:ring-white/10",
+            "dark:hover:ring-indigo-400/25",
           )}
         >
           <span

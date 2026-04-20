@@ -39,18 +39,16 @@ const formatDe = (iso: string | null): string => {
 };
 
 const glassCard = cn(
-  "rounded-2xl bg-white/80 shadow-sm ring-1 ring-slate-900/5 backdrop-blur-xl dark:bg-slate-900/80 dark:ring-white/10",
+  "rounded-2xl bg-white/80 shadow-sm ring-1 ring-slate-900/5 backdrop-blur-xl dark:bg-slate-100/78 dark:ring-white/10",
 );
 
 const statusBadgeClass = (status: FeedbackThreadStatus) =>
   cn(
     "shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ring-slate-900/5 dark:ring-white/10",
-    status === "pending" && "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
-    status === "in_progress" &&
-      "bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200",
-    status === "answered" &&
-      "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200",
-    status === "closed" && "bg-slate-200/80 text-slate-700 dark:bg-slate-700 dark:text-slate-200",
+    status === "pending" && "bg-slate-100 text-slate-700",
+    status === "in_progress" && "bg-amber-50 text-amber-800",
+    status === "answered" && "bg-emerald-50 text-emerald-800",
+    status === "closed" && "bg-slate-200/80 text-slate-700",
   );
 
 export const FeedbackPage = () => {
@@ -208,7 +206,7 @@ export const FeedbackPage = () => {
   };
 
   const textareaClass = cn(
-    "w-full cursor-text rounded-xl bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm ring-1 ring-inset ring-slate-900/5 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 dark:bg-slate-950/50 dark:text-slate-100 dark:ring-white/10",
+    "w-full cursor-text rounded-xl bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm ring-1 ring-inset ring-slate-900/5 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 dark:bg-slate-100 dark:shadow-[0_2px_8px_rgba(0,0,0,0.2)] dark:ring-white/10 dark:placeholder:text-slate-500",
   );
 
   return (
@@ -218,7 +216,7 @@ export const FeedbackPage = () => {
       contentClassName="pt-6"
       className="[&_header_h1]:text-3xl [&_header_h1]:tracking-tight sm:[&_header_h1]:text-4xl"
     >
-      <div className="min-w-0 rounded-2xl bg-slate-50/50 px-4 py-6 dark:bg-slate-900/50 sm:px-6 sm:py-8">
+      <div className="min-w-0 rounded-2xl bg-slate-50/50 px-4 py-6 sm:px-6 sm:py-8">
         <AppPage className="space-y-12 !pt-0">
           <div className="flex flex-wrap justify-end gap-3">
             <Button
@@ -242,8 +240,8 @@ export const FeedbackPage = () => {
                   className={cn(
                     "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-all",
                     isComposing
-                      ? "bg-indigo-50/80 text-indigo-800 ring-1 ring-inset ring-indigo-500/20 dark:bg-indigo-950/40 dark:text-indigo-200"
-                      : "text-slate-800 hover:bg-slate-50/80 dark:text-slate-200 dark:hover:bg-slate-800/50",
+                      ? "bg-indigo-50/80 text-indigo-800 ring-1 ring-inset ring-indigo-500/20"
+                      : "text-slate-800 hover:bg-slate-50/80",
                   )}
                 >
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md shadow-indigo-500/20">
@@ -259,13 +257,13 @@ export const FeedbackPage = () => {
                   "flex max-h-[min(60vh,520px)] min-h-0 flex-col gap-4 overflow-hidden p-4",
                 )}
               >
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
                   {isStaff ? "Alle Gespräche" : "Deine Beiträge"}
                 </p>
                 {listLoading ? (
-                  <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Wird geladen …</p>
+                  <p className="text-xs font-medium text-slate-600">Wird geladen …</p>
                 ) : threads.length === 0 ? (
-                  <p className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                  <p className="text-xs font-medium text-slate-600">
                     Noch keine Einträge.
                   </p>
                 ) : (
@@ -283,25 +281,25 @@ export const FeedbackPage = () => {
                           role="listitem"
                           onClick={() => handleSelectThread(t.id)}
                           className={cn(
-                            "flex w-full flex-col gap-3 rounded-2xl bg-slate-50/50 p-4 text-left ring-1 ring-inset ring-slate-900/5 transition-all hover:scale-[1.01] dark:bg-slate-800/40 dark:ring-white/10",
+                            "flex w-full flex-col gap-3 rounded-2xl bg-slate-50/50 p-4 text-left ring-1 ring-inset ring-slate-900/5 transition-all hover:scale-[1.01] dark:ring-white/10",
                             active &&
-                              "bg-indigo-50/60 ring-2 ring-indigo-500/25 dark:bg-indigo-950/30 dark:ring-indigo-400/30",
+                              "bg-indigo-50/60 ring-2 ring-indigo-500/25 dark:ring-indigo-400/30",
                           )}
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <span className="line-clamp-2 text-left text-xs font-bold leading-snug tracking-tight text-slate-900 dark:text-slate-100">
+                            <span className="line-clamp-2 text-left text-xs font-bold leading-snug tracking-tight text-slate-900">
                               {(t.subject || "").trim() || "Ohne Betreff"}
                             </span>
                             <span className={statusBadgeClass(t.status)}>{feedbackStatusLabel(t.status)}</span>
                           </div>
-                          <div className="flex flex-wrap items-center gap-x-2 text-[10px] font-medium text-slate-500 dark:text-slate-400">
+                          <div className="flex flex-wrap items-center gap-x-2 text-[10px] font-medium text-slate-500">
                             {t.removed_at ? <span className="font-bold uppercase tracking-wide">Entfernt</span> : null}
                             <span className="font-normal normal-case">
                               {t.message_count} Nachrichten · {formatDe(t.updated_at)}
                             </span>
                           </div>
                           {isStaff && t.user_username ? (
-                            <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">
+                            <span className="text-[10px] font-medium text-slate-500">
                               {t.user_username}
                             </span>
                           ) : null}
@@ -338,7 +336,7 @@ export const FeedbackPage = () => {
                       <div className="flex min-h-0 flex-1 flex-col gap-2">
                         <label
                           htmlFor="feedback-new-body"
-                          className="text-xs font-semibold tracking-wide text-slate-700 dark:text-slate-300"
+                          className="text-xs font-semibold tracking-wide text-slate-700"
                         >
                           Nachricht
                         </label>
@@ -380,21 +378,21 @@ export const FeedbackPage = () => {
                     {!selectedId ? (
                       <div className="flex min-h-[240px] flex-col items-center justify-center gap-3 px-2 text-center">
                         <MessageCircle
-                          className="text-slate-300 dark:text-slate-600"
+                          className="text-slate-300"
                           size={40}
                           strokeWidth={1.5}
                           aria-hidden
                         />
-                        <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                        <p className="text-sm font-medium text-slate-600">
                           Wähle links einen Beitrag oder tippe oben auf{" "}
-                          <span className="font-bold text-slate-800 dark:text-slate-200">
+                          <span className="font-bold text-slate-800">
                             Neues Feedback erstellen
                           </span>
                           .
                         </p>
                       </div>
                     ) : detailLoading || !detail ? (
-                      <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                      <p className="text-sm font-medium text-slate-600">
                         Wird geladen …
                       </p>
                     ) : (
@@ -402,7 +400,7 @@ export const FeedbackPage = () => {
                         <div className="flex flex-wrap items-start justify-between gap-4">
                           <div className="min-w-0 space-y-2">
                             <div className="flex flex-wrap items-center gap-2">
-                              <h2 className="text-base font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                              <h2 className="text-base font-bold tracking-tight text-slate-900">
                                 {(detail.subject || "").trim() || "Ohne Betreff"}
                               </h2>
                               <span className={statusBadgeClass(detail.status)}>
@@ -410,12 +408,12 @@ export const FeedbackPage = () => {
                               </span>
                             </div>
                             {detail.removed_at ? (
-                              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                              <p className="text-xs font-medium text-slate-500">
                                 vom Support entfernt
                               </p>
                             ) : null}
                             {isStaff && detail.user_username ? (
-                              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                              <p className="text-xs font-medium text-slate-500">
                                 Nutzer: {detail.user_username}
                               </p>
                             ) : null}
@@ -459,11 +457,11 @@ export const FeedbackPage = () => {
                               className={cn(
                                 "rounded-2xl px-4 py-4 text-sm font-medium ring-1 ring-inset ring-slate-900/5 dark:ring-white/10",
                                 m.is_staff_message
-                                  ? "bg-indigo-50/50 text-slate-900 dark:bg-indigo-950/35 dark:text-slate-100"
-                                  : "bg-slate-50/80 text-slate-800 dark:bg-slate-800/50 dark:text-slate-200",
+                                  ? "bg-indigo-50/50 text-slate-900"
+                                  : "bg-slate-50/80 text-slate-800",
                               )}
                             >
-                              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
                                 {m.is_staff_message ? "Team" : m.author_username} ·{" "}
                                 {formatDe(m.created_at)}
                               </p>
@@ -473,7 +471,7 @@ export const FeedbackPage = () => {
                         </ul>
 
                         {detail.removed_at ? (
-                          <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                          <p className="text-sm font-medium text-slate-600">
                             {isStaff
                               ? "Dieses Gespräch wurde für den Nutzer entfernt — nur noch Lesen."
                               : "Dieses Gespräch wurde vom Support geschlossen und aus deiner Übersicht entfernt."}
@@ -486,7 +484,7 @@ export const FeedbackPage = () => {
                             <div className="w-full">
                               <label
                                 htmlFor="feedback-reply"
-                                className="mb-1.5 block text-xs font-semibold tracking-wide text-slate-700 dark:text-slate-300"
+                                className="mb-1.5 block text-xs font-semibold tracking-wide text-slate-700"
                               >
                                 {isStaff ? "Antwort senden" : "Nachricht / Nachfrage"}
                               </label>

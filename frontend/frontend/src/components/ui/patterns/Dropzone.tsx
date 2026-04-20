@@ -91,8 +91,8 @@ export const Dropzone = ({
                 ? cn(
                     "shadow-none ring-1 ring-inset ring-slate-900/10 dark:ring-white/10",
                     isDragging
-                      ? "border-indigo-500 bg-indigo-100/55 dark:bg-indigo-950/40"
-                      : "border-slate-300/80 bg-transparent hover:border-indigo-400/90 hover:bg-slate-100/40 dark:border-slate-500 dark:hover:bg-white/[0.06]",
+                      ? "border-indigo-500 bg-indigo-100/55"
+                      : "border-slate-300/80 bg-transparent hover:border-indigo-400/90 hover:bg-slate-100/40",
                   )
                 : cn(
                     "shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5",

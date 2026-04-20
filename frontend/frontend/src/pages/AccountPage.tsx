@@ -41,11 +41,11 @@ const formatDeDateTime = (iso: string | null): string => {
 };
 
 const sectionCard = cn(
-  "rounded-2xl bg-white/80 p-6 shadow-sm ring-1 ring-slate-900/5 backdrop-blur-xl dark:bg-slate-900/80 dark:ring-white/10 sm:p-8",
+  "rounded-2xl bg-white/80 p-6 shadow-sm ring-1 ring-slate-900/5 backdrop-blur-xl dark:bg-slate-100/78 dark:ring-white/10 sm:p-8",
 );
 
 const dangerSectionCard = cn(
-  "rounded-2xl bg-red-50/30 p-6 shadow-sm ring-1 ring-red-500/10 backdrop-blur-xl dark:bg-red-950/25 dark:ring-red-500/20 sm:p-8",
+  "rounded-2xl bg-red-50/30 p-6 shadow-sm ring-1 ring-red-500/10 backdrop-blur-xl dark:ring-red-500/20 sm:p-8",
 );
 
 export const AccountPage = () => {
@@ -182,7 +182,7 @@ export const AccountPage = () => {
       contentClassName="pt-6"
       className="[&_header_h1]:text-3xl [&_header_h1]:tracking-tight sm:[&_header_h1]:text-4xl"
     >
-      <div className="min-w-0 rounded-2xl bg-slate-50/50 px-4 py-6 dark:bg-slate-900/50 sm:px-6 sm:py-8">
+      <div className="min-w-0 rounded-2xl bg-slate-50/50 px-4 py-6 sm:px-6 sm:py-8">
         <AppPage className="space-y-12 !pt-0">
           <div className="flex flex-wrap justify-end gap-3">
             <Button
@@ -206,22 +206,22 @@ export const AccountPage = () => {
               />
               <div className={sectionCard}>
                 {profileLoading ? (
-                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                  <p className="text-sm font-medium text-slate-600">
                     Profil wird geladen …
                   </p>
                 ) : (
                   <form onSubmit={handleProfileSubmit} className="space-y-5">
-                    <div className="rounded-xl bg-slate-50/80 px-4 py-3 ring-1 ring-inset ring-slate-900/5 dark:bg-slate-800/50 dark:ring-white/10">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                    <div className="rounded-xl bg-slate-50/80 px-4 py-3 ring-1 ring-inset ring-slate-900/5 dark:ring-white/10">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
                         Konto
                       </p>
-                      <dl className="mt-2 space-y-1 text-sm font-medium text-slate-700 dark:text-slate-300">
+                      <dl className="mt-2 space-y-1 text-sm font-medium text-slate-700">
                         <div className="flex flex-wrap justify-between gap-2">
-                          <dt className="text-slate-500 dark:text-slate-400">Registriert am</dt>
+                          <dt className="text-slate-500">Registriert am</dt>
                           <dd>{formatDeDateTime(dateJoined)}</dd>
                         </div>
                         <div className="flex flex-wrap justify-between gap-2">
-                          <dt className="text-slate-500 dark:text-slate-400">Zuletzt angemeldet</dt>
+                          <dt className="text-slate-500">Zuletzt angemeldet</dt>
                           <dd>{formatDeDateTime(lastLogin)}</dd>
                         </div>
                       </dl>
@@ -243,7 +243,7 @@ export const AccountPage = () => {
                       onChange={(ev) => setEmail(ev.target.value)}
                       placeholder="optional"
                     />
-                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                    <p className="text-xs font-medium text-slate-500">
                       Die E-Mail darf leer bleiben. Sie muss serverseitig eindeutig sein, wenn du sie
                       setzt.
                     </p>
@@ -320,7 +320,7 @@ export const AccountPage = () => {
                 description="JSON-Export mit Stammdaten und Metadaten zu deinen Vorlagen (ohne Bilddateien)."
               />
               <div className={sectionCard}>
-                <p className="text-sm font-medium leading-relaxed text-slate-600 dark:text-slate-400">
+                <p className="text-sm font-medium leading-relaxed text-slate-600">
                   Du kannst eine maschinenlesbare Übersicht herunterladen — sinnvoll für Backups oder
                   Anfragen nach Art. 15 DSGVO. Enthalten sind keine API-Schlüssel und keine
                   Binärdaten.
@@ -348,8 +348,8 @@ export const AccountPage = () => {
                 description="Stripe: Zahlungsmethoden, Rechnungen, Abos und Steuerdaten."
               />
               <div className={sectionCard}>
-                <p className="text-sm font-medium leading-relaxed text-slate-600 dark:text-slate-400">
-                  Die Integration mit <span className="font-semibold text-slate-800 dark:text-slate-200">Stripe</span>{" "}
+                <p className="text-sm font-medium leading-relaxed text-slate-600">
+                  Die Integration mit <span className="font-semibold text-slate-800">Stripe</span>{" "}
                   (Checkout, Kundenportal, Rechnungs-PDF) ist vorgesehen. Du wirst hier Zahlungsmittel
                   verwalten, Verlauf einsehen und Abos verwalten können — ohne die App zu verlassen.
                 </p>
@@ -361,7 +361,7 @@ export const AccountPage = () => {
                     Rechnungen
                   </Button>
                 </div>
-                <p className="mt-4 text-xs font-medium text-slate-500 dark:text-slate-400">
+                <p className="mt-4 text-xs font-medium text-slate-500">
                   Hinweis: Keine Zahlungsdaten werden aktuell erfasst; diese Schaltflächen sind
                   Platzhalter.
                 </p>
@@ -375,7 +375,7 @@ export const AccountPage = () => {
                 description="Konto dauerhaft löschen: Alle Vorlagen, Integrationen und persönlichen Daten zu diesem Konto."
               />
               <div className={dangerSectionCard}>
-                <p className="text-sm font-medium leading-relaxed text-slate-600 dark:text-slate-400">
+                <p className="text-sm font-medium leading-relaxed text-slate-600">
                   Diese Aktion kann nicht rückgängig gemacht werden. Du musst danach ein neues Konto
                   registrieren, falls du die App wieder nutzen möchtest.
                 </p>

@@ -69,6 +69,7 @@
 @layer base {
   /* Anker-Sprünge (z. B. Landing: #four-pillars, #how-it-works) unter sticky Header sichtbar lassen */
   html {
+    @apply bg-slate-50 text-slate-800;
     scroll-padding-top: 4.5rem;
     overflow-x: clip;
     transition:

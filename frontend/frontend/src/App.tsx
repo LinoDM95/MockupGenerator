@@ -21,7 +21,7 @@ const IntegrationsView = lazy(() =>
 );
 
 const MainTabFallback = () => (
-  <div className="flex min-h-[40vh] items-center justify-center text-sm font-medium text-slate-500 dark:text-slate-400">
+  <div className="flex min-h-[40vh] items-center justify-center text-sm font-medium text-slate-500">
     Laden…
   </div>
 );
@@ -70,18 +70,18 @@ function App() {
   const ActiveView = tabContent[activeTab];
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-slate-50 font-sans text-slate-900 selection:bg-indigo-500/20 dark:bg-slate-950 dark:text-slate-100 dark:selection:bg-indigo-500/30">
+    <div className="flex min-h-0 flex-1 flex-col bg-slate-50 font-sans text-slate-900 selection:bg-indigo-500/20">
       <FeedbackNotificationPoller />
       <AIActivityPanel />
       <DialogHost />
 
       <header className="pointer-events-none sticky top-4 z-[220] px-2 sm:px-6 lg:px-8">
-        <div className="pointer-events-auto mx-auto flex min-h-14 w-full min-w-0 max-w-7xl flex-wrap items-center justify-between gap-x-2 gap-y-2 rounded-full border border-white/40 bg-white/70 px-2 py-1.5 shadow-[0_8px_30px_rgb(0,0,0,0.06)] ring-1 ring-slate-900/5 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/65 dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)] dark:ring-white/10 sm:h-14 sm:flex-nowrap sm:px-6 sm:py-0">
+        <div className="pointer-events-auto mx-auto flex min-h-14 w-full min-w-0 max-w-7xl flex-wrap items-center justify-between gap-x-2 gap-y-2 rounded-full border border-white/40 bg-white/70 px-2 py-1.5 shadow-[0_8px_30px_rgb(0,0,0,0.06)] ring-1 ring-slate-900/5 backdrop-blur-xl dark:border-white/10 dark:bg-slate-100/58 dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)] sm:h-14 sm:flex-nowrap sm:px-6 sm:py-0">
           <div className="flex min-w-0 shrink-0 items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 shadow-md shadow-indigo-500/20">
               <Zap size={16} className="text-white" fill="currentColor" />
             </div>
-            <span className="hidden text-sm font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:block">
+            <span className="hidden text-sm font-bold tracking-tight text-slate-900 sm:block">
               Creative Engine
             </span>
           </div>
@@ -112,8 +112,8 @@ function App() {
                       ? "cursor-not-allowed opacity-50"
                       : "hover:text-indigo-600 dark:hover:text-indigo-400",
                     isActive && !isSecondaryPage
-                      ? "bg-indigo-50/50 text-indigo-600 dark:bg-indigo-950/55 dark:text-indigo-300"
-                      : "text-slate-500 dark:text-slate-400",
+                      ? "bg-indigo-50/50 text-indigo-600"
+                      : "text-slate-500",
                   )}
                   aria-current={isActive ? "page" : undefined}
                 >
@@ -156,10 +156,10 @@ function App() {
                   ? "cursor-not-allowed opacity-50"
                   : !reduceMotion && "hover:scale-105 active:scale-95",
                 isFeedbackPage
-                  ? "bg-indigo-50/50 text-indigo-600 dark:bg-indigo-950/55 dark:text-indigo-300"
+                  ? "bg-indigo-50/50 text-indigo-600"
                   : navigationLocked
                     ? "text-slate-400"
-                    : "text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-slate-100",
+                    : "text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-white/10",
               )}
               aria-current={isFeedbackPage ? "page" : undefined}
               aria-label="Feedback an das Team"
@@ -181,10 +181,10 @@ function App() {
                   ? "cursor-not-allowed opacity-50"
                   : !reduceMotion && "hover:scale-105 active:scale-95",
                 isAccountPage
-                  ? "bg-indigo-50/50 text-indigo-600 dark:bg-indigo-950/55 dark:text-indigo-300"
+                  ? "bg-indigo-50/50 text-indigo-600"
                   : navigationLocked
                     ? "text-slate-400"
-                    : "text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-slate-100",
+                    : "text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-white/10",
               )}
               aria-current={isAccountPage ? "page" : undefined}
               aria-label="Konto — Profil, Daten und Sicherheit"
@@ -205,7 +205,7 @@ function App() {
             {showBatchLauncherRefresh ? (
               <button
                 type="button"
-                className="flex h-8 w-8 items-center justify-center rounded-full text-slate-500 ring-1 ring-slate-900/5 transition-colors hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:ring-white/10 dark:hover:bg-white/10 dark:hover:text-slate-100 sm:hidden"
+                className="flex h-8 w-8 items-center justify-center rounded-full text-slate-500 ring-1 ring-slate-900/5 transition-colors hover:bg-slate-50 hover:text-slate-900 dark:ring-white/10 dark:hover:bg-white/10 sm:hidden"
                 title="Seite neu laden"
                 aria-label="Aktualisieren"
                 onClick={() => {
@@ -227,7 +227,7 @@ function App() {
                 "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors",
                 navigationLocked
                   ? "cursor-not-allowed text-slate-400 opacity-50"
-                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-slate-100",
+                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-white/10",
               )}
             >
               <LogOut size={16} strokeWidth={2} />

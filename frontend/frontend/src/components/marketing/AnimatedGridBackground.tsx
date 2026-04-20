@@ -1,8 +1,17 @@
 import { useId, useMemo } from "react";
 import { motion } from "framer-motion";
 
+import { useColorScheme } from "../../hooks/ColorSchemeProvider";
 import { mulberry32 } from "../../lib/common/seededRng";
 import { cn } from "../../lib/ui/cn";
+
+/** Hero & Login: gleiche Einblendung (Light/Dark), damit die lila Kacheln dort identisch wirken. */
+export const animatedGridHeroSurfaceClassName =
+  "z-0 opacity-95 [mask-image:radial-gradient(ellipse_at_center,white,transparent_75%)] dark:opacity-100 dark:[mask-image:radial-gradient(ellipse_at_center,rgba(255,255,255,0.16),transparent_72%)]";
+
+/** Lila Highlight-Kacheln — Dark: sattes Violett (violet-500), nicht blasses Lavendel; extra Chromaticity. */
+const animatedSquareFillClassName =
+  "fill-violet-600/62 dark:fill-violet-500/94 dark:saturate-[1.78] dark:brightness-110";
 
 type Props = {
   width?: number;
@@ -19,6 +28,8 @@ export const AnimatedGridBackground = ({
   className,
 }: Props) => {
   const id = useId();
+  const { isDark } = useColorScheme();
+  const squarePulsePeak = isDark ? 0.97 : 0.68;
 
   const squares = useMemo(() => {
     let h = 0;
@@ -50,7 +61,7 @@ export const AnimatedGridBackground = ({
             d={`M.5 ${height}V.5H${width}`}
             fill="none"
             strokeWidth="1"
-            className="stroke-slate-300/80 dark:stroke-slate-600/45"
+            className="stroke-slate-400/45 dark:stroke-slate-500/55"
           />
         </pattern>
       </defs>
@@ -60,7 +71,7 @@ export const AnimatedGridBackground = ({
           <motion.rect
             key={i}
             initial={{ opacity: 0 }}
-            animate={{ opacity: [0, 0.4, 0] }}
+            animate={{ opacity: [0, squarePulsePeak, 0] }}
             transition={{
               duration: sq.duration,
               repeat: Infinity,
@@ -71,7 +82,7 @@ export const AnimatedGridBackground = ({
             height={height}
             x={sq.x * width}
             y={sq.y * height}
-            className="fill-violet-500 dark:fill-violet-400/35"
+            className={animatedSquareFillClassName}
             strokeWidth="0"
           />
         ))}

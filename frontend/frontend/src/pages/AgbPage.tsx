@@ -14,7 +14,7 @@ export const AgbPage = () => {
       <section>
         <p
           className={cn(
-            "rounded-2xl bg-slate-50/90 px-4 py-4 text-slate-800 ring-1 ring-inset ring-slate-900/5 dark:bg-slate-800/40 dark:text-slate-200 dark:ring-white/10",
+            "rounded-2xl bg-slate-50/90 px-4 py-4 text-slate-800 ring-1 ring-inset ring-slate-900/5 dark:ring-white/10",
           )}
         >
           <strong>Hinweis:</strong> Der folgende Text ist eine strukturierte Mustervorlage und{" "}
