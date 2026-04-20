@@ -1,6 +1,7 @@
 import { useId, useMemo } from "react";
 import { motion } from "framer-motion";
 
+import { mulberry32 } from "../../lib/common/seededRng";
 import { cn } from "../../lib/ui/cn";
 
 type Props = {
@@ -20,13 +21,16 @@ export const AnimatedGridBackground = ({
   const id = useId();
 
   const squares = useMemo(() => {
-    return Array.from({ length: numSquares }).map(() => ({
-      x: Math.floor(Math.random() * 50),
-      y: Math.floor(Math.random() * 50),
-      duration: Math.random() * 3 + 2,
-      delay: Math.random() * 2,
+    let h = 0;
+    for (let i = 0; i < id.length; i++) h = (Math.imul(31, h) + id.charCodeAt(i)) | 0;
+    const rng = mulberry32(h ^ numSquares);
+    return Array.from({ length: numSquares }, () => ({
+      x: Math.floor(rng() * 50),
+      y: Math.floor(rng() * 50),
+      duration: rng() * 3 + 2,
+      delay: rng() * 2,
     }));
-  }, [numSquares]);
+  }, [numSquares, id]);
 
   return (
     <svg

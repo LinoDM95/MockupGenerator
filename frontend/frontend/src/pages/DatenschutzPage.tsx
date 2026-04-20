@@ -39,8 +39,8 @@ export const DatenschutzPage = () => {
         <h2>2. Hosting und Infrastruktur</h2>
         <p>
           Die Anwendung und zugehörige APIs werden auf Servern eines Hosting-Anbieters betrieben
-          (z. B. Render, Hetzner, AWS — bitte konkret benennen). Dabei können technische Daten
-          (z. B. IP-Adresse, Zeitstempel, User-Agent) in Server-Logs verarbeitet werden.
+          (z. B. Render, Hetzner, AWS — bitte konkret benennen). Dabei können technische Daten
+          (z. B. IP-Adresse, Zeitstempel, User-Agent) in Server-Logs verarbeitet werden.
           Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertrag/ vorvertragliche Maßnahmen) und Art. 6
           Abs. 1 lit. f DSGVO (Betrieb und Sicherheit der Dienste).
         </p>
@@ -67,7 +67,7 @@ export const DatenschutzPage = () => {
       <section>
         <h2>5. Dateispeicher (optional)</h2>
         <p>
-          Werden Medien in einem Objektspeicher (z. B. S3-kompatibel / Cloudflare R2) abgelegt, erfolgt
+          Werden Medien in einem Objektspeicher (z. B. S3-kompatibel / Cloudflare R2) abgelegt, erfolgt
           die Verarbeitung beim jeweiligen Anbieter gemäß dessen AV-Vertrag bzw.
           Standardvertragsklauseln. Rechtsgrundlage: Art. 6 Abs. 1 lit. b bzw. f DSGVO.
         </p>
@@ -77,7 +77,7 @@ export const DatenschutzPage = () => {
         <h2>6. Drittanbieter-Integrationen (optional)</h2>
         <p>
           Wenn du optionale Integrationen aktivierst, können Daten an die jeweiligen Plattformen
-          übermittelt werden, z. B.:
+          übermittelt werden, z. B.:
         </p>
         <IndentedLegalPoints>
           <IndentedLegalPoint>
@@ -95,7 +95,7 @@ export const DatenschutzPage = () => {
       <section>
         <h2>7. KI-Funktionen (optional)</h2>
         <p>
-          Sofern KI-Dienste eingebunden sind (z. B. Google Gemini / andere Anbieter), können Eingaben
+          Sofern KI-Dienste eingebunden sind (z. B. Google Gemini / andere Anbieter), können Eingaben
           und Metadaten zur Verarbeitung an den jeweiligen Anbieter übermittelt werden — ggf. mit
           Übermittlung in Drittländer. Es gelten die Datenverarbeitungsbedingungen des Anbieters; ggf.
           sind Standardvertragsklauseln oder Angemessenheitsbeschlüsse erforderlich. Rechtsgrundlage:

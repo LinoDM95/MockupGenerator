@@ -9,6 +9,7 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 import { useColorScheme } from "../../../hooks/useColorScheme";
+import { mulberry32, randomBetween } from "../../../lib/common/seededRng";
 import { cn } from "../../../lib/ui/cn";
 import type { ColorSchemeMode } from "../../../lib/ui/colorScheme";
 
@@ -28,43 +29,39 @@ type OverlayPhase = {
   startedAt: number;
 };
 
-const randomBetween = (min: number, max: number) => min + Math.random() * (max - min);
-
 const useStars = (seed: number) =>
-  useMemo(
-    () =>
-      Array.from({ length: STAR_COUNT }, (_, i) => {
-        const angle = (i / STAR_COUNT) * Math.PI * 2 + Math.random() * 0.9;
-        const distance = randomBetween(96, 300);
-        return {
-          id: `${seed}-${i}`,
-          dx: Math.cos(angle) * distance,
-          dy: Math.sin(angle) * distance,
-          delay: Math.random() * 0.9,
-          size: randomBetween(2, 5),
-          duration: randomBetween(1.2, 2.0),
-        };
-      }),
-    [seed],
-  );
+  useMemo(() => {
+    const rng = mulberry32(seed ^ 0x2f1b3c4d);
+    return Array.from({ length: STAR_COUNT }, (_, i) => {
+      const angle = (i / STAR_COUNT) * Math.PI * 2 + rng() * 0.9;
+      const distance = randomBetween(rng, 96, 300);
+      return {
+        id: `${seed}-${i}`,
+        dx: Math.cos(angle) * distance,
+        dy: Math.sin(angle) * distance,
+        delay: rng() * 0.9,
+        size: randomBetween(rng, 2, 5),
+        duration: randomBetween(rng, 1.2, 2.0),
+      };
+    });
+  }, [seed]);
 
 const useSparks = (seed: number) =>
-  useMemo(
-    () =>
-      Array.from({ length: SPARK_COUNT }, (_, i) => {
-        const angle = (i / SPARK_COUNT) * Math.PI * 2 + Math.random() * 0.4;
-        const distance = randomBetween(120, 320);
-        return {
-          id: `${seed}-${i}`,
-          dx: Math.cos(angle) * distance,
-          dy: Math.sin(angle) * distance,
-          delay: Math.random() * 0.35,
-          size: randomBetween(3, 7),
-          duration: randomBetween(0.9, 1.6),
-        };
-      }),
-    [seed],
-  );
+  useMemo(() => {
+    const rng = mulberry32(seed ^ 0x4d1f9a2e);
+    return Array.from({ length: SPARK_COUNT }, (_, i) => {
+      const angle = (i / SPARK_COUNT) * Math.PI * 2 + rng() * 0.4;
+      const distance = randomBetween(rng, 120, 320);
+      return {
+        id: `${seed}-${i}`,
+        dx: Math.cos(angle) * distance,
+        dy: Math.sin(angle) * distance,
+        delay: rng() * 0.35,
+        size: randomBetween(rng, 3, 7),
+        duration: randomBetween(rng, 0.9, 1.6),
+      };
+    });
+  }, [seed]);
 
 const MoonSickle = () => (
   <svg
