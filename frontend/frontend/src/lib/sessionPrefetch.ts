@@ -1,5 +1,4 @@
 import { fetchAiStatus } from "../api/ai";
-import { fetchCurrentUser } from "../api/auth";
 import { fetchPendingFeedbackNotifications } from "../api/feedback";
 import { fetchGelatoListTemplates, fetchGelatoStatus } from "../api/gelato";
 import { fetchTemplateSets } from "../api/sets";
