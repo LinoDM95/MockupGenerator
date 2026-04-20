@@ -57,9 +57,9 @@ function App() {
       <AIActivityPanel />
       <DialogHost />
 
-      <header className="pointer-events-none sticky top-4 z-[220] px-4 sm:px-6 lg:px-8">
-        <div className="pointer-events-auto mx-auto flex h-14 w-full max-w-7xl items-center justify-between rounded-full bg-white px-4 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 sm:px-6">
-          <div className="flex shrink-0 items-center gap-2">
+      <header className="pointer-events-none sticky top-4 z-[220] px-2 sm:px-6 lg:px-8">
+        <div className="pointer-events-auto mx-auto flex min-h-14 w-full min-w-0 max-w-7xl flex-wrap items-center justify-between gap-x-2 gap-y-2 rounded-full bg-white px-2 py-1.5 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 sm:h-14 sm:flex-nowrap sm:px-6 sm:py-0">
+          <div className="flex min-w-0 shrink-0 items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 shadow-sm">
               <Zap size={16} className="text-white" fill="currentColor" />
             </div>
@@ -69,7 +69,7 @@ function App() {
           </div>
 
           <nav
-            className="flex min-w-0 items-center gap-1 sm:gap-2"
+            className="order-3 flex w-full min-w-0 basis-full items-center justify-center gap-0.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] sm:order-none sm:w-auto sm:basis-auto sm:justify-start sm:gap-1 sm:pb-0 md:gap-2 [&::-webkit-scrollbar]:hidden"
             aria-label="Hauptnavigation"
           >
             {mainTabs.map(({ id, label, shortLabel, icon: Icon }) => {
@@ -89,7 +89,7 @@ function App() {
                     setEditingSetId(null);
                   }}
                   className={cn(
-                    "relative flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold tracking-wide transition-colors sm:px-4 sm:text-sm",
+                    "relative flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-semibold tracking-wide transition-colors sm:gap-2 sm:px-4 sm:text-sm",
                     navigationLocked
                       ? "cursor-not-allowed opacity-50"
                       : "hover:text-indigo-600",
@@ -187,7 +187,7 @@ function App() {
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto max-w-7xl px-4 pb-12 pt-10 sm:px-6 lg:px-8">
+      <main className="relative z-10 mx-auto w-full min-w-0 max-w-7xl px-3 pb-10 pt-8 sm:px-6 sm:pb-12 sm:pt-10 lg:px-8">
         {isAccountPage ? (
           <div className="w-full min-w-0">
             <AccountPage />

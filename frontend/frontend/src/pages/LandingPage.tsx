@@ -171,21 +171,21 @@ const MOCKUP_COLORS = [
 ];
 
 const bentoCardClass =
-  "group relative flex h-full flex-col overflow-hidden rounded-[2rem] bg-white/70 p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 backdrop-blur-md transition-all duration-500 hover:-translate-y-1 hover:bg-white hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)]";
+  "group relative flex h-full flex-col overflow-hidden rounded-[1.5rem] bg-white/70 p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 backdrop-blur-md transition-all duration-500 hover:-translate-y-1 hover:bg-white hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] sm:rounded-[2rem] sm:p-8";
 
 const bentoCardInnerLight =
   "pointer-events-none absolute inset-0 rounded-[2rem] ring-1 ring-inset ring-slate-900/5";
 
 const primaryCtaClass =
-  "group relative inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-8 py-4 text-base font-semibold tracking-wide text-white shadow-lg transition-all duration-300 hover:bg-indigo-700 hover:shadow-[0_0_40px_-10px_rgba(79,70,229,0.6)]";
+  "group relative inline-flex w-full min-w-0 items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3.5 text-sm font-semibold tracking-wide text-white shadow-lg transition-all duration-300 hover:bg-indigo-700 hover:shadow-[0_0_40px_-10px_rgba(79,70,229,0.6)] sm:w-auto sm:px-8 sm:py-4 sm:text-base";
 
 const secondaryCtaClass =
-  "inline-flex items-center gap-2 rounded-2xl bg-white px-8 py-4 text-base font-semibold tracking-wide text-slate-800 shadow-[0_2px_10px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 transition-all duration-300 hover:bg-slate-50";
+  "inline-flex w-full min-w-0 items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3.5 text-sm font-semibold tracking-wide text-slate-800 shadow-[0_2px_10px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 transition-all duration-300 hover:bg-slate-50 sm:w-auto sm:px-8 sm:py-4 sm:text-base";
 
 const Hero = () => {
   const reduceMotion = useReducedMotion();
   return (
-  <section className="relative overflow-hidden bg-slate-50 pb-24 pt-32">
+  <section className="relative overflow-hidden bg-slate-50 pb-16 pt-24 sm:pb-20 sm:pt-28 md:pb-24 md:pt-32">
     {/* Neues animiertes Grid mit weicher Kante (radial-gradient) */}
     <AnimatedGrid 
       width={40} 
@@ -195,13 +195,13 @@ const Hero = () => {
     />
     <div className="pointer-events-none absolute left-1/2 top-0 -z-10 h-[800px] w-[800px] -translate-x-1/2 -translate-y-[30%] rounded-full bg-indigo-500/15 blur-[120px] mix-blend-multiply" />
 
-    <div className="relative z-10 mx-auto max-w-5xl px-4 text-center sm:px-6 lg:px-8">
+    <div className="relative z-10 mx-auto max-w-5xl px-3 text-center sm:px-6 lg:px-8">
       <div className="text-center">
         <motion.h1
           initial={{ opacity: 0, y: reduceMotion ? 0 : 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: reduceMotion ? 0.2 : 0.7, delay: reduceMotion ? 0 : 0.1 }}
-          className="text-6xl font-bold tracking-tighter text-slate-900 sm:text-7xl lg:text-[5.5rem] leading-[1.05]"
+          className="text-[2rem] font-bold leading-[1.08] tracking-tighter text-slate-900 sm:text-4xl sm:leading-[1.06] md:text-5xl md:leading-[1.05] lg:text-6xl xl:text-7xl 2xl:text-[5.5rem]"
         >
           Die komplette Print-Pipeline.
           <br />
@@ -214,7 +214,7 @@ const Hero = () => {
           initial={{ opacity: 0, y: reduceMotion ? 0 : 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: reduceMotion ? 0.2 : 0.6, delay: reduceMotion ? 0 : 0.25 }}
-          className="mx-auto mt-8 max-w-2xl text-lg font-medium leading-relaxed text-slate-500 sm:text-xl"
+          className="mx-auto mt-6 max-w-2xl text-base font-medium leading-relaxed text-slate-500 sm:mt-8 sm:text-lg md:text-xl"
         >
           Vorlagen anlegen, Mockups rendern, KI-Texte generieren und direkt als Etsy-Entwurf
           veröffentlichen. Ein nahtloser Prozess in einer einzigen Engine.
@@ -224,7 +224,7 @@ const Hero = () => {
           initial={{ opacity: 0, y: reduceMotion ? 0 : 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: reduceMotion ? 0.2 : 0.55, delay: reduceMotion ? 0 : 0.35 }}
-          className="relative mx-auto mt-8 max-w-2xl rounded-2xl border border-slate-200/60 bg-white/70 px-4 py-4 text-left shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 backdrop-blur-md sm:px-6 sm:py-5"
+          className="relative mx-auto mt-6 max-w-2xl rounded-2xl border border-slate-200/60 bg-white/70 px-3 py-3.5 text-left shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 backdrop-blur-md sm:mt-8 sm:px-6 sm:py-5"
         >
           <div
             className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-slate-900/5"
@@ -311,9 +311,9 @@ const Hero = () => {
           delay: reduceMotion ? 0 : 0.5,
           ease: [0.25, 0.46, 0.45, 0.94],
         }}
-        className="mx-auto mt-20 max-w-4xl"
+        className="mx-auto mt-12 max-w-4xl px-0 sm:mt-16 md:mt-20"
       >
-        <div className="relative overflow-hidden rounded-[2.5rem] border border-white/40 bg-white/50 p-6 shadow-[0_20px_60px_rgb(0,0,0,0.05)] ring-1 ring-slate-900/5 backdrop-blur-xl sm:p-10">
+        <div className="relative overflow-hidden rounded-3xl border border-white/40 bg-white/50 p-4 shadow-[0_20px_60px_rgb(0,0,0,0.05)] ring-1 ring-slate-900/5 backdrop-blur-xl sm:rounded-[2.5rem] sm:p-8 md:p-10">
           <div
             className="pointer-events-none absolute inset-0 rounded-[2rem] ring-1 ring-inset ring-slate-900/5"
             aria-hidden
@@ -324,7 +324,7 @@ const Hero = () => {
             initial={{ x: -60, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.8 }}
-            className="absolute -left-4 top-1/2 z-10 flex -translate-y-1/2 items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-lg sm:-left-8"
+            className="absolute -left-1 top-1/2 z-10 hidden -translate-y-1/2 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left shadow-lg min-[400px]:flex sm:-left-4 sm:gap-3 sm:px-4 sm:py-3 md:-left-8"
           >
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
               <FileImage size={20} strokeWidth={1.75} />
@@ -336,7 +336,7 @@ const Hero = () => {
           </motion.div>
 
           {/* Mockup output grid */}
-          <div className="grid grid-cols-4 gap-3 sm:grid-cols-6">
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-3 md:grid-cols-6">
             {MOCKUP_COLORS.map((color, i) => (
               <motion.div
                 key={i}
@@ -360,7 +360,7 @@ const Hero = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 1.8, duration: 0.5 }}
-            className="absolute -right-4 top-1/2 z-10 flex -translate-y-1/2 items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 shadow-lg sm:-right-8"
+            className="absolute -right-1 top-1/2 z-10 hidden -translate-y-1/2 items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-left shadow-lg min-[400px]:flex sm:-right-4 sm:gap-3 sm:px-4 sm:py-3 md:-right-8"
           >
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
               <Check size={20} strokeWidth={2} />

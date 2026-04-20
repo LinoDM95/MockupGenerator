@@ -33,14 +33,14 @@ export const AppSubNavPageLayout = ({
   <div className={cn("w-full min-w-0", className)}>
     <header className="w-full min-w-0 pb-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">{title}</h1>
-          <p className="mt-0.5 text-sm text-slate-500">{description}</p>
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">{title}</h1>
+          <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">{description}</p>
         </div>
         {subNav ? (
           <LayoutGroup>
             <nav
-              className="flex flex-wrap items-center justify-end gap-0.5 sm:gap-1"
+              className="flex w-full min-w-0 flex-wrap items-center justify-start gap-0.5 sm:w-auto sm:justify-end sm:gap-1"
               aria-label={subNavAriaLabel}
             >
               {subNav}
