@@ -53,9 +53,30 @@ export const loadImage = (src: string): Promise<HTMLImageElement> => {
   });
 };
 
+/**
+ * Data-URL → Blob ohne fetch() — vermeidet CSP-Violation (connect-src erlaubt data: oft nicht).
+ */
 export const dataUrlToBlob = async (dataUrl: string): Promise<Blob> => {
-  const res = await fetch(dataUrl);
-  return res.blob();
+  const comma = dataUrl.indexOf(",");
+  if (comma === -1) {
+    throw new Error("Ungültige Data-URL.");
+  }
+  const meta = dataUrl.slice(0, comma);
+  const base64 = dataUrl.slice(comma + 1).replace(/\s/g, "");
+  const mimeMatch = /^data:([^;,]+)/i.exec(meta);
+  const mime = mimeMatch?.[1]?.trim() || "application/octet-stream";
+  let binary: string;
+  try {
+    binary = atob(base64);
+  } catch {
+    throw new Error("Data-URL Base64 konnte nicht gelesen werden.");
+  }
+  const len = binary.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new Blob([bytes], { type: mime });
 };
 
 export const canvasToBlob = (

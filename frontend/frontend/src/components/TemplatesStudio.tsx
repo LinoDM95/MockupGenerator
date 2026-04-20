@@ -180,7 +180,7 @@ export const TemplatesStudio = () => {
           await reloadSetsRaw();
         } catch (err) {
           console.error(err);
-          toast.error("Vorlage konnte nicht angelegt werden.");
+          toast.error(`Vorlage konnte nicht angelegt werden: ${getErrorMessage(err)}`);
         } finally {
           setProgressMessage(null);
         }
