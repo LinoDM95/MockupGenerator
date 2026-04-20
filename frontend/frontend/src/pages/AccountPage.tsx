@@ -1,4 +1,4 @@
-import { ArrowLeft, CreditCard, KeyRound, Scale, UserCircle } from "lucide-react";
+import { ArrowLeft, CreditCard, KeyRound, UserCircle } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -11,8 +11,6 @@ import { AppSubNavPageLayout } from "../components/ui/AppSubNavPageLayout";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { Input } from "../components/ui/Input";
-import { LegalFooterNav } from "../components/legal/LegalFooterNav";
-
 export const AccountPage = () => {
   const navigate = useNavigate();
   const [profileLoading, setProfileLoading] = useState(true);
@@ -224,19 +222,6 @@ export const AccountPage = () => {
                 Hinweis: Keine Zahlungsdaten werden aktuell erfasst; diese Schaltflächen sind
                 Platzhalter.
               </p>
-            </Card>
-          </div>
-        </div>
-
-        <div className="w-full min-w-0">
-          <AppPageSectionHeader
-            icon={Scale}
-            title="Rechtliches"
-            description="Impressum, Datenschutz und AGB der Anwendung."
-          />
-          <div className="mt-4 max-w-2xl">
-            <Card padding="md" variant="default">
-              <LegalFooterNav align="start" className="text-sm text-slate-600" />
             </Card>
           </div>
         </div>

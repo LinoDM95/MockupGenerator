@@ -1,5 +1,5 @@
 @echo off
-setlocal EnableExtensions
+setlocal EnableExtensions EnableDelayedExpansion
 title Mockup Generator - Starter
 
 echo Starte Mockup Generator...
@@ -11,8 +11,43 @@ set "ROOT=%~dp0"
 set "BACKEND=%ROOT%backend"
 set "FRONTEND=%ROOT%frontend\frontend"
 set "APP_URL=http://localhost:5173/?launcher=batch"
+set "USE_REMOTE="
 
-REM Ports: 8000 = Django, 5173 = Vite (vite.config proxy), 8001 = Mockup Local Engine
+REM ---------------------------------------------------------------------------
+REM Optional: Echter Online-Server (Produktion). Wenn /healthz erreichbar ist,
+REM werden kein lokales Backend (8000), kein Vite (5173) und keine Local Engine (8001) gestartet.
+REM
+REM Variante A — vor dem Start in dieser Konsole:
+REM   set "MOCKUP_ONLINE_URL=https://deine-domain.de"
+REM   StartMockupApp.bat
+REM
+REM Variante B — dauerhaft (Benutzer-Umgebungsvariable MOCKUP_ONLINE_URL setzen).
+REM
+REM Ohne MOCKUP_ONLINE_URL: wie bisher nur lokaler Stack.
+REM ---------------------------------------------------------------------------
+if not defined MOCKUP_ONLINE_URL set "MOCKUP_ONLINE_URL="
+if not "!MOCKUP_ONLINE_URL!"=="" (
+  echo Pruefe Online-Server ^(!MOCKUP_ONLINE_URL!^) ...
+  call :remote_health_ok
+  if not errorlevel 1 (
+    set "USE_REMOTE=1"
+    set "BASE=!MOCKUP_ONLINE_URL!"
+    if "!BASE:~-1!"=="/" set "BASE=!BASE:~0,-1!"
+    if "!BASE:~-1!"=="\" set "BASE=!BASE:~0,-1!"
+    set "APP_URL=!BASE!/?launcher=batch"
+    echo Online-Server ist erreichbar — lokale Dienste werden nicht gestartet.
+    echo Browser: !APP_URL!
+    echo.
+  ) else (
+    echo Online-Server nicht erreichbar ^(/healthz^) — starte lokalen Stack.
+    echo.
+  )
+)
+
+if defined USE_REMOTE goto :open_browser
+
+set "STARTED_SERVER="
+
 call :port_listening 8000
 if errorlevel 1 (
   echo Starte Backend - Port 8000 ist frei.
@@ -74,6 +109,7 @@ if defined STARTED_SERVER (
   timeout /t 1 /nobreak >nul
 )
 
+:open_browser
 REM Chrome: oft unter Program Files, haeufig aber nur unter LocalAppData (User-Install)
 set "CHROME_PF=%ProgramFiles%\Google\Chrome\Application\chrome.exe"
 set "CHROME_PF86=%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"
@@ -83,19 +119,19 @@ set "EDGE_PF=%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"
 set "EDGE_PF86=%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"
 
 if exist "%CHROME_PF%" (
-  start "" /HIGH "%CHROME_PF%" --app="%APP_URL%"
+  start "" /HIGH "%CHROME_PF%" --app="!APP_URL!"
 ) else if exist "%CHROME_PF86%" (
-  start "" /HIGH "%CHROME_PF86%" --app="%APP_URL%"
+  start "" /HIGH "%CHROME_PF86%" --app="!APP_URL!"
 ) else if exist "%CHROME_LA%" (
-  start "" /HIGH "%CHROME_LA%" --app="%APP_URL%"
+  start "" /HIGH "%CHROME_LA%" --app="!APP_URL!"
 ) else if exist "%EDGE_PF%" (
-  start "" /HIGH "%EDGE_PF%" --app="%APP_URL%"
+  start "" /HIGH "%EDGE_PF%" --app="!APP_URL!"
 ) else if exist "%EDGE_PF86%" (
-  start "" /HIGH "%EDGE_PF86%" --app="%APP_URL%"
+  start "" /HIGH "%EDGE_PF86%" --app="!APP_URL!"
 ) else (
-  where chrome >nul 2>&1 && start "" /HIGH chrome --app="%APP_URL%" && goto :opened
-  where msedge >nul 2>&1 && start "" /HIGH msedge --app="%APP_URL%" && goto :opened
-  echo Weder Chrome noch Edge gefunden. Bitte manuell %APP_URL% im App-Modus oeffnen.
+  where chrome >nul 2>&1 && start "" /HIGH chrome --app="!APP_URL!" && goto :opened
+  where msedge >nul 2>&1 && start "" /HIGH msedge --app="!APP_URL!" && goto :opened
+  echo Weder Chrome noch Edge gefunden. Bitte manuell !APP_URL! im App-Modus oeffnen.
   pause
   exit /b 1
 )
@@ -103,6 +139,12 @@ if exist "%CHROME_PF%" (
 
 echo Fertig. Der Browser sollte im App-Modus erscheinen (ohne Tabs/Leiste).
 exit /b 0
+
+REM ---------- GET /healthz — exit 0 wenn HTTP 200, sonst 1 (Windows PowerShell 5.1+) ----------
+:remote_health_ok
+set "MOCKUP_REMOTE_BASE=%MOCKUP_ONLINE_URL%"
+powershell -NoProfile -Command "$raw = $env:MOCKUP_REMOTE_BASE; if ($null -eq $raw) { $raw = '' }; $u = $raw.Trim().TrimEnd('/'); if (-not $u) { exit 1 }; try { $r = Invoke-WebRequest -Uri ($u + '/healthz') -UseBasicParsing -TimeoutSec 10 -MaximumRedirection 0; if ($r.StatusCode -eq 200) { exit 0 } else { exit 1 } } catch { exit 1 }"
+exit /b %ERRORLEVEL%
 
 REM ---------- Hilfsroutine: errorlevel 0 = Port belegt (Listen), 1 = frei ----------
 :port_listening

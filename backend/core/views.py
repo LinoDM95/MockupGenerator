@@ -9,7 +9,7 @@ import httpx
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db import transaction
-from django.db.models import Max
+from django.db.models import Max, Prefetch
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
 from rest_framework import status, viewsets
@@ -20,7 +20,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .helpers import apply_frame_fields, read_image_dimensions
-from .models import Template, TemplateSet
+from .models import Template, TemplateElement, TemplateSet
 from .serializers import (
     ChangePasswordSerializer,
     TemplateSerializer,
@@ -138,8 +138,13 @@ class TemplateSetViewSet(viewsets.ModelViewSet):
     parser_classes = (JSONParser, FormParser, MultiPartParser)
 
     def get_queryset(self):
+        """Sortierte Prefetches — vermeidet N+1 und erneute Queries durch order_by auf Prefetch."""
+        ordered_elements = TemplateElement.objects.order_by("order", "id")
+        ordered_templates = Template.objects.order_by("order", "created_at").prefetch_related(
+            Prefetch("element_rows", queryset=ordered_elements),
+        )
         return TemplateSet.objects.filter(user=self.request.user).prefetch_related(
-            "templates__element_rows",
+            Prefetch("templates", queryset=ordered_templates),
         )
 
     def get_serializer_class(self):
@@ -286,8 +291,15 @@ class TemplateViewSet(viewsets.ModelViewSet):
     http_method_names = ["get", "patch", "put", "delete", "head", "options"]
 
     def get_queryset(self):
-        return Template.objects.filter(template_set__user=self.request.user).select_related(
-            "template_set",
+        return (
+            Template.objects.filter(template_set__user=self.request.user)
+            .select_related("template_set")
+            .prefetch_related(
+                Prefetch(
+                    "element_rows",
+                    queryset=TemplateElement.objects.order_by("order", "id"),
+                ),
+            )
         )
 
     def get_serializer_class(self):

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.contrib.auth.models import AbstractUser
+from marketing_integration.models import SocialPlatform
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -12,7 +13,7 @@ from .serializers import (
     upsert_user_integration,
 )
 from .services import (
-    pinterest_effective_connected,
+    pinterest_effective_connected_from_row,
     sync_gemini_to_ai_connection,
     sync_gelato_to_connection,
     test_cloudflare_r2,
@@ -86,14 +87,24 @@ class IntegrationsStatusView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        user = request.user
+        user_model = request.user.__class__
+        user = user_model.objects.select_related(
+            "etsy_connection",
+            "ai_connection",
+            "gelato_connection",
+            "user_integration",
+        ).get(pk=request.user.pk)
+        pinterest_sp = SocialPlatform.objects.filter(
+            user_id=user.pk,
+            platform=SocialPlatform.Platform.PINTEREST,
+        ).first()
         data = {
             "etsy": _etsy_connected(user),
             "gemini": _gemini_connected(user),
             "gelato": _gelato_connected(user),
             "vertex": _vertex_connected(user),
             "cloudflare_r2": _r2_connected(user),
-            "pinterest": pinterest_effective_connected(user),
+            "pinterest": pinterest_effective_connected_from_row(pinterest_sp),
         }
         ser = IntegrationsStatusSerializer(data=data)
         ser.is_valid(raise_exception=True)

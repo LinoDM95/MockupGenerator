@@ -137,12 +137,15 @@ def _parse_positive_int_form(raw: str | None) -> int | None:
 
 
 # Browsers treat localhost and 127.0.0.1 as different origins — list both.
-# Override via env: comma-separated extra origins (COMPANION_CORS_ORIGINS).
+# Django liefert die gebaute SPA oft auf :8000 (Vite-Dev nutzt :5173 + /__companion-Proxy).
+# Override via env: comma-separated extra origins (COMPANION_CORS_ORIGINS), z. B. Produktions-URL.
 _DEFAULT_CORS_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://localhost:4173",
     "http://127.0.0.1:4173",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
 ]
 
 

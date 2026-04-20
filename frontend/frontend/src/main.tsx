@@ -6,7 +6,9 @@ import App from "./App.tsx";
 import { fetchCurrentUser } from "./api/auth";
 import { bootstrapCsrf } from "./api/client";
 import { AuthScreen } from "./components/AuthScreen.tsx";
+import { HYDRATION_BUSY_CLASS } from "./lib/globalBusyCursor";
 import { Toaster } from "./components/ui/Toaster.tsx";
+import { GlobalLegalFooter } from "./components/legal/GlobalLegalFooter.tsx";
 import { AgbPage } from "./pages/AgbPage.tsx";
 import { DatenschutzPage } from "./pages/DatenschutzPage.tsx";
 import { EtsyCallbackPage } from "./pages/EtsyCallbackPage.tsx";
@@ -28,38 +30,51 @@ const AppShell = () => {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+    document.documentElement.classList.add(HYDRATION_BUSY_CLASS);
     void (async () => {
-      await bootstrapCsrf();
       try {
-        await fetchCurrentUser();
-        useAppStore.getState().setAuthenticated(true);
-      } catch {
-        useAppStore.getState().setAuthenticated(false);
+        await bootstrapCsrf();
+        try {
+          await fetchCurrentUser();
+          useAppStore.getState().setAuthenticated(true);
+        } catch {
+          useAppStore.getState().setAuthenticated(false);
+        }
+      } finally {
+        if (!cancelled) {
+          document.documentElement.classList.remove(HYDRATION_BUSY_CLASS);
+          setReady(true);
+        }
       }
-      setReady(true);
     })();
+    return () => {
+      cancelled = true;
+      document.documentElement.classList.remove(HYDRATION_BUSY_CLASS);
+    };
   }, []);
-
-  if (!ready) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm font-medium text-slate-500">
-        Laden…
-      </div>
-    );
-  }
 
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/impressum" element={<ImpressumPage />} />
-        <Route path="/datenschutz" element={<DatenschutzPage />} />
-        <Route path="/agb" element={<AgbPage />} />
-        <Route path="/login" element={<AuthScreen />} />
-        <Route path="/etsy/callback" element={<EtsyCallbackPage />} />
-        <Route path="/pinterest/callback" element={<PinterestCallbackPage />} />
-        <Route path="/*" element={<App />} />
-      </Routes>
+      {!ready ? (
+        <div className="flex min-h-screen items-center justify-center bg-slate-50 pb-16 text-sm font-medium text-slate-500">
+          Laden…
+        </div>
+      ) : (
+        <div className="min-h-screen pb-16">
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/impressum" element={<ImpressumPage />} />
+            <Route path="/datenschutz" element={<DatenschutzPage />} />
+            <Route path="/agb" element={<AgbPage />} />
+            <Route path="/login" element={<AuthScreen />} />
+            <Route path="/etsy/callback" element={<EtsyCallbackPage />} />
+            <Route path="/pinterest/callback" element={<PinterestCallbackPage />} />
+            <Route path="/*" element={<App />} />
+          </Routes>
+        </div>
+      )}
+      <GlobalLegalFooter />
       <Toaster />
     </BrowserRouter>
   );

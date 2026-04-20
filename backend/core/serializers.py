@@ -89,7 +89,12 @@ class TemplateSerializer(serializers.ModelSerializer):
         return url
 
     def get_elements(self, obj: Template) -> list[dict[str, Any]]:
-        rows = obj.element_rows.all().order_by("order", "id")
+        # Bei Prefetch: .order_by() auf dem Related-Manager löst oft einen Extra-Query aus.
+        cache = getattr(obj, "_prefetched_objects_cache", None)
+        if cache and "element_rows" in cache:
+            rows = obj.element_rows.all()
+        else:
+            rows = obj.element_rows.all().order_by("order", "id")
         return [TemplateElementSerializer(r, context=self.context).data for r in rows]
 
 

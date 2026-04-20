@@ -261,7 +261,10 @@ class GelatoTemplateListView(APIView):
         conn = GelatoConnection.objects.filter(user=request.user, is_active=True).first()
         if not conn:
             return Response([])
-        templates = GelatoTemplate.objects.filter(connection=conn, is_active=True)
+        templates = GelatoTemplate.objects.filter(connection=conn, is_active=True).order_by(
+            "name",
+            "id",
+        )
         return Response(GelatoTemplateSerializer(templates, many=True).data)
 
 

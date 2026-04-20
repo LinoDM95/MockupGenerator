@@ -125,6 +125,33 @@
     cursor: pointer;
   }
 
+  /* Globaler Warte-Cursor (System-Uhr/Glyphe): API, erste Ladephase, Navigation gesperrt. */
+  html.app-global-busy,
+  html.app-initial-hydration,
+  html.app-nav-locked-busy {
+    cursor: wait;
+  }
+
+  html.app-global-busy *,
+  html.app-initial-hydration *,
+  html.app-nav-locked-busy * {
+    cursor: wait !important;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html.app-global-busy,
+    html.app-initial-hydration,
+    html.app-nav-locked-busy {
+      cursor: progress;
+    }
+
+    html.app-global-busy *,
+    html.app-initial-hydration *,
+    html.app-nav-locked-busy * {
+      cursor: progress !important;
+    }
+  }
+
   button,
   [role="button"],
   a,

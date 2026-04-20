@@ -2,7 +2,7 @@
  * Local FastAPI Companion (Standard: Port 8001, Django bleibt auf 8000).
  *
  * - Dev (Vite): Requests gehen über `/__companion` → Proxy gleicher Origin, kein CORS-Problem.
- * - Produktion: Direkt `http://localhost:8001` (Companion muss CORS für deine App-Origin erlauben).
+ * - Produktion / Django-SPA (Port 8000): Direkt `http://127.0.0.1:8001` — der Companion erlaubt :8000 standardmäßig; andere Origins: `COMPANION_CORS_ORIGINS`.
  *
  * Override: `VITE_COMPANION_URL` z. B. `http://127.0.0.1:8001`
  */

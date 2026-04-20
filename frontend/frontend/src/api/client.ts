@@ -1,3 +1,4 @@
+import { bumpApiInFlightForPath } from "../lib/globalBusyCursor";
 import { useAppStore } from "../store/appStore";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
@@ -108,14 +109,19 @@ export class ApiError extends Error {
 }
 
 export const apiFetch = async (path: string, init: RequestInit = {}): Promise<Response> => {
-  const res = await apiFetchOnce(path, init);
-  if (res.status !== 401 || !shouldTryRefreshOn401(path)) return res;
+  bumpApiInFlightForPath(path, 1);
+  try {
+    const res = await apiFetchOnce(path, init);
+    if (res.status !== 401 || !shouldTryRefreshOn401(path)) return res;
 
-  const refreshed = await refreshAccessToken();
-  if (refreshed) return apiFetchOnce(path, init);
+    const refreshed = await refreshAccessToken();
+    if (refreshed) return await apiFetchOnce(path, init);
 
-  useAppStore.getState().logoutLocal();
-  return res;
+    useAppStore.getState().logoutLocal();
+    return res;
+  } finally {
+    bumpApiInFlightForPath(path, -1);
+  }
 };
 
 export const apiJson = async <T>(path: string, init: RequestInit = {}): Promise<T> => {

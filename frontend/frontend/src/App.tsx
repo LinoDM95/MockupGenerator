@@ -1,11 +1,12 @@
 import type { ComponentType } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 import { Compass, Link2, Layers, LogOut, RefreshCw, UserCircle, Zap } from "lucide-react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { cn } from "./lib/cn";
+import { NAV_LOCKED_BUSY_CLASS } from "./lib/globalBusyCursor";
 import { Button } from "./components/ui/Button";
 import { ThemeToggle } from "./components/ui/ThemeToggle";
 import { DialogHost } from "./components/DialogHost";
@@ -47,6 +48,13 @@ function App() {
   const [showBatchLauncherRefresh] = useState(
     () => typeof sessionStorage !== "undefined" && sessionStorage.getItem("mockupLauncherBatch") === "1",
   );
+
+  useEffect(() => {
+    const el = document.documentElement;
+    if (navigationLocked) el.classList.add(NAV_LOCKED_BUSY_CLASS);
+    else el.classList.remove(NAV_LOCKED_BUSY_CLASS);
+    return () => el.classList.remove(NAV_LOCKED_BUSY_CLASS);
+  }, [navigationLocked]);
 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 

@@ -115,8 +115,8 @@ def _pinterest_platform_row(user: AbstractUser) -> SocialPlatform | None:
     ).first()
 
 
-def pinterest_effective_connected(user: AbstractUser) -> bool:
-    sp = _pinterest_platform_row(user)
+def pinterest_effective_connected_from_row(sp: SocialPlatform | None) -> bool:
+    """Status aus bereits geladener Zeile (ein Query weniger im Integrations-Hub)."""
     if not sp:
         return False
     token = sp.get_access_token()
@@ -125,6 +125,11 @@ def pinterest_effective_connected(user: AbstractUser) -> bool:
     if sp.expires_at and sp.expires_at <= timezone.now():
         return False
     return True
+
+
+def pinterest_effective_connected(user: AbstractUser) -> bool:
+    sp = _pinterest_platform_row(user)
+    return pinterest_effective_connected_from_row(sp)
 
 
 def test_pinterest_connection(user: AbstractUser) -> None:

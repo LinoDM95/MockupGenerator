@@ -6,7 +6,6 @@ import { motion } from "framer-motion";
 import { login, register } from "../api/auth";
 import { getErrorMessage } from "../lib/error";
 import { useAppStore } from "../store/appStore";
-import { LegalFooterNav } from "./legal/LegalFooterNav";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
@@ -124,7 +123,6 @@ export const AuthScreen = () => {
             {mode === "login" ? "Noch kein Konto? Registrieren" : "Schon ein Konto? Einloggen"}
           </button>
         </Card>
-        <LegalFooterNav className="mt-8 text-slate-400" dense />
       </motion.div>
     </div>
   );

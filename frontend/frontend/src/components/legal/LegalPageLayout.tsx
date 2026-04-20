@@ -66,21 +66,6 @@ export const LegalPageLayout = ({ title, children }: Props) => {
         >
           {children}
         </div>
-
-        <nav
-          className="mt-12 flex flex-wrap gap-x-5 gap-y-2 border-t border-slate-200/80 pt-8 text-sm font-semibold text-slate-600"
-          aria-label="Weitere Rechtstexte"
-        >
-          <Link to="/impressum" className="hover:text-indigo-600">
-            Impressum
-          </Link>
-          <Link to="/datenschutz" className="hover:text-indigo-600">
-            Datenschutz
-          </Link>
-          <Link to="/agb" className="hover:text-indigo-600">
-            AGB
-          </Link>
-        </nav>
       </main>
     </div>
   );
