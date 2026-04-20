@@ -76,7 +76,7 @@ function App() {
       <DialogHost />
 
       <header className="pointer-events-none sticky top-4 z-[220] px-2 sm:px-6 lg:px-8">
-        <div className="pointer-events-auto mx-auto flex min-h-14 w-full min-w-0 max-w-7xl flex-wrap items-center justify-between gap-x-2 gap-y-2 rounded-full bg-white px-2 py-1.5 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 sm:h-14 sm:flex-nowrap sm:px-6 sm:py-0">
+        <div className="pointer-events-auto mx-auto flex min-h-14 w-full min-w-0 max-w-7xl flex-wrap items-center justify-between gap-x-2 gap-y-2 rounded-full border border-white/40 bg-white/70 px-2 py-1.5 shadow-[0_8px_30px_rgb(0,0,0,0.06)] ring-1 ring-slate-900/5 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/65 dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)] dark:ring-white/10 sm:h-14 sm:flex-nowrap sm:px-6 sm:py-0">
           <div className="flex min-w-0 shrink-0 items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 shadow-sm">
               <Zap size={16} className="text-white" fill="currentColor" />

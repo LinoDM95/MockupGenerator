@@ -1,6 +1,7 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
+import { AnimatedGridBackground } from "../components/marketing/AnimatedGridBackground";
 import { ThemeToggle } from "../components/ui/ThemeToggle";
 import { cn } from "../lib/cn";
 import {
@@ -38,86 +39,6 @@ import {
 } from "lucide-react";
 
 const appleEase: [number, number, number, number] = [0.22, 1, 0.36, 1];
-
-/* ------------------------------------------------------------------ */
-/* Helper: Animated Grid Background (Lila Kacheln mit starken Linien) */
-/* ------------------------------------------------------------------ */
-const AnimatedGrid = ({
-  width = 40,
-  height = 40,
-  numSquares = 30,
-  className,
-}: {
-  width?: number;
-  height?: number;
-  numSquares?: number;
-  className?: string;
-}) => {
-  const id = useId();
-
-  const squares = useMemo(() => {
-    return Array.from({ length: numSquares }).map(() => ({
-      x: Math.floor(Math.random() * 50),
-      y: Math.floor(Math.random() * 50),
-      duration: Math.random() * 3 + 2,
-      delay: Math.random() * 2,
-    }));
-  }, [numSquares]);
-
-  return (
-    <svg
-      aria-hidden="true"
-      className={cn(
-        "pointer-events-none absolute inset-0 h-full w-full",
-        className,
-      )}
-    >
-      <defs>
-        <pattern
-          id={id}
-          width={width}
-          height={height}
-          patternUnits="userSpaceOnUse"
-          x="-1"
-          y="-1"
-        >
-          <path
-            d={`M.5 ${height}V.5H${width}`}
-            fill="none"
-            strokeWidth="1"
-            className="stroke-slate-300/80"
-          />
-        </pattern>
-      </defs>
-
-      {/* 1. Ebene: lila Kacheln */}
-      <svg x="-1" y="-1" className="overflow-visible">
-        {squares.map((sq, i) => (
-          <motion.rect
-            key={i}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: [0, 0.4, 0] }}
-            transition={{
-              duration: sq.duration,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: sq.delay,
-            }}
-            width={width}
-            height={height}
-            x={sq.x * width}
-            y={sq.y * height}
-            className="fill-violet-500"
-            strokeWidth="0"
-          />
-        ))}
-      </svg>
-
-      {/* 2. Ebene: Raster-Linien über den Kacheln */}
-      <rect width="100%" height="100%" strokeWidth={0} fill={`url(#${id})`} />
-    </svg>
-  );
-};
 
 /* ------------------------------------------------------------------ */
 /* Helper: fade-in on scroll                                          */
@@ -186,7 +107,7 @@ const Hero = () => {
   return (
   <section className="relative overflow-hidden bg-slate-50 pb-16 pt-24 sm:pb-20 sm:pt-28 md:pb-24 md:pt-32">
     {/* Neues animiertes Grid mit weicher Kante (radial-gradient) */}
-    <AnimatedGrid 
+    <AnimatedGridBackground 
       width={40} 
       height={40} 
       numSquares={40} 
@@ -520,7 +441,7 @@ const steps = [
 
 const StepVisualUpload = () => (
   <div className="relative mx-auto w-full max-w-sm">
-    <AnimatedGrid 
+    <AnimatedGridBackground 
       width={24} 
       height={24} 
       numSquares={15} 
@@ -777,7 +698,7 @@ const HowItWorks = () => {
   return (
     <section id="how-it-works" ref={containerRef} className="relative overflow-hidden bg-slate-50 py-24 lg:py-32">
       {/* Auch hier ein leichter Hintergrundeffekt, aber dezent */}
-      <AnimatedGrid 
+      <AnimatedGridBackground 
         width={48} 
         height={48} 
         numSquares={20} 
@@ -1182,7 +1103,7 @@ const Marquee = () => (
 const FinalCTA = () => (
   <section className="relative overflow-hidden bg-slate-50 py-24 lg:py-32">
     {/* Finales Grid mit dichterer Kachelanordnung für einen krönenden Abschluss */}
-    <AnimatedGrid 
+    <AnimatedGridBackground 
       width={32} 
       height={32} 
       numSquares={60} 
@@ -1216,23 +1137,6 @@ const FinalCTA = () => (
       </FadeIn>
     </div>
   </section>
-);
-
-/* ------------------------------------------------------------------ */
-/* SECTION 6 — Footer                                                 */
-/* ------------------------------------------------------------------ */
-const Footer = () => (
-  <footer className="border-t border-slate-200/60 bg-slate-50 py-12 pb-24 sm:pb-28">
-    <div className="mx-auto flex max-w-7xl flex-col items-center justify-center gap-5 px-4 sm:px-6 lg:px-8">
-      <span className="flex items-center gap-2 text-base font-bold tracking-tight text-slate-900">
-        <Zap size={18} className="text-indigo-600" fill="currentColor" strokeWidth={2} />
-        Creative Engine
-      </span>
-      <p className="text-center text-sm font-medium text-slate-400">
-        &copy; {new Date().getFullYear()} Alle Rechte vorbehalten.
-      </p>
-    </div>
-  </footer>
 );
 
 /* ------------------------------------------------------------------ */
@@ -1351,6 +1255,5 @@ export const LandingPage = () => (
     <BentoGrid />
     <Marquee />
     <FinalCTA />
-    <Footer />
   </div>
 );

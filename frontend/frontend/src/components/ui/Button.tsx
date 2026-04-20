@@ -3,7 +3,7 @@ import { forwardRef, type ButtonHTMLAttributes } from "react";
 import { cn } from "../../lib/cn";
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "primary" | "secondary" | "outline" | "ghost" | "danger";
+  variant?: "primary" | "secondary" | "outline" | "ghost" | "danger" | "premium";
   size?: "sm" | "md" | "lg";
 };
 
@@ -20,6 +20,8 @@ const variantStyles: Record<NonNullable<ButtonProps["variant"]>, string> = {
     "bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-slate-500/50",
   danger:
     "bg-red-50 text-red-700 hover:bg-red-100 focus-visible:ring-red-500/50",
+  premium:
+    "bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md shadow-indigo-500/20 hover:scale-[1.02] hover:from-indigo-600 hover:to-violet-700 focus-visible:ring-indigo-500/40 active:scale-[0.98]",
 };
 
 const sizeStyles: Record<NonNullable<ButtonProps["size"]>, string> = {
