@@ -82,6 +82,8 @@ class TemplateSerializer(serializers.ModelSerializer):
             return None
         request = self.context.get("request")
         url = obj.background_image.url
+        if url.startswith(("http://", "https://")):
+            return url
         if request is not None:
             return request.build_absolute_uri(url)
         return url

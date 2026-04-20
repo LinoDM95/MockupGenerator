@@ -1,5 +1,8 @@
 """Bereinigung abgelaufener Temp-Designs auf R2 — ohne Celery über Middleware + Upload-Hook.
 
+Es werden nur ``TemporaryDesignUpload``-Zeilen unter ``temp_designs/`` entfernt.
+Dauerhafte Vorlagen-Hintergründe (``template_backgrounds/``) werden nicht angefasst.
+
 Bei Bedarf: ``force=True`` (Management-Command, optionaler Celery-Task) ignoriert Cooldown.
 """
 

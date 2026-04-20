@@ -6,6 +6,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 import httpx
+from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Max
@@ -81,6 +82,53 @@ def _same_host_url(request, url: str) -> bool:
             return True
         host = request.get_host()
         return p.netloc.lower() == host.lower()
+    except Exception:
+        return False
+
+
+def _trusted_r2_template_bg_netlocs() -> set[str]:
+    """Hosts, unter denen dauerhafte Vorlagen-Hintergründe öffentlich liegen (SSRF-Allowlist)."""
+    out: set[str] = set()
+    dom = (getattr(settings, "AWS_S3_CUSTOM_DOMAIN", "") or "").strip()
+    if dom:
+        d = dom.lower().rstrip("/")
+        if "://" in d:
+            net = urlparse(d).netloc.lower()
+            if net:
+                out.add(net)
+        else:
+            out.add(d.split("/")[0].lower())
+    ep = (getattr(settings, "AWS_S3_ENDPOINT_URL", "") or "").strip()
+    if ep:
+        net = urlparse(ep).netloc.lower()
+        if net:
+            out.add(net)
+    return out
+
+
+def _durable_template_bg_url_path(url: str) -> bool:
+    """Nur Keys unter template_backgrounds/ — nie temp_designs/ oder andere Präfixe."""
+    try:
+        p = urlparse(url)
+        path = (p.path or "").replace("\\", "/").lower()
+        if not path.startswith("/"):
+            path = "/" + path
+        return path.startswith("/template_backgrounds/")
+    except Exception:
+        return False
+
+
+def _import_bg_url_allowed(request, url: str) -> bool:
+    """Gleiche Origin wie API oder öffentliche R2-URL unter template_backgrounds/."""
+    if _same_host_url(request, url):
+        return True
+    try:
+        p = urlparse(url)
+        if p.scheme not in ("http", "https"):
+            return False
+        if not _durable_template_bg_url_path(url):
+            return False
+        return p.netloc.lower() in _trusted_r2_template_bg_netlocs()
     except Exception:
         return False
 
@@ -163,7 +211,8 @@ class TemplateSetViewSet(viewsets.ModelViewSet):
     def import_set(self, request):
         """
         POST …/import/ — exportiertes Set-JSON.
-        Lädt Hintergrundbilder nur von derselben Host-Angabe wie der Request (mitigiert SSRF).
+        Lädt Hintergrundbilder nur von derselben Origin wie die API oder von R2
+        (AWS_S3_CUSTOM_DOMAIN / Endpoint), ausschließlich unter ``template_backgrounds/`` (SSRF).
         """
         body = request.data
         if not isinstance(body, dict):
@@ -183,9 +232,12 @@ class TemplateSetViewSet(viewsets.ModelViewSet):
             if not bg:
                 continue
             abs_url = request.build_absolute_uri(bg) if str(bg).startswith("/") else str(bg)
-            if not _same_host_url(request, abs_url):
+            if not _import_bg_url_allowed(request, abs_url):
                 return Response(
-                    {"detail": "bgImage muss dieselbe Origin wie die API haben."},
+                    {
+                        "detail": "bgImage muss unter derselben Origin wie die API erreichbar sein "
+                        "oder eine erlaubte R2-URL unter template_backgrounds/ sein."
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             try:
