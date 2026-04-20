@@ -13,7 +13,7 @@ export const GlobalLegalFooter = () => {
 
   return (
     <footer
-      className="w-full shrink-0 bg-white/90 shadow-[0_-2px_12px_rgba(0,0,0,0.04)] ring-1 ring-slate-900/5 backdrop-blur-xl dark:bg-slate-950/90 dark:ring-white/10"
+      className="w-full shrink-0 bg-white/90 shadow-[0_-2px_12px_rgba(0,0,0,0.04)] ring-1 ring-slate-900/5 backdrop-blur-xl dark:bg-slate-900/95 dark:shadow-[0_-2px_20px_rgba(0,0,0,0.45)] dark:ring-white/10"
       role="contentinfo"
     >
       <div className="mx-auto flex max-w-7xl flex-col items-center gap-5 px-4 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-8">

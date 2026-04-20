@@ -63,7 +63,7 @@ export const AuthScreen = () => {
         width={40}
         height={40}
         numSquares={36}
-        className="z-0 opacity-80 [mask-image:radial-gradient(ellipse_at_center,white,transparent_72%)]"
+        className="z-0 opacity-80 [mask-image:radial-gradient(ellipse_at_center,white,transparent_72%)] dark:opacity-100 dark:[mask-image:radial-gradient(ellipse_at_center,rgba(248,250,252,0.12),transparent_70%)]"
       />
       <div
         className="pointer-events-none absolute left-1/2 top-0 -z-10 h-[min(100vw,52rem)] w-[min(100vw,52rem)] -translate-x-1/2 -translate-y-[28%] rounded-full bg-indigo-500/15 blur-[100px] mix-blend-multiply dark:bg-indigo-600/20 dark:mix-blend-normal"

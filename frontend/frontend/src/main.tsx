@@ -50,9 +50,9 @@ const AppShell = () => {
 
   return (
     <BrowserRouter>
-      <div className="flex min-h-screen flex-col bg-slate-50">
+      <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
         {!ready ? (
-          <div className="flex min-h-0 flex-1 items-center justify-center text-sm font-medium text-slate-500">
+          <div className="flex min-h-0 flex-1 items-center justify-center text-sm font-medium text-slate-500 dark:text-slate-400">
             Laden…
           </div>
         ) : (

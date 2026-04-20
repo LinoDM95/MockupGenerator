@@ -34,8 +34,10 @@ export const AppSubNavPageLayout = ({
     <header className="w-full min-w-0 pb-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">{title}</h1>
-          <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">{description}</p>
+          <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-2xl">
+            {title}
+          </h1>
+          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 sm:text-sm">{description}</p>
         </div>
         {subNav ? (
           <LayoutGroup>

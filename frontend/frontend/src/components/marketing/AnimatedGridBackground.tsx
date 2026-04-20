@@ -46,7 +46,7 @@ export const AnimatedGridBackground = ({
             d={`M.5 ${height}V.5H${width}`}
             fill="none"
             strokeWidth="1"
-            className="stroke-slate-300/80"
+            className="stroke-slate-300/80 dark:stroke-slate-600/45"
           />
         </pattern>
       </defs>
@@ -67,7 +67,7 @@ export const AnimatedGridBackground = ({
             height={height}
             x={sq.x * width}
             y={sq.y * height}
-            className="fill-violet-500"
+            className="fill-violet-500 dark:fill-violet-400/35"
             strokeWidth="0"
           />
         ))}
