@@ -1,5 +1,7 @@
 /// <reference types="vite/client" />
 
+declare module "@fontsource-variable/inter";
+
 interface ImportMetaEnv {
   /** Absoluter Pfad zum Repo-Root fuer optionalen cd-Zeile in Kopiertext. */
   readonly VITE_MOCKUP_REPO_ROOT?: string;
