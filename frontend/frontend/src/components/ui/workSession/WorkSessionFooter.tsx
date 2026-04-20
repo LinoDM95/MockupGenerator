@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 
-import { cn } from "../../../lib/cn";
-import { Button } from "../Button";
+import { cn } from "../../../lib/ui/cn";
+import { Button } from "../primitives/Button";
 import { PixelGlyph } from "./PixelGlyph";
 
 export type WorkSessionFooterProps = {

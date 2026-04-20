@@ -23,14 +23,14 @@ import {
   aiUpdatePreferExpertMode,
   aiUpdateVertexServiceAccount,
 } from "../../api/ai";
-import { getErrorMessage } from "../../lib/error";
-import { toast } from "../../lib/toast";
-import { AppPage } from "../ui/AppPage";
-import { Button } from "../ui/Button";
-import { Card } from "../ui/Card";
-import { Dropzone } from "../ui/Dropzone";
-import { Input } from "../ui/Input";
-import { Select } from "../ui/Select";
+import { getErrorMessage } from "../../lib/common/error";
+import { toast } from "../../lib/ui/toast";
+import { AppPage } from "../ui/layout/AppPage";
+import { Button } from "../ui/primitives/Button";
+import { Card } from "../ui/primitives/Card";
+import { Dropzone } from "../ui/patterns/Dropzone";
+import { Input } from "../ui/primitives/Input";
+import { Select } from "../ui/primitives/Select";
 
 const MODEL_OPTIONS = [
   { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },

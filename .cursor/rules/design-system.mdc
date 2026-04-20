@@ -13,7 +13,7 @@ Gilt für die **eingeloggte App** (`src/components/`, `src/pages/` außer bewuss
 - **Primär:** `bg-white` für Karten, Modals, schwebende Panels, Toasts.
 - **Eingebettet / sekundär:** `bg-slate-50` oder `bg-slate-50/50` für Gruppen innerhalb einer Seite.
 - **Dichte UI (z. B. „Terminal“):** `bg-slate-900` mit heller Typo – nur wo semantisch passend.
-- **Kein** `backdrop-blur` auf **Toasts**, **Floating-Panels** oder **Karten-Inhalten** (Text soll gestochen scharf bleiben). **Ausnahme:** Vollflächige **Modal-Overlays** dürfen `backdrop-blur-sm` nutzen (siehe `Modal.tsx`).
+- **Kein** `backdrop-blur` auf **Toasts**, **Floating-Panels** oder **Karten-Inhalten** (Text soll gestochen scharf bleiben). **Ausnahme:** Vollflächige **Modal-Overlays** dürfen `backdrop-blur-sm` nutzen (siehe `overlay/Modal.tsx`).
 
 ## Abgrenzung (Rings statt Borders)
 
@@ -37,8 +37,8 @@ Gilt für die **eingeloggte App** (`src/components/`, `src/pages/` außer bewuss
 ## Komponenten-Pflicht
 
 - Neue **Flächen** bevorzugt über **`Card`** (`padding`, `variant`, `interactive`).
-- **Buttons** nur **`Button`** (`src/components/ui/Button.tsx`).
-- **Formfelder** über **`Input`** / **`Select`** – gleicher Fokus wie in `Input.tsx` (`focus:ring-4 focus:ring-indigo-500/10`). Abweichungen nur mit kurzer Begründung (z. B. native color picker).
+- **Buttons** nur **`Button`** (`src/components/ui/primitives/Button.tsx`).
+- **Formfelder** über **`Input`** / **`Select`** – gleicher Fokus wie in `primitives/Input.tsx` (`focus:ring-4 focus:ring-indigo-500/10`). Abweichungen nur mit kurzer Begründung (z. B. native color picker).
 
 ## Callouts & Infoboxen
 

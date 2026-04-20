@@ -20,24 +20,24 @@ import {
   saveIntegration,
   testIntegrationConnection,
 } from "../../api/settings";
-import { getErrorMessage } from "../../lib/error";
+import { getErrorMessage } from "../../lib/common/error";
 import {
   getDefaultHubTab,
   isIntegrationHubUiEnabled,
   type HubTabId,
-} from "../../lib/integrationAvailability";
-import { cn } from "../../lib/cn";
-import { toast } from "../../lib/toast";
+} from "../../lib/common/integrationAvailability";
+import { cn } from "../../lib/ui/cn";
+import { toast } from "../../lib/ui/toast";
 import { useAppStore } from "../../store/appStore";
 import { AISetup } from "../ai/AISetup";
 import { EtsyIntegrationSetup } from "../etsy/EtsyIntegrationSetup";
 import { GelatoSetup } from "../gelato/GelatoSetup";
 import { MarketingIntegrationSetup } from "../marketing/MarketingIntegrationSetup";
-import { AppPageSectionHeader } from "../ui/AppPageSectionHeader";
-import { Button } from "../ui/Button";
-import { Card } from "../ui/Card";
-import { Input } from "../ui/Input";
-import { PanelModal } from "../ui/PanelModal";
+import { AppPageSectionHeader } from "../ui/layout/AppPageSectionHeader";
+import { Button } from "../ui/primitives/Button";
+import { Card } from "../ui/primitives/Card";
+import { Input } from "../ui/primitives/Input";
+import { PanelModal } from "../ui/overlay/PanelModal";
 
 export type { HubTabId };
 

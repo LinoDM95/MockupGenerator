@@ -24,15 +24,15 @@ import {
   type StragglerPhase,
   zipStepVisual,
   type StepCounts,
-} from "../../lib/automationPipeline";
-import { cn } from "../../lib/cn";
-import { getErrorMessage } from "../../lib/error";
-import { toast } from "../../lib/toast";
+} from "../../lib/automation/automationPipeline";
+import { cn } from "../../lib/ui/cn";
+import { getErrorMessage } from "../../lib/common/error";
+import { toast } from "../../lib/ui/toast";
 import { useAppStore } from "../../store/appStore";
-import { AppPageSectionHeader } from "../ui/AppPageSectionHeader";
-import { AppSubNavPageLayout } from "../ui/AppSubNavPageLayout";
-import { Button } from "../ui/Button";
-import { Card } from "../ui/Card";
+import { AppPageSectionHeader } from "../ui/layout/AppPageSectionHeader";
+import { AppSubNavPageLayout } from "../ui/layout/AppSubNavPageLayout";
+import { Button } from "../ui/primitives/Button";
+import { Card } from "../ui/primitives/Card";
 
 const POLL_MS = 2000;
 const MODEL_OPTIONS = [

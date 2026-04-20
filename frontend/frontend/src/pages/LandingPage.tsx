@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { AnimatedGridBackground } from "../components/marketing/AnimatedGridBackground";
-import { ThemeToggle } from "../components/ui/ThemeToggle";
-import { cn } from "../lib/cn";
+import { ThemeToggle } from "../components/ui/primitives/ThemeToggle";
+import { cn } from "../lib/ui/cn";
 import {
   AnimatePresence,
   motion,

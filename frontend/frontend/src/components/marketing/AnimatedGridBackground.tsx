@@ -1,7 +1,7 @@
 import { useId, useMemo } from "react";
 import { motion } from "framer-motion";
 
-import { cn } from "../../lib/cn";
+import { cn } from "../../lib/ui/cn";
 
 type Props = {
   width?: number;

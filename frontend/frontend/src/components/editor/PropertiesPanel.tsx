@@ -1,10 +1,10 @@
 import { AlignCenter, AlignLeft, AlignRight, Bold, Italic, Settings } from "lucide-react";
 
-import { FONT_FAMILIES } from "../../lib/constants";
+import { FONT_FAMILIES } from "../../lib/editor/constants";
 import type { TemplateElement } from "../../types/mockup";
-import { Input } from "../ui/Input";
-import { Select } from "../ui/Select";
-import { Slider } from "../ui/Slider";
+import { Input } from "../ui/primitives/Input";
+import { Select } from "../ui/primitives/Select";
+import { Slider } from "../ui/primitives/Slider";
 
 type Props = {
   activeEl: TemplateElement | null;

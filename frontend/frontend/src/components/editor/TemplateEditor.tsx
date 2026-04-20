@@ -7,24 +7,24 @@ import {
   createPreviewMotifDataUrl,
   PREVIEW_MOTIF_VARIANT_COUNT,
   previewVariantSwatchStyle,
-} from "../../lib/previewSampleMotif";
-import { newClientElementId } from "../../lib/elementId";
+} from "../../lib/editor/previewSampleMotif";
+import { newClientElementId } from "../../lib/editor/elementId";
 import {
   FRAME_SHADOW_ALL,
   FRAME_SHADOW_SIDE_ORDER,
   type FrameShadowSideId,
   frameShadowBitForSide,
   toggleSideInMask,
-} from "../../lib/frameShadowSides";
-import { toast } from "../../lib/toast";
-import { cn } from "../../lib/cn";
-import { workspaceEmbeddedPaddedClassName } from "../../lib/workspaceSurfaces";
+} from "../../lib/editor/frameShadowSides";
+import { toast } from "../../lib/ui/toast";
+import { cn } from "../../lib/ui/cn";
+import { workspaceEmbeddedPaddedClassName } from "../../lib/ui/workspaceSurfaces";
 import type { ElementType, FrameStyle, TemplateElement } from "../../types/mockup";
 import { useAppStore } from "../../store/appStore";
-import { appPageSectionTitleClassName } from "../ui/AppPageSectionHeader";
-import { Button } from "../ui/Button";
-import { LinearLoadingBar } from "../ui/LinearLoadingBar";
-import { Select } from "../ui/Select";
+import { appPageSectionTitleClassName } from "../ui/layout/AppPageSectionHeader";
+import { Button } from "../ui/primitives/Button";
+import { LinearLoadingBar } from "../ui/overlay/LinearLoadingBar";
+import { Select } from "../ui/primitives/Select";
 import { CanvasViewport } from "./CanvasViewport";
 import { LayerManager } from "./LayerManager";
 import { PropertiesPanel } from "./PropertiesPanel";

@@ -4,7 +4,7 @@ import {
 } from "../components/legal/IndentedLegalPoints";
 import { LegalPageLayout } from "../components/legal/LegalPageLayout";
 import { getLegalSiteConfig } from "../lib/legal/config";
-import { cn } from "../lib/cn";
+import { cn } from "../lib/ui/cn";
 
 export const AgbPage = () => {
   const c = getLegalSiteConfig();

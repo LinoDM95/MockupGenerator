@@ -23,11 +23,11 @@ import {
   type UpscaleResult,
 } from "../api/upscaler";
 
-import { COMPANION_BASE_URL } from "../lib/companionConstants";
+import { COMPANION_BASE_URL } from "../lib/companion/companionConstants";
 import {
   fetchCompanionTileProgress,
   type CompanionTileProgressReady,
-} from "../lib/companionTileProgress";
+} from "../lib/companion/companionTileProgress";
 
 export { COMPANION_BASE_URL };
 

@@ -10,7 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { GelatoExportTask } from "../../api/gelato";
 import { gelatoGetTaskStatus } from "../../api/gelato";
-import { Button } from "../ui/Button";
+import { Button } from "../ui/primitives/Button";
 
 const POLL_INTERVAL_MS = 3000;
 

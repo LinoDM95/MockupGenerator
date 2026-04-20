@@ -1,8 +1,8 @@
 import { useCallback, useEffect } from "react";
 
 import { fetchTemplateSets } from "../api/sets";
-import { getErrorMessage } from "../lib/error";
-import { toast } from "../lib/toast";
+import { getErrorMessage } from "../lib/common/error";
+import { toast } from "../lib/ui/toast";
 import { useAppStore } from "../store/appStore";
 
 export const useLoadTemplateSets = (opts?: { silent?: boolean }) => {

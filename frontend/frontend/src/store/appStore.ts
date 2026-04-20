@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
-import { isIntegrationHubUiEnabled, type HubTabId } from "../lib/integrationAvailability";
-import { toast } from "../lib/toast";
+import { isIntegrationHubUiEnabled, type HubTabId } from "../lib/common/integrationAvailability";
+import { toast } from "../lib/ui/toast";
 import type { ArtworkItem, Template, TemplateSet } from "../types/mockup";
 
 /** Hauptnavigation (Header): weniger Einträge, mehr Struktur. */

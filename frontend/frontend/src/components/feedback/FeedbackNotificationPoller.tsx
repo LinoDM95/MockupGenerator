@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
 
 import { ackFeedbackNotifications, fetchPendingFeedbackNotifications } from "../../api/feedback";
-import { getErrorMessage } from "../../lib/error";
-import { toast } from "../../lib/toast";
+import { getErrorMessage } from "../../lib/common/error";
+import { toast } from "../../lib/ui/toast";
 
 const POLL_MS = 50_000;
 

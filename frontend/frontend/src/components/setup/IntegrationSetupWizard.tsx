@@ -7,9 +7,9 @@ import { fetchIntegrationStatus } from "../../api/settings";
 import { useAppStore } from "../../store/appStore";
 import { AISetup } from "../ai/AISetup";
 import { GelatoSetup } from "../gelato/GelatoSetup";
-import { AppPageSectionHeader } from "../ui/AppPageSectionHeader";
-import { AppTabStepButton } from "../ui/AppTabStepButton";
-import { Button } from "../ui/Button";
+import { AppPageSectionHeader } from "../ui/layout/AppPageSectionHeader";
+import { AppTabStepButton } from "../ui/layout/AppTabStepButton";
+import { Button } from "../ui/primitives/Button";
 import { WIZARD_STEPS } from "./integrationWizardCopy";
 import type { WizardStepCopy } from "./integrationWizardCopy";
 

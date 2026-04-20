@@ -5,7 +5,7 @@ import {
   FRAME_SHADOW_LEFT,
   FRAME_SHADOW_RIGHT,
   FRAME_SHADOW_TOP,
-} from "../frameShadowSides";
+} from "../editor/frameShadowSides";
 
 /** Entspricht der Ausdehnung in `drawRealisticFrame` (Außenkante um Motiv-Rechteck). */
 export const getFrameThickness = (w: number, h: number): number => Math.max(w, h) * 0.025;

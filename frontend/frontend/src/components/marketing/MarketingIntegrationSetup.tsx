@@ -7,11 +7,11 @@ import {
   marketingOAuthStart,
 } from "../../api/marketing";
 import { useIntegrationFlags } from "../../hooks/useIntegrationFlags";
-import { getErrorMessage } from "../../lib/error";
-import { toast } from "../../lib/toast";
+import { getErrorMessage } from "../../lib/common/error";
+import { toast } from "../../lib/ui/toast";
 import { useAppStore } from "../../store/appStore";
-import { Button } from "../ui/Button";
-import { IntegrationMissingCallout } from "../ui/IntegrationMissingCallout";
+import { Button } from "../ui/primitives/Button";
+import { IntegrationMissingCallout } from "../ui/patterns/IntegrationMissingCallout";
 
 /**
  * Pinterest OAuth im zentralen Integrations-Setup.

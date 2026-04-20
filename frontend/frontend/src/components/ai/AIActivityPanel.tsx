@@ -1,13 +1,13 @@
 import { MessageSquare, PanelRightClose, PanelRightOpen, Trash2, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
-import { cn } from "../../lib/cn";
+import { cn } from "../../lib/ui/cn";
 import {
   useAiActivityStore,
   type AiActivityEntry,
   type AiActivityKind,
 } from "../../store/aiActivityStore";
-import { Button } from "../ui/Button";
+import { Button } from "../ui/primitives/Button";
 
 const kindLabel = (k: AiActivityKind): string => {
   if (k === "standard") return "Standard";

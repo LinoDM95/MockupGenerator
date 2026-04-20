@@ -30,16 +30,16 @@ import {
   type EtsyListingImage,
 } from "../../api/etsy";
 import { useCanvasRender } from "../../hooks/useCanvasRender";
-import { cn } from "../../lib/cn";
-import { toast } from "../../lib/toast";
+import { cn } from "../../lib/ui/cn";
+import { toast } from "../../lib/ui/toast";
 import { useAppStore } from "../../store/appStore";
 import type { Template } from "../../types/mockup";
-import { AppPageSectionHeader } from "../ui/AppPageSectionHeader";
-import { Button } from "../ui/Button";
-import { Card } from "../ui/Card";
-import { EmptyState } from "../ui/EmptyState";
-import { IntegrationMissingCallout } from "../ui/IntegrationMissingCallout";
-import { Select } from "../ui/Select";
+import { AppPageSectionHeader } from "../ui/layout/AppPageSectionHeader";
+import { Button } from "../ui/primitives/Button";
+import { Card } from "../ui/primitives/Card";
+import { EmptyState } from "../ui/layout/EmptyState";
+import { IntegrationMissingCallout } from "../ui/patterns/IntegrationMissingCallout";
+import { Select } from "../ui/primitives/Select";
 import { renderTemplateToPngBlob } from "./mockupExport";
 
 type NewSlot = { key: string; assetId: string };

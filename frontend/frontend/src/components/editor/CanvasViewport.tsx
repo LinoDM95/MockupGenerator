@@ -18,7 +18,7 @@ import {
   drawRealisticFrame,
   getFrameThickness,
 } from "../../lib/canvas/frame";
-import { newClientElementId } from "../../lib/elementId";
+import { newClientElementId } from "../../lib/editor/elementId";
 import type { FrameStyle, Template, TemplateElement } from "../../types/mockup";
 import { useAppStore } from "../../store/appStore";
 

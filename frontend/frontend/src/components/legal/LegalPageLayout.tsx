@@ -2,9 +2,9 @@ import type { ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { cn } from "../../lib/cn";
+import { cn } from "../../lib/ui/cn";
 import { getLegalSiteConfig, legalConfigLooksIncomplete } from "../../lib/legal/config";
-import { ThemeToggle } from "../ui/ThemeToggle";
+import { ThemeToggle } from "../ui/primitives/ThemeToggle";
 
 type Props = {
   title: string;

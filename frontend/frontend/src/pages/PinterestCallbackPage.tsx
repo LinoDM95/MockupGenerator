@@ -4,8 +4,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { ApiError } from "../api/client";
 import { marketingOAuthCallback } from "../api/marketing";
-import { toast } from "../lib/toast";
-import { Card } from "../components/ui/Card";
+import { toast } from "../lib/ui/toast";
+import { Card } from "../components/ui/primitives/Card";
 
 export const PinterestCallbackPage = () => {
   const [params] = useSearchParams();

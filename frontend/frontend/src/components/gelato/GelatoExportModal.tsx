@@ -27,18 +27,18 @@ import {
 } from "../../api/ai";
 import { ApiError } from "../../api/client";
 import type { ArtworkMetadata, GelatoTemplate } from "../../api/gelato";
-import { cn } from "../../lib/cn";
-import { getErrorMessage } from "../../lib/error";
-import { toast } from "../../lib/toast";
+import { cn } from "../../lib/ui/cn";
+import { getErrorMessage } from "../../lib/common/error";
+import { toast } from "../../lib/ui/toast";
 import { useIntegrationFlags } from "../../hooks/useIntegrationFlags";
 import { useAiActivityStore } from "../../store/aiActivityStore";
 import { useAppStore } from "../../store/appStore";
 import type { ArtworkItem } from "../../types/mockup";
 import { ArtworkListThumbnail } from "../generator/ArtworkListThumbnail";
-import { Button } from "../ui/Button";
-import { IntegrationMissingCallout } from "../ui/IntegrationMissingCallout";
-import { Input } from "../ui/Input";
-import { Select } from "../ui/Select";
+import { Button } from "../ui/primitives/Button";
+import { IntegrationMissingCallout } from "../ui/patterns/IntegrationMissingCallout";
+import { Input } from "../ui/primitives/Input";
+import { Select } from "../ui/primitives/Select";
 import {
   ExpertDebateConsole,
   type ExpertDebatePhase,

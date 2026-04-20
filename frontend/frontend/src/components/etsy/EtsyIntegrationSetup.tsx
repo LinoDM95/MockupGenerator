@@ -2,11 +2,11 @@ import { Link2, LogOut, Store } from "lucide-react";
 import { useCallback } from "react";
 
 import { etsyDisconnect, etsyOAuthStart } from "../../api/etsy";
-import { getErrorMessage } from "../../lib/error";
-import { toast } from "../../lib/toast";
+import { getErrorMessage } from "../../lib/common/error";
+import { toast } from "../../lib/ui/toast";
 import { useAppStore } from "../../store/appStore";
-import { Button } from "../ui/Button";
-import { IntegrationMissingCallout } from "../ui/IntegrationMissingCallout";
+import { Button } from "../ui/primitives/Button";
+import { IntegrationMissingCallout } from "../ui/patterns/IntegrationMissingCallout";
 
 type EtsyIntegrationSetupProps = {
   /** Aus aggregiertem Status: bei bestehender Verbindung nur Einstellungen zeigen. */

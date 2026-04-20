@@ -1,18 +1,18 @@
 import { motion } from "framer-motion";
 import { Globe, Layers, Loader2, Zap } from "lucide-react";
 
-import { GENERATOR_IMAGE_ACCEPT_HTML } from "../../lib/imageUploadAccept";
+import { GENERATOR_IMAGE_ACCEPT_HTML } from "../../lib/generator/imageUploadAccept";
 import {
   templateSetHasTemplates,
   zipBlockReason,
-} from "../../lib/generatorZipReadiness";
+} from "../../lib/generator/generatorZipReadiness";
 import { useAppStore } from "../../store/appStore";
 import type { ArtworkItem, TemplateSet } from "../../types/mockup";
-import { AppPageSectionHeader } from "../ui/AppPageSectionHeader";
-import { Button } from "../ui/Button";
-import { Card } from "../ui/Card";
-import { IntegrationMissingCallout } from "../ui/IntegrationMissingCallout";
-import { Select } from "../ui/Select";
+import { AppPageSectionHeader } from "../ui/layout/AppPageSectionHeader";
+import { Button } from "../ui/primitives/Button";
+import { Card } from "../ui/primitives/Card";
+import { IntegrationMissingCallout } from "../ui/patterns/IntegrationMissingCallout";
+import { Select } from "../ui/primitives/Select";
 import {
   UploadQueueCard,
   UploadQueueCardFooter,
@@ -21,10 +21,10 @@ import {
   UploadQueueCardRemoveButton,
   UploadQueueGrid,
   UploadQueueMotionItem,
-} from "../ui/UploadQueueGrid";
-import { WorkspaceEngineSplitLayout } from "../ui/WorkspaceEngineSplitLayout";
+} from "../ui/patterns/UploadQueueGrid";
+import { WorkspaceEngineSplitLayout } from "../ui/layout/WorkspaceEngineSplitLayout";
 import { ArtworkListThumbnail } from "./ArtworkListThumbnail";
-import { cn } from "../../lib/cn";
+import { cn } from "../../lib/ui/cn";
 
 type Progress = {
   current: number;

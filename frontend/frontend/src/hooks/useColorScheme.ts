@@ -6,7 +6,7 @@ import {
   resolveIsDark,
   setStoredColorSchemeMode,
   type ColorSchemeMode,
-} from "../lib/colorScheme";
+} from "../lib/ui/colorScheme";
 
 export const useColorScheme = () => {
   const [mode, setModeState] = useState<ColorSchemeMode>(() => getStoredColorSchemeMode());

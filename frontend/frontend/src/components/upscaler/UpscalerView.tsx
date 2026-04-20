@@ -37,32 +37,32 @@ import {
   useCompanionApp,
 } from "../../hooks/useCompanionApp";
 import { useWorkSessionEta } from "../../hooks/useWorkSessionEta";
-import type { CompanionTileProgressReady } from "../../lib/companionTileProgress";
-import { cn } from "../../lib/cn";
-import { getCompanionUvicornClipboardText } from "../../lib/companionDevStartCommand";
-import { triggerAnchorDownload } from "../../lib/download";
-import { getErrorMessage } from "../../lib/error";
+import type { CompanionTileProgressReady } from "../../lib/companion/companionTileProgress";
+import { cn } from "../../lib/ui/cn";
+import { getCompanionUvicornClipboardText } from "../../lib/companion/companionDevStartCommand";
+import { triggerAnchorDownload } from "../../lib/common/download";
+import { getErrorMessage } from "../../lib/common/error";
 import {
   filterRasterImageFiles,
   MAX_UPSCALER_IMAGE_BYTES,
   RASTER_IMAGE_ACCEPT_HTML,
-} from "../../lib/imageUploadAccept";
-import { MOCKUP_LOCAL_ENGINE_HREF } from "../../lib/localEngine";
+} from "../../lib/generator/imageUploadAccept";
+import { MOCKUP_LOCAL_ENGINE_HREF } from "../../lib/companion/localEngine";
 import {
   workspaceEmbeddedPaddedClassName,
   workspaceEmbeddedPanelClassName,
-} from "../../lib/workspaceSurfaces";
-import { UPSCALE_MAX_OUTPUT_PIXELS } from "../../lib/upscaleMaxOutputPixels";
-import { formatUpscaleUserMessage } from "../../lib/upscaleUserMessage";
-import { toast } from "../../lib/toast";
+} from "../../lib/ui/workspaceSurfaces";
+import { UPSCALE_MAX_OUTPUT_PIXELS } from "../../lib/upscaler/upscaleMaxOutputPixels";
+import { formatUpscaleUserMessage } from "../../lib/upscaler/upscaleUserMessage";
+import { toast } from "../../lib/ui/toast";
 import { useAppStore } from "../../store/appStore";
-import { AppPage } from "../ui/AppPage";
-import { AppPageSectionHeader } from "../ui/AppPageSectionHeader";
-import { Button } from "../ui/Button";
-import { Card } from "../ui/Card";
-import { Select } from "../ui/Select";
-import { IntegrationMissingCallout } from "../ui/IntegrationMissingCallout";
-import { LinearLoadingBar } from "../ui/LinearLoadingBar";
+import { AppPage } from "../ui/layout/AppPage";
+import { AppPageSectionHeader } from "../ui/layout/AppPageSectionHeader";
+import { Button } from "../ui/primitives/Button";
+import { Card } from "../ui/primitives/Card";
+import { Select } from "../ui/primitives/Select";
+import { IntegrationMissingCallout } from "../ui/patterns/IntegrationMissingCallout";
+import { LinearLoadingBar } from "../ui/overlay/LinearLoadingBar";
 import {
   UploadQueueCard,
   UploadQueueCardFooter,
@@ -71,8 +71,8 @@ import {
   UploadQueueCardRemoveButton,
   UploadQueueGrid,
   UploadQueueMotionItem,
-} from "../ui/UploadQueueGrid";
-import { WorkspaceEngineSplitLayout } from "../ui/WorkspaceEngineSplitLayout";
+} from "../ui/patterns/UploadQueueGrid";
+import { WorkspaceEngineSplitLayout } from "../ui/layout/WorkspaceEngineSplitLayout";
 import { WorkSessionShell } from "../ui/workSession/WorkSessionShell";
 
 /** Cloud (Vertex): konservativ wegen API-Kosten/Quota. */

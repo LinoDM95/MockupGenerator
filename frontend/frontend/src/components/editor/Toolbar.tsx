@@ -1,7 +1,7 @@
 import { Circle, Crosshair, Hexagon, Image as ImageIcon, Square, Star, Triangle, Type } from "lucide-react";
 
-import { cn } from "../../lib/cn";
-import { Button } from "../ui/Button";
+import { cn } from "../../lib/ui/cn";
+import { Button } from "../ui/primitives/Button";
 import type { ElementType } from "../../types/mockup";
 
 type Props = {

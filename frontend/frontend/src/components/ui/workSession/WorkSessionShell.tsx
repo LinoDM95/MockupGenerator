@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 import { motion } from "framer-motion";
 
-import { cn } from "../../../lib/cn";
+import { cn } from "../../../lib/ui/cn";
 import { WorkSessionFooter, type WorkSessionFooterProps } from "./WorkSessionFooter";
 
 export type WorkSessionShellProps = {

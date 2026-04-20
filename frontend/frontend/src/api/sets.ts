@@ -1,5 +1,5 @@
 import type { Template, TemplateElement, TemplateSet } from "../types/mockup";
-import { FRAME_SHADOW_ALL, parseSidesMask } from "../lib/frameShadowSides";
+import { FRAME_SHADOW_ALL, parseSidesMask } from "../lib/editor/frameShadowSides";
 
 import { apiFetch, apiJson } from "./client";
 

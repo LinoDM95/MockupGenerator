@@ -3,7 +3,7 @@ import { useCallback, useRef } from "react";
 import {
   formatCompanionTileEtaLine,
   type CompanionTileProgressReady,
-} from "../lib/companionTileProgress";
+} from "../lib/companion/companionTileProgress";
 
 /**
  * Sammelt Kachel-Zeiten aus Companion-Polling und formatiert ETA-Zeilen

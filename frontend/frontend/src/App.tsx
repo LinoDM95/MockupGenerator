@@ -5,19 +5,19 @@ import type { LucideIcon } from "lucide-react";
 import { Compass, Link2, Layers, LogOut, MessageCircle, RefreshCw, UserCircle, Zap } from "lucide-react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
-import { cn } from "./lib/cn";
-import { Button } from "./components/ui/Button";
-import { ThemeToggle } from "./components/ui/ThemeToggle";
-import { DialogHost } from "./components/DialogHost";
+import { cn } from "./lib/ui/cn";
+import { Button } from "./components/ui/primitives/Button";
+import { ThemeToggle } from "./components/ui/primitives/ThemeToggle";
+import { DialogHost } from "./components/shell/DialogHost";
 import { AIActivityPanel } from "./components/ai/AIActivityPanel";
 const WorkspaceView = lazy(() =>
-  import("./components/WorkspaceView").then((m) => ({ default: m.WorkspaceView })),
+  import("./components/views/WorkspaceView").then((m) => ({ default: m.WorkspaceView })),
 );
 const RoadmapView = lazy(() =>
-  import("./components/RoadmapView").then((m) => ({ default: m.RoadmapView })),
+  import("./components/views/RoadmapView").then((m) => ({ default: m.RoadmapView })),
 );
 const IntegrationsView = lazy(() =>
-  import("./components/IntegrationsView").then((m) => ({ default: m.IntegrationsView })),
+  import("./components/views/IntegrationsView").then((m) => ({ default: m.IntegrationsView })),
 );
 
 const MainTabFallback = () => (

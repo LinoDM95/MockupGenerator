@@ -1,4 +1,4 @@
-import { COMPANION_BASE_URL } from "../lib/companionConstants";
+import { COMPANION_BASE_URL } from "../lib/companion/companionConstants";
 
 export type CompanionModelSpeed = "schnell" | "mittel" | "langsamer";
 

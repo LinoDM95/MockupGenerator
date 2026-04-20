@@ -10,35 +10,35 @@ alwaysApply: true
 
 ## Modulares Seiten-Layout (Pflicht)
 
-Neue und geänderte **eingeloggte App-Views** bauen **nicht** frei Überschriften, Tab-Leisten oder Breiten zusammen. Es gelten die Bausteine unter `src/components/ui/` — einheitliche Typo, Abstände, Flächen (Calm Premium, siehe `design-system.mdc`).
+Neue und geänderte **eingeloggte App-Views** bauen **nicht** frei Überschriften, Tab-Leisten oder Breiten zusammen. Es gelten die Bausteine unter `src/components/ui/` (u. a. `primitives/`, `layout/`, `overlay/`, `patterns/`) — einheitliche Typo, Abstände, Flächen (Calm Premium, siehe `design-system.mdc`).
 
 ### Ebenen
 
 1. **Haupt-Tab (App-weit)** — Erstellen, Roadmap, Integrationen  
    - Steuerung nur in `App.tsx` (`mainTabs`). Keine zweite Hauptnav duplizieren.
 
-2. **Seitenkopf pro Haupt-Tab** — `AppSubNavPageLayout` (`AppSubNavPageLayout.tsx`)  
+2. **Seitenkopf pro Haupt-Tab** — `AppSubNavPageLayout` (`layout/AppSubNavPageLayout.tsx`)  
    - **Immer** die Root jedes Haupt-Tab-Views, der Unter-Navigation oder nur Titel+Text braucht.  
    - Props: `title`, `description`, optional `subNav` (Inhalt = `SubNavTab`-Buttons), optional `subNavAriaLabel`.  
    - Kinder = Seiteninhalt unter dem Kopf.  
    - **Kein** zusätzliches `max-w-5xl` / `max-w-6xl` auf Feature-Root — Inhalt nutzt **`w-full min-w-0`** und die Breite von `<main>` (`max-w-7xl` in `App.tsx`). Schmale Spalten nur **innen** (z. B. Formularblock mit `max-w-2xl`), nicht die ganze Seite.
 
-3. **Bereichs-/Tab-Titel unter dem Seitenkopf** — `AppPageSectionHeader` (`AppPageSectionHeader.tsx`)  
+3. **Bereichs-/Tab-Titel unter dem Seitenkopf** — `AppPageSectionHeader` (`layout/AppPageSectionHeader.tsx`)  
    - Für jeden **Unterbereich** innerhalb eines Haupt-Tabs (z. B. „Motive verarbeiten“, „KI Upscaler“, „Alle Integrationen“, „Geführter Einrichtungsassistent“): **Icon-Kachel** + **H2** (`text-2xl font-bold tracking-tight`) + Beschreibung auf **Seitenhintergrund** (`bg-slate-50`), **nicht** in einer weißen `Card` nur für den Titel.  
    - **Keine Buttons oder Steuerelemente** im Sektionskopf — Aktionen („Zurück“, „Aktualisieren“, Import …) in einer **eigenen Zeile/Toolbar direkt darunter** (z. B. `flex flex-wrap items-center justify-end gap-3`).  
    - `align="centerSm"` nur wenn bewusst (z. B. Upscaler-Leerzustand).
 
-4. **Horizontale Unter-Tabs** (Erstellen: Generator / Vorlagen / …, Integrationen: Assistent / Alle) — `SubNavTab` (`SubNavTab.tsx`)  
+4. **Horizontale Unter-Tabs** (Erstellen: Generator / Vorlagen / …, Integrationen: Assistent / Alle) — `SubNavTab` (`layout/SubNavTab.tsx`)  
    - In `subNav` von `AppSubNavPageLayout` platzieren; `LayoutGroup` steckt **in** `AppSubNavPageLayout`.  
    - Aktiver Tab: helle Pill (Animation); inaktiv: kein weißer Kartenhintergrund, nur Hover — **nicht** eigene `bg-white`-Tab-Zeilen erfinden.
 
-5. **Schritt-/Wizard-Tabs** (mehrere gleichwertige Schritte in einer Seite) — `AppTabStepButton` (`AppTabStepButton.tsx`)  
+5. **Schritt-/Wizard-Tabs** (mehrere gleichwertige Schritte in einer Seite) — `AppTabStepButton` (`layout/AppTabStepButton.tsx`)  
    - Gleiche **Interaktionslogik** wie `SubNavTab` (inaktiv transparent + Hover, aktiv Pill); **`LayoutGroup`** um die Schritt-Leiste, **eigenes** `activePillLayoutId` pro Seite (z. B. `integration-wizard-step-pill`).  
    - Kombination: darüber **`AppPageSectionHeader`** für Titel + Erklärung, darunter die Schritte — **kein** weißer Wrapper um Titel **und** Schritte.
 
 ### Weitere Regeln
 
-- **`AppPage`** (`AppPage.tsx`): Optionaler Wrapper für vertikalen Rhythmus (`w-full min-w-0 space-y-8`) innerhalb eines Haupt-Tabs — **kein** zusätzliches `max-w-*` auf Root-Ebene.
+- **`AppPage`** (`layout/AppPage.tsx`): Optionaler Wrapper für vertikalen Rhythmus (`w-full min-w-0 space-y-8`) innerhalb eines Haupt-Tabs — **kein** zusätzliches `max-w-*` auf Root-Ebene.
 
 - **Vollbreite / Overflow:** Layout-Roots und flex/grid-Kinder nutzen bei Bedarf **`min-w-0`**, damit nichts aus der Shell „ausbricht“.
 
@@ -154,7 +154,7 @@ function MyComponent(props: any) { ... }
 - Tailwind über `@import "tailwindcss"` in `index.css` + Vite-Plugin (keine `tailwind.config`)
 - Gemeinsame Utilities in `@layer utilities` in `index.css` definieren
 - Keine inline-`style`-Attribute außer für dynamische Canvas-/Element-Positionen (x, y, w, h)
-- `cn()` aus `src/lib/cn.ts` für bedingte Klassen-Zusammenführung
+- `cn()` aus `src/lib/ui/cn.ts` für bedingte Klassen-Zusammenführung
 
 ## TypeScript
 
@@ -166,5 +166,5 @@ function MyComponent(props: any) { ... }
 ## Accessibility
 
 - Alle interaktiven Elemente: `tabIndex`, `aria-label`, Keyboard-Handler
-- `focus-visible`-Outline auf Buttons/Links (bereits in `Button.tsx` implementiert)
+- `focus-visible`-Outline auf Buttons/Links (bereits in `primitives/Button.tsx` implementiert)
 - Bilder mit `alt`-Text, dekorative Bilder mit `alt=""`

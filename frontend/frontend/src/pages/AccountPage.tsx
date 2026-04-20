@@ -17,15 +17,15 @@ import {
   fetchCurrentUser,
   patchCurrentUser,
 } from "../api/auth";
-import { AppPage } from "../components/ui/AppPage";
-import { AppPageSectionHeader } from "../components/ui/AppPageSectionHeader";
-import { AppSubNavPageLayout } from "../components/ui/AppSubNavPageLayout";
-import { Button } from "../components/ui/Button";
-import { Input } from "../components/ui/Input";
-import { Modal } from "../components/ui/Modal";
-import { cn } from "../lib/cn";
-import { getErrorMessage } from "../lib/error";
-import { toast } from "../lib/toast";
+import { AppPage } from "../components/ui/layout/AppPage";
+import { AppPageSectionHeader } from "../components/ui/layout/AppPageSectionHeader";
+import { AppSubNavPageLayout } from "../components/ui/layout/AppSubNavPageLayout";
+import { Button } from "../components/ui/primitives/Button";
+import { Input } from "../components/ui/primitives/Input";
+import { Modal } from "../components/ui/overlay/Modal";
+import { cn } from "../lib/ui/cn";
+import { getErrorMessage } from "../lib/common/error";
+import { toast } from "../lib/ui/toast";
 import { useAppStore } from "../store/appStore";
 
 const formatDeDateTime = (iso: string | null): string => {

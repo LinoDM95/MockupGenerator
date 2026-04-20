@@ -3,8 +3,8 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { etsyOAuthCallback } from "../api/etsy";
-import { toast } from "../lib/toast";
-import { Card } from "../components/ui/Card";
+import { toast } from "../lib/ui/toast";
+import { Card } from "../components/ui/primitives/Card";
 
 export const EtsyCallbackPage = () => {
   const [params] = useSearchParams();

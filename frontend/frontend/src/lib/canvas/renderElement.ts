@@ -1,5 +1,5 @@
 import type { FrameStyle, TemplateElement } from "../../types/mockup";
-import { FRAME_SHADOW_ALL, parseSidesMask } from "../frameShadowSides";
+import { FRAME_SHADOW_ALL, parseSidesMask } from "../editor/frameShadowSides";
 
 import {
   drawInnerFrameShadowOnMotif,

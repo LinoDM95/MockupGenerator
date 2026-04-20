@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { cn } from "../../lib/cn";
+import { cn } from "../../lib/ui/cn";
 
 export const IndentedLegalPoints = ({ children }: { children: ReactNode }) => (
   <div className="mt-3 space-y-2.5">{children}</div>

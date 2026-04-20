@@ -26,21 +26,21 @@ import {
   type PinterestBoard,
 } from "../../api/marketing";
 import { useIntegrationFlags } from "../../hooks/useIntegrationFlags";
-import { cn } from "../../lib/cn";
-import { getErrorMessage } from "../../lib/error";
+import { cn } from "../../lib/ui/cn";
+import { getErrorMessage } from "../../lib/common/error";
 import {
   filterRasterImageFiles,
   MARKETING_ALLOWED_EXT,
-} from "../../lib/imageUploadAccept";
-import { toast } from "../../lib/toast";
+} from "../../lib/generator/imageUploadAccept";
+import { toast } from "../../lib/ui/toast";
 import { useAppStore } from "../../store/appStore";
-import { Button } from "../ui/Button";
-import { Card } from "../ui/Card";
-import { AppPageSectionHeader } from "../ui/AppPageSectionHeader";
-import { AppSubNavPageLayout } from "../ui/AppSubNavPageLayout";
-import { Input } from "../ui/Input";
-import { Select } from "../ui/Select";
-import { IntegrationMissingCallout } from "../ui/IntegrationMissingCallout";
+import { Button } from "../ui/primitives/Button";
+import { Card } from "../ui/primitives/Card";
+import { AppPageSectionHeader } from "../ui/layout/AppPageSectionHeader";
+import { AppSubNavPageLayout } from "../ui/layout/AppSubNavPageLayout";
+import { Input } from "../ui/primitives/Input";
+import { Select } from "../ui/primitives/Select";
+import { IntegrationMissingCallout } from "../ui/patterns/IntegrationMissingCallout";
 
 const MARKETING_WEBHOOK_STORAGE_KEY = "ce_marketing_webhook_url";
 

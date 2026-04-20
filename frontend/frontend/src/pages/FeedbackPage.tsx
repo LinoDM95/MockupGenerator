@@ -14,16 +14,16 @@ import {
   type FeedbackThreadListItem,
   type FeedbackThreadStatus,
 } from "../api/feedback";
-import { AppPage } from "../components/ui/AppPage";
-import { AppPageSectionHeader } from "../components/ui/AppPageSectionHeader";
-import { AppSubNavPageLayout } from "../components/ui/AppSubNavPageLayout";
-import { Button } from "../components/ui/Button";
-import { Input } from "../components/ui/Input";
-import { Select } from "../components/ui/Select";
-import { cn } from "../lib/cn";
-import { getErrorMessage } from "../lib/error";
-import { feedbackStatusLabel } from "../lib/feedbackStatus";
-import { toast } from "../lib/toast";
+import { AppPage } from "../components/ui/layout/AppPage";
+import { AppPageSectionHeader } from "../components/ui/layout/AppPageSectionHeader";
+import { AppSubNavPageLayout } from "../components/ui/layout/AppSubNavPageLayout";
+import { Button } from "../components/ui/primitives/Button";
+import { Input } from "../components/ui/primitives/Input";
+import { Select } from "../components/ui/primitives/Select";
+import { cn } from "../lib/ui/cn";
+import { getErrorMessage } from "../lib/common/error";
+import { feedbackStatusLabel } from "../lib/common/feedbackStatus";
+import { toast } from "../lib/ui/toast";
 import { useAppStore } from "../store/appStore";
 
 const formatDe = (iso: string | null): string => {

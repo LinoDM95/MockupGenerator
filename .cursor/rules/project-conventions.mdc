@@ -17,9 +17,9 @@ backend/          → Django 6 + DRF (API-only, kein Template-Rendering)
     services/     → API-Client, Rate-Limiter, Token-Management
 frontend/frontend/ → React 19 + Vite 8 + TypeScript 6 + Tailwind 4 SPA
   src/api/        → API-Client mit JWT-Refresh-Logik
-  src/components/ → Feature-basierte Ordnerstruktur (editor/, generator/, etsy/, ui/)
+  src/components/ → Feature-Ordner (editor/, generator/, etsy/, …) + `ui/` + `views/` (Haupt-Tabs), `shell/`, `auth/`
   src/hooks/      → Wiederverwendbare Custom Hooks
-  src/lib/        → Utilities, Canvas-Rendering-Pipeline, Konstanten
+  src/lib/        → Thematische Utilities (u. a. `canvas/`, `ui/`, `common/`, `editor/`, `generator/`, `companion/`, `legal/`)
   src/store/      → Zustand State Management
   src/types/      → Zentrale TypeScript-Definitionen
 ```
@@ -49,9 +49,9 @@ Etsy: `User → EtsyConnection (1:1, verschlüsselte Tokens) → EtsyBulkJob (Ce
 
 | Was | Wohin | Beispiel |
 |-----|-------|----------|
-| Gemeinsame UI-Bausteine | `src/components/ui/` | `Button`, `Modal`, `Select`; Seiten-Layout: `AppSubNavPageLayout`, `AppPageSectionHeader`, `AppTabStepButton`, `SubNavTab` |
+| Gemeinsame UI-Bausteine | `src/components/ui/` (u. a. `primitives/`, `layout/`, `overlay/`, `patterns/`) | `Button`, `Modal`, `Select`; Seiten-Layout: `AppSubNavPageLayout`, `AppPageSectionHeader`, `AppTabStepButton`, `SubNavTab` |
 | Geteilte Logik zwischen Komponenten | `src/hooks/` als Custom Hook | `useCanvasRender` wird von Generator UND Etsy genutzt |
-| Reine Hilfsfunktionen (kein React) | `src/lib/` in thematischen Modulen | `canvas/frame.ts`, `canvas/image.ts`, `toast.ts` |
+| Reine Hilfsfunktionen (kein React) | `src/lib/<thema>/` | `canvas/frame.ts`, `ui/cn.ts`, `ui/toast.ts`, `common/error.ts`, `editor/elementId.ts` |
 | API-Aufrufe | `src/api/` pro Domäne | `sets.ts`, `etsy.ts` – nie `fetch` direkt in Komponenten |
 | Zentrale Typen | `src/types/mockup.ts` | EINE Datei für alle Domain-Typen |
 | Backend-Geschäftslogik | Service-Funktionen oder Model-Methoden | `replace_template_elements()`, `ensure_fresh_access_token()` |
