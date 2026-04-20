@@ -1,7 +1,9 @@
+import os
 import uuid
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 from core.crypto import decrypt_token, encrypt_token
 
@@ -112,6 +114,16 @@ def _r2_storage():
     return storages["r2"]
 
 
+def temp_design_upload_to(instance, filename: str) -> str:
+    """``temp_designs/users/<user_id>/YYYY/MM/<uuid>.<ext>`` (ohne User: ``anonymous``)."""
+    ext = os.path.splitext(filename or "")[1].lower()
+    if ext not in (".jpg", ".jpeg", ".png", ".webp"):
+        ext = ".jpg"
+    uid = instance.user_id if getattr(instance, "user_id", None) is not None else "anonymous"
+    now = timezone.now()
+    return f"temp_designs/users/{uid}/{now:%Y}/{now:%m}/{uuid.uuid4().hex}{ext}"
+
+
 class TemporaryDesignUpload(models.Model):
     """Short-lived image stored on Cloudflare R2 for Gelato product creation.
 
@@ -120,7 +132,14 @@ class TemporaryDesignUpload(models.Model):
     ``manage.py cleanup_r2_temp_designs``; optional Celery task with same logic.
     """
 
-    image = models.ImageField(upload_to="temp_designs/", storage=_r2_storage)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="gelato_temp_design_uploads",
+        null=True,
+        blank=True,
+    )
+    image = models.ImageField(upload_to=temp_design_upload_to, storage=_r2_storage)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

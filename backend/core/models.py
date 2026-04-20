@@ -6,13 +6,14 @@ from django.core.files.storage import FileSystemStorage
 from django.core.validators import FileExtensionValidator, MaxValueValidator, MinValueValidator
 from django.db import models
 
+from .upload_paths import template_background_upload_to
 from .validators import validate_real_image
 
 
 def template_background_storage():
     """Speicher für Vorlagen-Hintergründe: R2 in Produktion, sonst lokales MEDIA_ROOT.
 
-    Pfade liegen unter ``template_backgrounds/…`` — getrennt von Gelato-``temp_designs/``,
+    Pfade: ``template_backgrounds/users/<user_id>/…`` — getrennt von Gelato-``temp_designs/``,
     die nur via ``TemporaryDesignUpload`` + Cleanup gelöscht werden.
     """
     from django.core.files.storage import storages
@@ -63,7 +64,7 @@ class Template(models.Model):
     width = models.PositiveIntegerField()
     height = models.PositiveIntegerField()
     background_image = models.ImageField(
-        upload_to="template_backgrounds/%Y/%m/",
+        upload_to=template_background_upload_to,
         storage=template_background_storage,
         validators=[
             FileExtensionValidator(allowed_extensions=["jpg", "jpeg", "png", "webp"]),

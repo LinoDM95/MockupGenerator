@@ -73,5 +73,11 @@ class TemporaryDesignUploadSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TemporaryDesignUpload
-        fields = ("id", "image", "public_url", "uploaded_at")
-        read_only_fields = ("id", "public_url", "uploaded_at")
+        fields = ("id", "user", "image", "public_url", "uploaded_at")
+        read_only_fields = ("id", "user", "public_url", "uploaded_at")
+
+    def create(self, validated_data):
+        request = self.context.get("request")
+        if request and getattr(request, "user", None) and request.user.is_authenticated:
+            validated_data["user"] = request.user
+        return super().create(validated_data)

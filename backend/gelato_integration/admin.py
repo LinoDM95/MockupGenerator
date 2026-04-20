@@ -30,6 +30,7 @@ class GelatoExportTaskAdmin(admin.ModelAdmin):
 
 @admin.register(TemporaryDesignUpload)
 class TemporaryDesignUploadAdmin(admin.ModelAdmin):
-    list_display = ("id", "image", "uploaded_at")
+    list_display = ("id", "user", "image", "uploaded_at")
     readonly_fields = ("uploaded_at",)
+    raw_id_fields = ("user",)
     ordering = ("-uploaded_at",)

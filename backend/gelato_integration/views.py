@@ -100,8 +100,10 @@ def _optimize_image(file) -> tuple[io.BytesIO | None, str]:
 # ── R2 upload ───────────────────────────────────────────────────────
 
 
-def _upload_to_r2(file, prefix: str) -> str:
+def _upload_to_r2(file, prefix: str, user) -> str:
     """Upload *file* to Cloudflare R2 and return its public URL.
+
+    Key layout: ``{prefix}/users/<user_pk>/…`` — mandantenfähig auf R2.
 
     Large images are automatically optimised (PNG->JPEG, etc.) before upload.
     Also creates a ``TemporaryDesignUpload`` record so Middleware/Upload-Hook
@@ -134,13 +136,16 @@ def _upload_to_r2(file, prefix: str) -> str:
 
     r2 = storages["r2"]
     unique = _uuid.uuid4().hex[:12]
-    dest = f"{prefix}/{unique}_{file.name}"
+    base_name = os.path.basename(getattr(file, "name", "") or "upload")
+    base_name = base_name.replace(" ", "_") or "upload.jpg"
+    base_name = base_name[:180]
+    dest = f"{prefix}/users/{user.pk}/{unique}_{base_name}"
     saved_name = r2.save(dest, file)
 
     domain = getattr(settings, "AWS_S3_CUSTOM_DOMAIN", "")
     public_url = f"https://{domain}/{saved_name}" if domain else r2.url(saved_name)
 
-    TemporaryDesignUpload.objects.create(image=saved_name)
+    TemporaryDesignUpload.objects.create(user=user, image=saved_name)
 
     logger.debug(
         "_upload_to_r2 DONE saved_name=%r public_url=%r…",
@@ -384,7 +389,7 @@ class GelatoExportView(APIView):
             tags = str(meta.get("tags", ""))[:1024]
 
             logger.debug("[%s] upload %r → R2", idx, art_file.name)
-            artwork_url = _upload_to_r2(art_file, "gelato_artworks")
+            artwork_url = _upload_to_r2(art_file, "gelato_artworks", request.user)
 
             task = GelatoExportTask.objects.create(
                 user=request.user,
@@ -434,7 +439,7 @@ class UploadTempDesignView(APIView):
     parser_classes = (MultiPartParser, FormParser)
 
     def post(self, request):
-        ser = TemporaryDesignUploadSerializer(data=request.data)
+        ser = TemporaryDesignUploadSerializer(data=request.data, context={"request": request})
         ser.is_valid(raise_exception=True)
 
         image = ser.validated_data["image"]
