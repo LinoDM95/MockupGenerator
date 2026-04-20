@@ -19,7 +19,7 @@ from pathlib import Path
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, HttpResponse
 from django.urls import include, path, re_path
 
 from core.auth_cookie_views import (
@@ -31,6 +31,11 @@ from core.auth_cookie_views import (
 from core.views import ChangePasswordView, CurrentUserView
 
 
+def healthz(_request):
+    """Liveness für Load Balancer / Render (kein DB-Hit)."""
+    return HttpResponse("ok", content_type="text/plain; charset=utf-8")
+
+
 def spa_entry(_request):
     """Serve built Vite ``index.html`` (production: ``collectstatic``)."""
     index = Path(settings.STATIC_ROOT) / "index.html"
@@ -40,6 +45,7 @@ def spa_entry(_request):
 
 
 urlpatterns = [
+    path("healthz", healthz, name="healthz"),
     path("admin/", admin.site.urls),
     path("api/auth/csrf/", CsrfBootstrapView.as_view(), name="auth-csrf"),
     path("api/auth/login/", CookieLoginView.as_view(), name="auth-login"),
