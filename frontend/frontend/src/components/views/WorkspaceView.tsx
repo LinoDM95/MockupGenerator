@@ -1,7 +1,10 @@
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Folder, Layers, Maximize } from "lucide-react";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useCallback, useEffect } from "react";
 
+import { fetchAiStatus } from "../../api/ai";
+import { fetchGelatoStatus } from "../../api/gelato";
+import { fetchIntegrationStatus } from "../../api/settings";
 import type { WorkspaceTab } from "../../store/appStore";
 import { useAppStore } from "../../store/appStore";
 import { AppSubNavPageLayout } from "../ui/layout/AppSubNavPageLayout";
@@ -39,6 +42,16 @@ export const WorkspaceView = () => {
   const navigationLocked = useAppStore((s) => s.navigationLocked);
   const reduceMotion = useReducedMotion();
 
+  const warmWorkspaceCaches = useCallback(() => {
+    void fetchIntegrationStatus();
+    void fetchAiStatus();
+    void fetchGelatoStatus();
+  }, []);
+
+  useEffect(() => {
+    warmWorkspaceCaches();
+  }, [warmWorkspaceCaches]);
+
   return (
     <AppSubNavPageLayout
       title="Erstellen"
@@ -56,6 +69,10 @@ export const WorkspaceView = () => {
               disabled={navigationLocked}
               title={navigationLocked ? NAV_LOCK_TITLE : undefined}
               activePillLayoutId="workspace-sub-nav-pill"
+              onPointerEnter={() => {
+                if (navigationLocked) return;
+                warmWorkspaceCaches();
+              }}
               onClick={() => {
                 if (navigationLocked) return;
                 setWorkspaceTab(id);

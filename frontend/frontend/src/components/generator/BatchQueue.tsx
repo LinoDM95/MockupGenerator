@@ -48,7 +48,8 @@ type Props = {
   /** Fortschritt läuft im Vollbild-Overlay — hier nur Kurzhinweis */
   inlineProgressMinimal?: boolean;
   onGenerate: () => void;
-  gelatoConnected?: boolean;
+  /** unknown = Status wird geladen (kein „nicht verbunden“-Callout). */
+  gelatoPhase?: "unknown" | "ready" | "missing";
   onGelatoExport?: () => void;
 };
 
@@ -66,7 +67,7 @@ export const BatchQueue = ({
   progress,
   inlineProgressMinimal = false,
   onGenerate,
-  gelatoConnected = false,
+  gelatoPhase = "unknown",
   onGelatoExport,
 }: Props) => {
   const goToIntegrationWizardStep = useAppStore((s) => s.goToIntegrationWizardStep);
@@ -151,7 +152,21 @@ export const BatchQueue = ({
                     <p className="text-xs font-medium text-slate-500">
                       Optional: Motive als Produkte an Gelato senden.
                     </p>
-                    {gelatoConnected && onGelatoExport ? (
+                    {gelatoPhase === "unknown" && onGelatoExport ? (
+                      <div
+                        className="flex items-center gap-3 rounded-xl bg-slate-50/80 px-4 py-3 text-sm font-medium text-slate-600 ring-1 ring-inset ring-slate-900/5"
+                        role="status"
+                        aria-live="polite"
+                      >
+                        <Loader2
+                          className="shrink-0 animate-spin text-indigo-600"
+                          size={18}
+                          aria-hidden
+                        />
+                        <span>Gelato-Verbindung wird geprüft …</span>
+                      </div>
+                    ) : null}
+                    {gelatoPhase === "ready" && onGelatoExport ? (
                       <Button
                         type="button"
                         variant="outline"
@@ -163,7 +178,7 @@ export const BatchQueue = ({
                         Zu Gelato exportieren
                       </Button>
                     ) : null}
-                    {!gelatoConnected && onGelatoExport ? (
+                    {gelatoPhase === "missing" && onGelatoExport ? (
                       <IntegrationMissingCallout
                         title="Gelato ist nicht verbunden"
                         description="Verbinde dein Gelato-Konto, um Mockups direkt als Produkte zu exportieren."

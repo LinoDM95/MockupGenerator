@@ -8,6 +8,34 @@ vi.mock("./client", () => ({
 
 const mockedApiJson = vi.mocked(apiJson);
 
+describe("fetchCurrentUser cache", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    mockedApiJson.mockReset();
+  });
+
+  it("deduplicates parallel requests and caches GET /api/auth/me/", async () => {
+    mockedApiJson.mockResolvedValue({
+      id: 1,
+      username: "u",
+      email: "a@b.de",
+      date_joined: null,
+      last_login: null,
+      is_staff: false,
+      is_superuser: false,
+    });
+    const { __resetCurrentUserClientStateForTests, fetchCurrentUser, invalidateCurrentUserClientCache } =
+      await import("./auth");
+    __resetCurrentUserClientStateForTests();
+    const [a, b] = await Promise.all([fetchCurrentUser(), fetchCurrentUser()]);
+    expect(mockedApiJson).toHaveBeenCalledTimes(1);
+    expect(a).toBe(b);
+    invalidateCurrentUserClientCache();
+    await fetchCurrentUser();
+    expect(mockedApiJson).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("auth API helpers", () => {
   beforeEach(() => {
     vi.resetModules();

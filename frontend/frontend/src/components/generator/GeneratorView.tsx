@@ -9,16 +9,12 @@ import {
 } from "react";
 import JSZip from "jszip";
 
-import type {
-  ArtworkMetadata,
-  GelatoConnectionStatus,
-  GelatoTemplate as GelatoTpl,
-} from "../../api/gelato";
+import type { ArtworkMetadata, GelatoTemplate as GelatoTpl } from "../../api/gelato";
 import { refreshAccessTokenIfExpiringSoon } from "../../api/client";
 import {
-  gelatoListTemplates,
+  fetchGelatoListTemplates,
+  fetchGelatoStatus,
   gelatoStartExport,
-  gelatoStatus,
 } from "../../api/gelato";
 import { useLoadTemplateSets } from "../../hooks/useLoadTemplateSets";
 import {
@@ -110,7 +106,9 @@ export const GeneratorView = () => {
   }, [isGenerating, isPreparingPreviews, setNavigationLocked]);
 
   // Gelato state
-  const [gelatoConn, setGelatoConn] = useState<GelatoConnectionStatus | null>(null);
+  const [gelatoPhase, setGelatoPhase] = useState<"unknown" | "ready" | "missing">(
+    "unknown",
+  );
   const [gelatoTemplates, setGelatoTemplates] = useState<GelatoTpl[]>([]);
   const [showGelatoModal, setShowGelatoModal] = useState(false);
   const [gelatoTaskIds, setGelatoTaskIds] = useState<string[]>([]);
@@ -122,18 +120,30 @@ export const GeneratorView = () => {
   } | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     void (async () => {
       try {
-        const s = await gelatoStatus();
-        setGelatoConn(s);
+        const s = await fetchGelatoStatus();
+        if (cancelled) return;
         if (s.connected) {
-          const tpls = await gelatoListTemplates();
+          const tpls = await fetchGelatoListTemplates();
+          if (cancelled) return;
           setGelatoTemplates(tpls);
+          setGelatoPhase("ready");
+        } else {
+          setGelatoTemplates([]);
+          setGelatoPhase("missing");
         }
       } catch {
-        /* not connected */
+        if (!cancelled) {
+          setGelatoTemplates([]);
+          setGelatoPhase("missing");
+        }
       }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleArtworkUpload = (files: FileList | null) => {
@@ -731,7 +741,7 @@ export const GeneratorView = () => {
         onGenerate={() => {
           void generateBatchAndZIP(false);
         }}
-        gelatoConnected={!!gelatoConn?.connected}
+        gelatoPhase={gelatoPhase}
         onGelatoExport={() => setShowGelatoModal(true)}
       />
 

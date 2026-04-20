@@ -3,7 +3,8 @@ import { ArrowLeft, Zap } from "lucide-react";
 import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 
-import { login, register } from "../../api/auth";
+import { fetchCurrentUser, login, register } from "../../api/auth";
+import { prefetchAuthenticatedSession } from "../../lib/sessionPrefetch";
 import { getErrorMessage } from "../../lib/common/error";
 import { cn } from "../../lib/ui/cn";
 import { getLegalSiteConfig } from "../../lib/legal/config";
@@ -48,7 +49,9 @@ export const AuthScreen = () => {
         setMode("login");
       } else {
         await login(username, password);
+        await fetchCurrentUser();
         setAuthenticated(true);
+        await prefetchAuthenticatedSession();
         navigate("/app", { replace: true });
       }
     } catch (err) {

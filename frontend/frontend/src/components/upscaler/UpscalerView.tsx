@@ -19,7 +19,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 
-import { aiStatus } from "../../api/ai";
+import { fetchAiStatus } from "../../api/ai";
 import type {
   CompanionCatalog,
   CompanionModelEntry,
@@ -234,7 +234,7 @@ export const UpscalerView = () => {
     if (activeTab !== "workspace" || workspaceTab !== "upscaler") return;
     void (async () => {
       try {
-        const s = await aiStatus();
+        const s = await fetchAiStatus();
         setVertexReady(!!s.vertex_upscaler_configured);
       } catch {
         setVertexReady(false);
@@ -506,7 +506,7 @@ export const UpscalerView = () => {
         );
         return;
       }
-    } else if (!vertexReady) {
+    } else if (vertexReady !== true) {
       toast.error(
         "Bitte zuerst unter Integrationen → Gemini (KI) ein Vertex-Dienstkonto hinterlegen.",
       );
@@ -977,6 +977,21 @@ export const UpscalerView = () => {
               </div>
             ) : null}
 
+            {vertexReady === null && engineMode === "cloud" ? (
+              <div
+                role="status"
+                className="flex items-start gap-3 rounded-xl bg-slate-50 px-4 py-4 text-sm font-medium text-slate-600 ring-1 ring-inset ring-slate-900/5"
+                aria-live="polite"
+              >
+                <Loader2
+                  className="mt-0.5 shrink-0 animate-spin text-indigo-600"
+                  size={18}
+                  aria-hidden
+                />
+                <p>Cloud-Konfiguration (Vertex) wird geprüft …</p>
+              </div>
+            ) : null}
+
             {vertexReady === false && engineMode === "cloud" ? (
               <div
                 role="status"
@@ -1236,6 +1251,21 @@ export const UpscalerView = () => {
               })}
             </UploadQueueGrid>
 
+            {vertexReady === null && engineMode === "cloud" ? (
+              <div
+                className="flex items-start gap-3 rounded-xl bg-slate-50/80 px-5 py-3 text-xs font-medium text-slate-600 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-inset ring-slate-900/5"
+                role="status"
+                aria-live="polite"
+              >
+                <Loader2
+                  className="mt-0.5 shrink-0 animate-spin text-indigo-600"
+                  size={16}
+                  aria-hidden
+                />
+                <p>Cloud-Konfiguration (Vertex) wird geprüft …</p>
+              </div>
+            ) : null}
+
             {vertexReady === false && engineMode === "cloud" ? (
               <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-5 py-3 text-xs text-amber-950 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-amber-200/60">
                 <p className="font-medium">Vertex-Dienstkonto fehlt</p>
@@ -1348,7 +1378,7 @@ export const UpscalerView = () => {
                   disabled={
                     isProcessing ||
                     upscaleQueueCount === 0 ||
-                    (engineMode === "cloud" && vertexReady === false) ||
+                    (engineMode === "cloud" && vertexReady !== true) ||
                     (engineMode === "local" &&
                       (!canRunLocalUpscale ||
                         isChecking ||

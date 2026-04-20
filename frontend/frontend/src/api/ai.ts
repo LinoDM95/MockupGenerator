@@ -12,6 +12,61 @@ export type AIConnectionStatus = {
   created_at?: string;
 };
 
+const AI_STATUS_TTL_MS = 15_000;
+
+let aiStatusClientCache: { at: number; data: AIConnectionStatus } | null = null;
+let aiStatusInFlight: Promise<AIConnectionStatus> | null = null;
+let aiStatusFetchGen = 0;
+
+/** Nur für Vitest: Client-Cache zurücksetzen. */
+export const __resetAiStatusClientStateForTests = (): void => {
+  aiStatusClientCache = null;
+  aiStatusInFlight = null;
+  aiStatusFetchGen = 0;
+};
+
+const runAiStatusFetch = (gen: number): Promise<AIConnectionStatus> =>
+  apiJson<AIConnectionStatus>("/api/ai/status/").then((data) => {
+    if (gen === aiStatusFetchGen) {
+      aiStatusClientCache = { at: Date.now(), data };
+    }
+    return data;
+  });
+
+/**
+ * KI-Verbindungsstatus: kurze Client-TTL, parallele Aufrufe ein Request.
+ * Nach Logout / Disconnect: `invalidateAiStatusClientCache`.
+ */
+export const fetchAiStatus = (opts?: { force?: boolean }): Promise<AIConnectionStatus> => {
+  const force = opts?.force === true;
+  if (force) {
+    invalidateAiStatusClientCache();
+  }
+  if (
+    !force &&
+    aiStatusClientCache &&
+    Date.now() - aiStatusClientCache.at < AI_STATUS_TTL_MS
+  ) {
+    return Promise.resolve(aiStatusClientCache.data);
+  }
+  if (!force && aiStatusInFlight) {
+    return aiStatusInFlight;
+  }
+  const gen = aiStatusFetchGen;
+  const p = runAiStatusFetch(gen).finally(() => {
+    if (aiStatusInFlight === p) {
+      aiStatusInFlight = null;
+    }
+  });
+  aiStatusInFlight = p;
+  return p;
+};
+
+export const invalidateAiStatusClientCache = (): void => {
+  aiStatusClientCache = null;
+  aiStatusFetchGen += 1;
+};
+
 export type AIListingResult = {
   titles: string[];
   tags: string[];
@@ -22,14 +77,19 @@ export const aiConnect = (
   apiKey: string,
   modelName: string,
   provider: string = "gemini",
-) =>
-  apiJson<AIConnectionStatus>("/api/ai/connect/", {
+) => {
+  invalidateAiStatusClientCache();
+  return apiJson<AIConnectionStatus>("/api/ai/connect/", {
     method: "POST",
     body: JSON.stringify({ api_key: apiKey, model_name: modelName, provider }),
+  }).then((data) => {
+    aiStatusClientCache = { at: Date.now(), data };
+    return data;
   });
+};
 
-export const aiStatus = () =>
-  apiJson<AIConnectionStatus>("/api/ai/status/");
+/** Alias für `fetchAiStatus()` (Client-Cache). */
+export const aiStatus = () => fetchAiStatus();
 
 export type AiConnectionPatch = {
   model_name?: string;
@@ -52,14 +112,20 @@ export const aiUpdateGrounding = (enabled: boolean) =>
 export const aiUpdatePreferExpertMode = (enabled: boolean) =>
   aiPatchConnection({ prefer_expert_mode: enabled });
 
-export const aiUpdateVertexServiceAccount = (serviceAccountJson: string) =>
-  apiJson<AIConnectionStatus>("/api/ai/vertex-service-account/", {
+export const aiUpdateVertexServiceAccount = (serviceAccountJson: string) => {
+  invalidateAiStatusClientCache();
+  return apiJson<AIConnectionStatus>("/api/ai/vertex-service-account/", {
     method: "PATCH",
     body: JSON.stringify({ service_account_json: serviceAccountJson }),
+  }).then((data) => {
+    aiStatusClientCache = { at: Date.now(), data };
+    return data;
   });
+};
 
 export const aiDisconnect = async () => {
   await apiFetch("/api/ai/disconnect/", { method: "DELETE" });
+  invalidateAiStatusClientCache();
 };
 
 export const generateListing = async (

@@ -107,9 +107,55 @@ export const normalizeSet = (raw: Record<string, unknown>): TemplateSet => ({
     : [],
 });
 
-export const fetchTemplateSets = async (): Promise<TemplateSet[]> => {
-  const data = await apiJson<Record<string, unknown>[]>("/api/sets/");
-  return data.map(normalizeSet);
+const SETS_LIST_TTL_MS = 15_000;
+
+let setsListClientCache: { at: number; data: TemplateSet[] } | null = null;
+let setsListInFlight: Promise<TemplateSet[]> | null = null;
+let setsListFetchGen = 0;
+
+/** Nur für Vitest. */
+export const __resetTemplateSetsListClientStateForTests = (): void => {
+  setsListClientCache = null;
+  setsListInFlight = null;
+  setsListFetchGen = 0;
+};
+
+export const invalidateTemplateSetsListCache = (): void => {
+  setsListClientCache = null;
+  setsListFetchGen += 1;
+};
+
+const runFetchTemplateSetsList = (gen: number): Promise<TemplateSet[]> =>
+  apiJson<Record<string, unknown>[]>("/api/sets/").then((data) => {
+    const normalized = data.map(normalizeSet);
+    if (gen === setsListFetchGen) {
+      setsListClientCache = { at: Date.now(), data: normalized };
+    }
+    return normalized;
+  });
+
+/**
+ * GET /api/sets/ — Client-TTL; nach Änderungen an Sets/Vorlagen invalidieren.
+ */
+export const fetchTemplateSets = (opts?: { force?: boolean }): Promise<TemplateSet[]> => {
+  const force = opts?.force === true;
+  if (force) {
+    invalidateTemplateSetsListCache();
+  }
+  if (!force && setsListClientCache && Date.now() - setsListClientCache.at < SETS_LIST_TTL_MS) {
+    return Promise.resolve(setsListClientCache.data);
+  }
+  if (!force && setsListInFlight) {
+    return setsListInFlight;
+  }
+  const gen = setsListFetchGen;
+  const p = runFetchTemplateSetsList(gen).finally(() => {
+    if (setsListInFlight === p) {
+      setsListInFlight = null;
+    }
+  });
+  setsListInFlight = p;
+  return p;
 };
 
 export const createTemplateSet = async (name: string): Promise<TemplateSet> => {
@@ -117,6 +163,7 @@ export const createTemplateSet = async (name: string): Promise<TemplateSet> => {
     method: "POST",
     body: JSON.stringify({ name }),
   });
+  invalidateTemplateSetsListCache();
   return normalizeSet(raw);
 };
 
@@ -125,11 +172,13 @@ export const patchTemplateSet = async (id: string, name: string): Promise<Templa
     method: "PATCH",
     body: JSON.stringify({ name }),
   });
+  invalidateTemplateSetsListCache();
   return normalizeSet(raw);
 };
 
 export const deleteTemplateSet = async (id: string): Promise<void> => {
   await apiJson(`/api/sets/${id}/`, { method: "DELETE" });
+  invalidateTemplateSetsListCache();
 };
 
 export const createTemplateWithUpload = async (
@@ -147,6 +196,7 @@ export const createTemplateWithUpload = async (
     method: "POST",
     body: fd,
   });
+  invalidateTemplateSetsListCache();
   return normalizeTemplate(raw);
 };
 
@@ -158,12 +208,14 @@ export const patchTemplate = async (
     const res = await apiFetch(`/api/templates/${id}/`, { method: "PATCH", body: data });
     const text = await res.text();
     if (!res.ok) throw new Error(text || `HTTP ${res.status}`);
+    invalidateTemplateSetsListCache();
     return normalizeTemplate(JSON.parse(text) as Record<string, unknown>);
   }
   const raw = await apiJson<Record<string, unknown>>(`/api/templates/${id}/`, {
     method: "PATCH",
     body: JSON.stringify(data),
   });
+  invalidateTemplateSetsListCache();
   return normalizeTemplate(raw);
 };
 
@@ -175,11 +227,13 @@ export const replaceTemplateElements = async (
     method: "PUT",
     body: JSON.stringify(elements),
   });
+  invalidateTemplateSetsListCache();
   return normalizeTemplate(raw);
 };
 
 export const deleteTemplate = async (id: string): Promise<void> => {
   await apiJson(`/api/templates/${id}/`, { method: "DELETE" });
+  invalidateTemplateSetsListCache();
 };
 
 export const exportSetJson = async (setId: string): Promise<TemplateSet> => {
@@ -192,5 +246,6 @@ export const importSetJson = async (body: unknown): Promise<TemplateSet> => {
     method: "POST",
     body: JSON.stringify(body),
   });
+  invalidateTemplateSetsListCache();
   return normalizeSet(raw);
 };

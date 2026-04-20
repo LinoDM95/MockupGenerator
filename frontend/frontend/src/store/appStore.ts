@@ -109,6 +109,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   setAuthenticated: (v) => set({ isAuthenticated: v }),
   logoutLocal: () => {
     void import("../api/settings").then((m) => m.invalidateIntegrationStatusClientCache());
+    void import("../api/ai").then((m) => m.invalidateAiStatusClientCache());
+    void import("../api/gelato").then((m) => m.invalidateGelatoClientCache());
+    void import("../api/auth").then((m) => m.invalidateCurrentUserClientCache());
+    void import("../api/sets").then((m) => m.invalidateTemplateSetsListCache());
     set({ isAuthenticated: false, templateSets: [] });
   },
   logout: async () => {

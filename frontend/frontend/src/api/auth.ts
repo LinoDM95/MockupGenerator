@@ -10,6 +10,32 @@ export type CurrentUser = {
   is_superuser: boolean;
 };
 
+const ME_TTL_MS = 15_000;
+
+let meClientCache: { at: number; data: CurrentUser } | null = null;
+let meInFlight: Promise<CurrentUser> | null = null;
+let meFetchGen = 0;
+
+/** Nur für Vitest. */
+export const __resetCurrentUserClientStateForTests = (): void => {
+  meClientCache = null;
+  meInFlight = null;
+  meFetchGen = 0;
+};
+
+export const invalidateCurrentUserClientCache = (): void => {
+  meClientCache = null;
+  meFetchGen += 1;
+};
+
+const runMeFetch = (gen: number): Promise<CurrentUser> =>
+  apiJson<CurrentUser>("/api/auth/me/").then((data) => {
+    if (gen === meFetchGen) {
+      meClientCache = { at: Date.now(), data };
+    }
+    return data;
+  });
+
 export type AccountDataExport = {
   export_version: number;
   exported_at: string;
@@ -35,6 +61,7 @@ export type AccountDataExport = {
 };
 
 export const login = async (username: string, password: string): Promise<void> => {
+  invalidateCurrentUserClientCache();
   await apiJson<{ detail?: string }>("/api/auth/login/", {
     method: "POST",
     body: JSON.stringify({ username, password }),
@@ -46,6 +73,7 @@ export const apiLogout = async (): Promise<void> => {
     method: "POST",
     body: "{}",
   });
+  invalidateCurrentUserClientCache();
 };
 
 export const register = async (payload: {
@@ -59,17 +87,41 @@ export const register = async (payload: {
   });
 };
 
-export const fetchCurrentUser = async (): Promise<CurrentUser> =>
-  apiJson<CurrentUser>("/api/auth/me/");
+/**
+ * GET /api/auth/me/ — kurze Client-TTL; nach Logout `invalidateCurrentUserClientCache`.
+ */
+export const fetchCurrentUser = (opts?: { force?: boolean }): Promise<CurrentUser> => {
+  const force = opts?.force === true;
+  if (force) {
+    invalidateCurrentUserClientCache();
+  }
+  if (!force && meClientCache && Date.now() - meClientCache.at < ME_TTL_MS) {
+    return Promise.resolve(meClientCache.data);
+  }
+  if (!force && meInFlight) {
+    return meInFlight;
+  }
+  const gen = meFetchGen;
+  const p = runMeFetch(gen).finally(() => {
+    if (meInFlight === p) {
+      meInFlight = null;
+    }
+  });
+  meInFlight = p;
+  return p;
+};
 
 export const patchCurrentUser = async (payload: {
   username?: string;
   email?: string;
-}): Promise<CurrentUser> =>
-  apiJson<CurrentUser>("/api/auth/me/", {
+}): Promise<CurrentUser> => {
+  const data = await apiJson<CurrentUser>("/api/auth/me/", {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
+  meClientCache = { at: Date.now(), data };
+  return data;
+};
 
 export const fetchAccountDataExport = (): Promise<AccountDataExport> =>
   apiJson<AccountDataExport>("/api/auth/me/export/");
@@ -82,6 +134,7 @@ export const deleteAccount = async (payload: {
     method: "POST",
     body: JSON.stringify(payload),
   });
+  invalidateCurrentUserClientCache();
 };
 
 export const changePassword = async (payload: {

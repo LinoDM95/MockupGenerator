@@ -4,6 +4,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import App from "./App.tsx";
 import { fetchCurrentUser } from "./api/auth";
 import { bootstrapCsrf } from "./api/client";
+import { prefetchAuthenticatedSession } from "./lib/sessionPrefetch";
 import { AuthScreen } from "./components/auth/AuthScreen.tsx";
 import { Toaster } from "./components/ui/overlay/Toaster.tsx";
 import { GlobalLegalFooter } from "./components/legal/GlobalLegalFooter.tsx";
@@ -27,6 +28,7 @@ export const AppShell = () => {
         try {
           await fetchCurrentUser();
           useAppStore.getState().setAuthenticated(true);
+          void prefetchAuthenticatedSession();
         } catch {
           useAppStore.getState().setAuthenticated(false);
         }

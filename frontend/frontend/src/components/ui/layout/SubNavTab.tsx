@@ -11,6 +11,8 @@ export type SubNavTabProps = {
   onClick: () => void;
   disabled?: boolean;
   title?: string;
+  /** z. B. Daten für den Ziel-Tab vorwärmen (nutzt Client-Caches). */
+  onPointerEnter?: () => void;
   /** Eindeutig pro Nav (z. B. Workspace vs. Integrationen), damit layoutId nicht kollidiert. */
   activePillLayoutId?: string;
 };
@@ -23,11 +25,13 @@ export const SubNavTab = ({
   onClick,
   disabled = false,
   title,
+  onPointerEnter,
   activePillLayoutId = "sub-nav-active-pill",
 }: SubNavTabProps) => (
   <button
     type="button"
     onClick={onClick}
+    onPointerEnter={onPointerEnter}
     disabled={disabled}
     title={title}
     className={cn(

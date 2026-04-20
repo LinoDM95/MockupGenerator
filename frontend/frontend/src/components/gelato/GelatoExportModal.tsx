@@ -21,7 +21,7 @@ import type {
   ExpertListingStepResponse,
 } from "../../api/ai";
 import {
-  aiStatus,
+  fetchAiStatus,
   generateListing,
   generateListingExpertStep,
 } from "../../api/ai";
@@ -363,14 +363,13 @@ export const GelatoExportModal = ({
   const goToIntegrationWizardStep = useAppStore((s) => s.goToIntegrationWizardStep);
 
   useEffect(() => {
-    void (async () => {
-      try {
-        const s: AIConnectionStatus = await aiStatus();
+    void fetchAiStatus()
+      .then((s: AIConnectionStatus) => {
         setAiConnected(!!s.connected);
-      } catch {
+      })
+      .catch(() => {
         setAiConnected(false);
-      }
-    })();
+      });
   }, []);
 
   useEffect(() => {
@@ -405,16 +404,17 @@ export const GelatoExportModal = ({
     [],
   );
 
-  const openAiPopup = useCallback(async (idx: number) => {
+  const openAiPopup = useCallback((idx: number) => {
     setAiPopupProduct(productType);
     setAiPopupContext(aiContext);
-    try {
-      const s = await aiStatus();
-      setAiExpertMode(!!s.prefer_expert_mode);
-    } catch {
-      setAiExpertMode(false);
-    }
     setAiPopupIdx(idx);
+    void fetchAiStatus()
+      .then((s) => {
+        setAiExpertMode(!!s.prefer_expert_mode);
+      })
+      .catch(() => {
+        setAiExpertMode(false);
+      });
   }, [productType, aiContext]);
 
   const applyListingToMeta = useCallback(
@@ -441,7 +441,7 @@ export const GelatoExportModal = ({
 
     let snap: AIConnectionStatus;
     try {
-      snap = await aiStatus();
+      snap = await fetchAiStatus();
     } catch {
       toast.error("KI-Status konnte nicht geladen werden.");
       return;
@@ -640,7 +640,7 @@ export const GelatoExportModal = ({
 
     try {
       useAiActivityStore.getState().setPanelOpen(true);
-      const bulkSnap = await aiStatus();
+      const bulkSnap = await fetchAiStatus();
       const expertBulk = !!bulkSnap.prefer_expert_mode;
       const pushAiLog = useAiActivityStore.getState().pushAiLog;
 
