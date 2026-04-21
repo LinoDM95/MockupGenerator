@@ -61,7 +61,7 @@ import { Button } from "../ui/primitives/Button";
 import { Card } from "../ui/primitives/Card";
 import { Select } from "../ui/primitives/Select";
 import { IntegrationMissingCallout } from "../ui/patterns/IntegrationMissingCallout";
-import { LinearLoadingBar } from "../ui/overlay/LinearLoadingBar";
+import { LoadingOverlay } from "../ui/LoadingOverlay";
 import {
   UploadQueueCard,
   UploadQueueCardFooter,
@@ -532,26 +532,8 @@ export const UpscalerView = () => {
 
     const upscaleParams = { kind: "factor" as const, factor };
 
-    if (engineMode === "cloud") {
-      const tokenOk = await refreshAccessToken();
-      if (!tokenOk) {
-        toast.error(
-          "Sitzung konnte nicht erneuert werden. Bitte erneut anmelden und den Upscaler noch einmal starten.",
-        );
-        return;
-      }
-    }
-
-    cancelRequestedRef.current = false;
-    resetEta();
-    if (engineMode === "local") {
-      resetCompanionTileEta();
-    }
-    setSessionEtaLabel(getRemainingLabel(todo.length));
     setIsProcessing(true);
     setNavigationLocked(true);
-    setProgressTotal(todo.length);
-    setProgressIdx(0);
 
     let anySuccess = false;
     let vertexAborted = false;
@@ -559,6 +541,25 @@ export const UpscalerView = () => {
     let finishedNormally = false;
 
     try {
+      if (engineMode === "cloud") {
+        const tokenOk = await refreshAccessToken();
+        if (!tokenOk) {
+          toast.error(
+            "Sitzung konnte nicht erneuert werden. Bitte erneut anmelden und den Upscaler noch einmal starten.",
+          );
+          return;
+        }
+      }
+
+      cancelRequestedRef.current = false;
+      resetEta();
+      if (engineMode === "local") {
+        resetCompanionTileEta();
+      }
+      setSessionEtaLabel(getRemainingLabel(todo.length));
+      setProgressTotal(todo.length);
+      setProgressIdx(0);
+
       for (let i = 0; i < todo.length; i++) {
         const { it, idx } = todo[i]!;
         setProgressIdx(i + 1);
@@ -819,7 +820,22 @@ export const UpscalerView = () => {
           primaryAriaLabel="Engine und Einstellungen"
           secondaryAriaLabel="Motive hochladen"
           primary={
-            <>
+            <div className="relative">
+              <LoadingOverlay
+                show={
+                  engineMode === "local" &&
+                  isOnline &&
+                  (installingModelId !== null || uninstallingModelId !== null)
+                }
+                fullScreen={false}
+                message={
+                  uninstallingModelId
+                    ? "Modell wird entfernt …"
+                    : installingModelId
+                      ? "Modell wird installiert …"
+                      : undefined
+                }
+              />
             <div className={workspaceEmbeddedPaddedClassName}>
               <fieldset>
                 <legend className="text-xs font-medium text-slate-500">Engine</legend>
@@ -1016,7 +1032,7 @@ export const UpscalerView = () => {
                 </Button>
               </div>
             ) : null}
-            </>
+            </div>
           }
           secondary={
             <>
@@ -1048,7 +1064,9 @@ export const UpscalerView = () => {
           message={
             runningItem
               ? `Aktuell: ${runningItem.file.name}`
-              : `Schritt ${progressIdx} von ${progressTotal}`
+              : progressIdx === 0
+                ? "Sitzung wird vorbereitet …"
+                : `Schritt ${progressIdx} von ${progressTotal}`
           }
           current={progressIdx}
           total={Math.max(1, progressTotal)}
@@ -1081,16 +1099,12 @@ export const UpscalerView = () => {
         </WorkSessionShell>
       ) : null}
       {isBuildingZip ? (
-        <WorkSessionShell
-          shellClassName="z-[100]"
-          title="ZIP wird erstellt"
-          message={zipProgress.message}
-          current={zipProgress.current}
-          total={zipProgress.total}
-          packPercent={zipProgress.packPercent}
-        >
-          <div className="min-h-0 flex-1" aria-hidden />
-        </WorkSessionShell>
+        <LoadingOverlay
+          show
+          fullScreen
+          className="z-[230]"
+          message={zipProgress.message || "ZIP wird erstellt …"}
+        />
       ) : null}
       {!isProcessing && vertexApiGate && engineMode === "cloud" ? (
         <VertexApiNotEnabledBox activationUrl={vertexApiGate} />
@@ -1112,21 +1126,22 @@ export const UpscalerView = () => {
           primaryAriaLabel="Engine und Einstellungen"
           secondaryAriaLabel="Ausgewaehlte Motive"
           secondary={
-            <>
-            {engineMode === "local" &&
-            isOnline &&
-            (installingModelId || uninstallingModelId) ? (
-              <div className="overflow-hidden rounded-xl bg-white px-5 py-3 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5">
-                <LinearLoadingBar
-                  message={
-                    uninstallingModelId
-                      ? "Modell wird entfernt …"
-                      : "Modell wird installiert …"
-                  }
-                />
-              </div>
-            ) : null}
-
+            <div className="relative min-h-0">
+              <LoadingOverlay
+                show={
+                  engineMode === "local" &&
+                  isOnline &&
+                  (installingModelId !== null || uninstallingModelId !== null)
+                }
+                fullScreen={false}
+                message={
+                  uninstallingModelId
+                    ? "Modell wird entfernt …"
+                    : installingModelId
+                      ? "Modell wird installiert …"
+                      : undefined
+                }
+              />
             <UploadQueueGrid
               label="Motive"
               dropzoneTitle="Mehr Motive"
@@ -1281,9 +1296,25 @@ export const UpscalerView = () => {
                 </Button>
               </div>
             ) : null}
-            </>
+            </div>
           }
           primary={
+            <div className="relative">
+              <LoadingOverlay
+                show={
+                  engineMode === "local" &&
+                  isOnline &&
+                  (installingModelId !== null || uninstallingModelId !== null)
+                }
+                fullScreen={false}
+                message={
+                  uninstallingModelId
+                    ? "Modell wird entfernt …"
+                    : installingModelId
+                      ? "Modell wird installiert …"
+                      : undefined
+                }
+              />
             <>
             <Card padding="md" variant="embedded">
               <h3 className="mb-4 text-sm font-bold tracking-tight text-slate-900">
@@ -1510,6 +1541,7 @@ export const UpscalerView = () => {
               ) : null}
             </div>
             </>
+            </div>
           }
         />
       ) : null}

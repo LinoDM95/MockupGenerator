@@ -7,6 +7,7 @@ import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { cn } from "./lib/ui/cn";
 import { Button } from "./components/ui/primitives/Button";
+import { LoadingOverlay } from "./components/ui/LoadingOverlay";
 import { ThemeToggle } from "./components/ui/primitives/ThemeToggle";
 import { DialogHost } from "./components/shell/DialogHost";
 import { AIActivityPanel } from "./components/ai/AIActivityPanel";
@@ -64,6 +65,7 @@ function App() {
   const [showBatchLauncherRefresh] = useState(
     () => typeof sessionStorage !== "undefined" && sessionStorage.getItem("mockupLauncherBatch") === "1",
   );
+  const [logoutBusy, setLogoutBusy] = useState(false);
 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
@@ -71,6 +73,12 @@ function App() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-slate-50 font-sans text-slate-900 selection:bg-indigo-500/20">
+      <LoadingOverlay
+        show={logoutBusy}
+        fullScreen
+        className="z-[240]"
+        message="Abmelden …"
+      />
       <FeedbackNotificationPoller />
       <AIActivityPanel />
       <DialogHost />
@@ -217,15 +225,22 @@ function App() {
             ) : null}
             <button
               type="button"
-              disabled={navigationLocked}
-              title={navigationLocked ? NAV_LOCK_TITLE : undefined}
+              disabled={navigationLocked || logoutBusy}
+              title={
+                navigationLocked
+                  ? NAV_LOCK_TITLE
+                  : logoutBusy
+                    ? "Abmelden …"
+                    : undefined
+              }
               onClick={() => {
-                if (navigationLocked) return;
-                void logout();
+                if (navigationLocked || logoutBusy) return;
+                setLogoutBusy(true);
+                void logout().finally(() => setLogoutBusy(false));
               }}
               className={cn(
                 "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors",
-                navigationLocked
+                navigationLocked || logoutBusy
                   ? "cursor-not-allowed text-slate-400 opacity-50"
                   : "text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-white/10",
               )}

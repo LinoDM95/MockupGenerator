@@ -267,34 +267,42 @@ export const GeneratorView = () => {
 
   const generateBatchAndZIP = async (mainOnly = false) => {
     if (artworks.length === 0) return;
-    await refreshAccessTokenIfExpiringSoon();
-    await reloadTemplateSets();
-    const sets = useAppStore.getState().templateSets;
 
-    let totalMockups = 0;
-    for (const art of artworks) {
-      const activeSet = findTemplateSet(art.setId, sets);
-      if (!activeSet || activeSet.templates.length === 0) continue;
-      totalMockups += mainOnly ? 1 : activeSet.templates.length;
-    }
-
-    if (totalMockups === 0) {
-      toast.error(zipBlockToastMessage(zipBlockReason(artworks, sets)));
-      return;
-    }
-
-    cancelGenerateRef.current = false;
-    resetEta();
-    setManualZipOffer(null);
     setIsGenerating(true);
     setProgress({
       current: 0,
-      total: totalMockups,
-      message: "Mockups werden gerendert …",
+      total: 1,
+      message: "Bereite Export vor …",
       packPercent: null,
     });
 
     try {
+      await refreshAccessTokenIfExpiringSoon();
+      await reloadTemplateSets();
+      const sets = useAppStore.getState().templateSets;
+
+      let totalMockups = 0;
+      for (const art of artworks) {
+        const activeSet = findTemplateSet(art.setId, sets);
+        if (!activeSet || activeSet.templates.length === 0) continue;
+        totalMockups += mainOnly ? 1 : activeSet.templates.length;
+      }
+
+      if (totalMockups === 0) {
+        toast.error(zipBlockToastMessage(zipBlockReason(artworks, sets)));
+        return;
+      }
+
+      cancelGenerateRef.current = false;
+      resetEta();
+      setManualZipOffer(null);
+      setProgress({
+        current: 0,
+        total: totalMockups,
+        message: "Mockups werden gerendert …",
+        packPercent: null,
+      });
+
       const { default: JSZip } = await import("jszip");
       const zip = new JSZip();
       let filesAdded = 0;
@@ -429,10 +437,6 @@ export const GeneratorView = () => {
       freeShipping: boolean,
       downloadZip: boolean,
     ) => {
-      await refreshAccessTokenIfExpiringSoon();
-      await reloadTemplateSets();
-      const sets = useAppStore.getState().templateSets;
-
       setShowGelatoModal(false);
       setManualZipOffer(null);
       cancelGenerateRef.current = false;
@@ -441,11 +445,15 @@ export const GeneratorView = () => {
       setProgress({
         current: 0,
         total: 1,
-        message: downloadZip ? "Mockups werden gerendert …" : "Sende Motive an Gelato …",
+        message: "Export wird vorbereitet …",
         packPercent: null,
       });
 
       try {
+        await refreshAccessTokenIfExpiringSoon();
+        await reloadTemplateSets();
+        const sets = useAppStore.getState().templateSets;
+
         if (downloadZip) {
           const { default: JSZip } = await import("jszip");
           const zip = new JSZip();

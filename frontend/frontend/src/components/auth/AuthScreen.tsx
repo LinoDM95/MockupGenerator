@@ -13,6 +13,7 @@ import {
   AnimatedGridBackground,
   animatedGridHeroSurfaceClassName,
 } from "../marketing/AnimatedGridBackground";
+import { LoadingOverlay } from "../ui/LoadingOverlay";
 import { Button } from "../ui/primitives/Button";
 import { Input } from "../ui/primitives/Input";
 import { ThemeToggle } from "../ui/primitives/ThemeToggle";
@@ -65,6 +66,14 @@ export const AuthScreen = () => {
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-50 font-sans text-slate-900">
+      <LoadingOverlay
+        show={loading}
+        fullScreen
+        className="z-[100]"
+        message={
+          mode === "login" ? "Anmeldung …" : "Konto wird angelegt …"
+        }
+      />
       <AnimatedGridBackground
         width={40}
         height={40}

@@ -101,13 +101,13 @@ export const BatchQueue = ({
                   variant="outline"
                   className="w-full justify-center"
                   onClick={onClearAll}
-                  disabled={artworks.length === 0}
+                  disabled={artworks.length === 0 || isGenerating}
                 >
                   Liste leeren
                 </Button>
                 <Button
                   type="button"
-                  disabled={zipDisabled}
+                  disabled={zipDisabled || isGenerating}
                   onClick={onGenerate}
                   className="w-full justify-center gap-2 shadow-lg shadow-indigo-200/60"
                 >
@@ -170,7 +170,7 @@ export const BatchQueue = ({
                       <Button
                         type="button"
                         variant="outline"
-                        disabled={zipDisabled}
+                        disabled={zipDisabled || isGenerating}
                         onClick={onGelatoExport}
                         className="w-full gap-2 py-2.5 text-sm font-semibold"
                       >
