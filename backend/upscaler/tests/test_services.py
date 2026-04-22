@@ -1,7 +1,7 @@
 """Upscaler: reine Service-/Hilfsfunktionen (ohne DB)."""
 
 import math
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase
 from PIL import Image as PILImage
@@ -11,6 +11,7 @@ from upscaler.services import (
     OVERLAP_SRC,
     UpscaleAPIError,
     _call_replicate_api,
+    _replicate_client_run_to_file_output_with_retry,
     _tiling_grid_dims,
     native_steps_for_total_factor,
     smallest_cover_factor,
@@ -69,3 +70,25 @@ class ReplicateErrorMappingTests(SimpleTestCase):
             _call_replicate_api(client, "nightmareai/real-esrgan", img, 4)
         self.assertEqual(ctx.exception.status_code, 402)
         self.assertIn("Guthaben", str(ctx.exception))
+
+
+@patch("upscaler.services.time.sleep", autospec=True)
+@patch("upscaler.services._replicate_file_output_from_run", autospec=True)
+class ReplicateTileRetryTests(SimpleTestCase):
+    def test_503_backoff_api_then_fileoutput_ok(
+        self, mock_fo: MagicMock, _mock_sleep: MagicMock
+    ) -> None:
+        from replicate.helpers import FileOutput
+
+        fo = MagicMock(spec=FileOutput)
+        mock_fo.side_effect = [
+            UpscaleAPIError("unavailable", status_code=503),
+            fo,
+        ]
+        c = MagicMock()
+        img = PILImage.new("RGB", (8, 8), color=(1, 2, 3))
+        out = _replicate_client_run_to_file_output_with_retry(
+            c, "nightmareai/real-esrgan", img, 4
+        )
+        self.assertIs(out, fo)
+        self.assertEqual(mock_fo.call_count, 2)

@@ -1,16 +1,18 @@
 from __future__ import annotations
 
+import gc
 import json
 import logging
 import math
 import os
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from urllib.parse import quote
 from typing import Any, Tuple
 
 import cv2
+import httpx
 import numpy as np
 from PIL import Image as PILImage
 from replicate import Client
@@ -180,13 +182,13 @@ def _pil_to_rgb8_array(pil: PILImage.Image) -> np.ndarray:
     return np.asarray(p, dtype=np.uint8)
 
 
-def _replicate_client_run_to_png_bytes(
+def _replicate_file_output_from_run(
     client: Client,
     model_ref: str,
     pil_tile: PILImage.Image,
     factor_int: int,
-) -> bytes:
-    """Laeuft Replicate-Modell, liefert Rohtext-Bytes (PNG) der Ausgabedatei."""
+) -> FileOutput:
+    """Replicate `client.run`; liefert ``FileOutput`` — ausserhalb der Worker **kein** ``.read()`` (RAM)."""
     if factor_int not in (2, 4):
         raise UpscaleError(f"Intern: Replicate erwartet Faktor 2 oder 4, nicht {factor_int}.")
 
@@ -267,7 +269,140 @@ def _replicate_client_run_to_png_bytes(
             f"Unerwartetes Replicate-Output-Format: {type(first).__name__}",
             status_code=503,
         )
-    return first.read()
+    return first
+
+
+def _replicate_client_run_to_png_bytes(
+    client: Client,
+    model_ref: str,
+    pil_tile: PILImage.Image,
+    factor_int: int,
+) -> bytes:
+    """Laeuft Replicate-Modell, liefert Rohtext-Bytes (PNG) der Ausgabedatei."""
+    return _replicate_file_output_from_run(
+        client, model_ref, pil_tile, factor_int
+    ).read()
+
+
+_REPLICATE_TILE_MAX_ATTEMPTS = 6
+_REPLICATE_TILE_BACKOFF_MAX_SEC = 64.0
+
+
+def _replicate_client_run_to_file_output_with_retry(
+    client: Client,
+    model_ref: str,
+    pil_tile: PILImage.Image,
+    factor_int: int,
+) -> FileOutput:
+    """Nur `client.run` (API) mit Backoff; ``FileOutput`` noch ohne Download der Bytes."""
+    delay = 1.0
+    for attempt in range(1, _REPLICATE_TILE_MAX_ATTEMPTS + 1):
+        try:
+            return _replicate_file_output_from_run(
+                client, model_ref, pil_tile, factor_int
+            )
+        except UpscaleAPIError as e:
+            if (
+                e.status_code in (429, 500, 502, 503)
+                and attempt < _REPLICATE_TILE_MAX_ATTEMPTS
+            ):
+                logger.warning(
+                    "Replicate Kachel-API: Versuch %d/%d, Status %d — Retry in %.1f s (Backoff)",
+                    attempt,
+                    _REPLICATE_TILE_MAX_ATTEMPTS,
+                    e.status_code,
+                    delay,
+                )
+                time.sleep(delay)
+                delay = min(delay * 2.0, _REPLICATE_TILE_BACKOFF_MAX_SEC)
+                continue
+            raise
+    raise RuntimeError("replicate file_output API retry: unreachable")
+
+
+def _replicate_file_output_read_bytes_with_retry(fo: FileOutput) -> bytes:
+    """``FileOutput.read()`` (HTTP-GET der Kachel) mit Backoff — sequentiell im Haupthread."""
+    delay = 1.0
+    for attempt in range(1, _REPLICATE_TILE_MAX_ATTEMPTS + 1):
+        try:
+            b = fo.read()
+            if not b:
+                raise UpscaleAPIError("Kachel-Datei war leer.", status_code=503)
+            return b
+        except UpscaleAPIError as e:
+            if (
+                e.status_code in (429, 500, 502, 503)
+                and attempt < _REPLICATE_TILE_MAX_ATTEMPTS
+            ):
+                logger.warning(
+                    "Kachel-Download: Versuch %d/%d, Status %d — Retry in %.1f s (Backoff)",
+                    attempt,
+                    _REPLICATE_TILE_MAX_ATTEMPTS,
+                    e.status_code,
+                    delay,
+                )
+                time.sleep(delay)
+                delay = min(delay * 2.0, _REPLICATE_TILE_BACKOFF_MAX_SEC)
+                continue
+            raise
+        except httpx.HTTPStatusError as e:
+            code = e.response.status_code
+            if (
+                code in (429, 500, 502, 503, 504)
+                and attempt < _REPLICATE_TILE_MAX_ATTEMPTS
+            ):
+                logger.warning(
+                    "Kachel-Download HTTP %s: Versuch %d/%d — Retry in %.1f s (Backoff)",
+                    code,
+                    attempt,
+                    _REPLICATE_TILE_MAX_ATTEMPTS,
+                    delay,
+                )
+                time.sleep(delay)
+                delay = min(delay * 2.0, _REPLICATE_TILE_BACKOFF_MAX_SEC)
+                continue
+            raise UpscaleAPIError(
+                f"Kachel-Download fehlgeschlagen (HTTP {code}).", status_code=502
+            ) from e
+        except (httpx.RequestError, OSError) as e:
+            if attempt < _REPLICATE_TILE_MAX_ATTEMPTS:
+                logger.warning(
+                    "Kachel-Download Netzwerk: Versuch %d/%d — %s, Retry in %.1f s",
+                    attempt,
+                    _REPLICATE_TILE_MAX_ATTEMPTS,
+                    e,
+                    delay,
+                )
+                time.sleep(delay)
+                delay = min(delay * 2.0, _REPLICATE_TILE_BACKOFF_MAX_SEC)
+                continue
+            raise UpscaleAPIError(
+                f"Kachel-Download: {e}",
+                status_code=502,
+            ) from e
+    raise RuntimeError("replicate kachel read retry: unreachable")
+
+
+def _replicate_client_run_to_png_bytes_with_retry(
+    client: Client,
+    model_ref: str,
+    pil_tile: PILImage.Image,
+    factor_int: int,
+) -> bytes:
+    """API-Retry, dann Download-Retry (ein Aufrufspiel wie frueher)."""
+    fo = _replicate_client_run_to_file_output_with_retry(
+        client, model_ref, pil_tile, factor_int
+    )
+    return _replicate_file_output_read_bytes_with_retry(fo)
+
+
+def _pil_to_webp_q90_rgb(pil_img: PILImage.Image) -> PILImage.Image:
+    """Einmalig WebP Q90, dann RGB-PIL — reduziert Pufferlast ggü. riesigem unkompr. Raster."""
+    buf = BytesIO()
+    im = pil_img if pil_img.mode == "RGB" else pil_img.convert("RGB")
+    im.save(buf, format="WEBP", quality=90, method=6)
+    buf.seek(0)
+    return PILImage.open(buf).copy()
 
 
 def _replicate_upscale_tiled(
@@ -276,7 +411,7 @@ def _replicate_upscale_tiled(
     pil_img: PILImage.Image,
     factor_int: int,
 ) -> PILImage.Image:
-    """Grosses Bild: ueberlappende Kacheln, pro Kachel Replicate, dann Mischen (OpenCV/numpy)."""
+    """Gross: Phase 1 parallele Replicate-API, Phase 2 sequentielles Download/Decode/Stitch; WebP Q90 (RGB)."""
     orig_w, orig_h = pil_img.size
     w, h = orig_w, orig_h
 
@@ -356,8 +491,11 @@ def _replicate_upscale_tiled(
                 interpolation=cv2.INTER_LANCZOS4,
             )
             o2 = cv2.cvtColor(b2, cv2.COLOR_BGR2RGB)
-            return PILImage.fromarray(o2, "RGB")
-        return out
+            pil_res = _pil_to_webp_q90_rgb(PILImage.fromarray(o2, "RGB"))
+            del o, b, b2, o2
+            gc.collect()
+            return pil_res
+        return _pil_to_webp_q90_rgb(out)
 
     logger.info(
         "Tiled upscale: %dx%d -> %dx%d, grid %dx%d (%d tiles), overlap=%dpx",
@@ -372,30 +510,58 @@ def _replicate_upscale_tiled(
     )
 
     overlap_out = overlap * factor_int
-    # Arbeits-„Leinwand“: 3× float32 (gewichtet), Ausgabe unten einmalig als RGBA/PNG
+    # Gewichtete Leinwand: in-place in acc/wsum (float32) — kein dupl. Voll-Result
     acc = np.zeros((target_h, target_w, 3), dtype=np.float32)
     wsum = np.zeros((target_h, target_w), dtype=np.float32)
 
-    jobs: list[tuple[int, int, int, int, int, int, int]] = []
-    k = 0
+    jobs: list[
+        tuple[int, int, int, int, int, int, int, PILImage.Image]
+    ] = []
+    k0 = 0
     for row in range(rows):
         for col in range(cols):
-            k += 1
+            k0 += 1
             x0 = min(col * step, max(0, w - max_tile_src))
             y0 = min(row * step, max(0, h - max_tile_src))
             x1 = min(x0 + max_tile_src, w)
             y1 = min(y0 + max_tile_src, h)
-            jobs.append((row, col, x0, y0, x1, y1, k))
+            jobs.append(
+                (row, col, k0, x0, y0, x1, y1, pil_img.crop((x0, y0, x1, y1)))
+            )
 
     max_workers = min(8, max(1, total_tiles))
 
-    def _run_tile(
-        job: tuple[int, int, int, int, int, int, int],
-    ) -> tuple[int, int, int, int, np.ndarray]:
-        job_row, job_col, x0, y0, x1, y1, idx = job
-        tile = pil_img.crop((x0, y0, x1, y1))
+    def _replicate_file_output_for_job(
+        j: tuple[int, int, int, int, int, int, int, PILImage.Image],
+    ) -> FileOutput:
+        *_, j_tile = j
+        c = _replicate_client()
+        return _replicate_client_run_to_file_output_with_retry(
+            c, model_ref, j_tile, factor_int
+        )
+
+    logger.info(
+        "API-Calls gestartet (Parallel) — %d Kacheln, %d Worker; "
+        "Stitching (Download/Decode) folgt sequentiell.",
+        total_tiles,
+        max_workers,
+    )
+    file_outputs: list[FileOutput] = []
+    futs: list[Any] = []
+    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+        futs = [ex.submit(_replicate_file_output_for_job, j) for j in jobs]
+        try:
+            for fut in futs:
+                file_outputs.append(fut.result())
+        except BaseException:
+            for f in futs:
+                f.cancel()
+            raise
+
+    for idx, (job, fo) in enumerate(zip(jobs, file_outputs), start=1):
+        row, col, _k, x0, y0, x1, y1, _jtile = job
         logger.info(
-            "Tile %d/%d: src (%d,%d)-(%d,%d) = %dx%d (parallel Replicate, cv2-Decode)",
+            "Stitching Kachel %d von %d (Sequentiell) — src (%d,%d)-(%d,%d) = %dx%d",
             idx,
             total_tiles,
             x0,
@@ -405,71 +571,68 @@ def _replicate_upscale_tiled(
             x1 - x0,
             y1 - y0,
         )
-        c = _replicate_client()
         try:
-            raw_png = _replicate_client_run_to_png_bytes(
-                c, model_ref, tile, factor_int
-            )
+            raw_png = _replicate_file_output_read_bytes_with_retry(fo)
         except UpscaleAPIError:
+            del fo
+            gc.collect()
             raise
         except Exception as exc:
+            del fo
+            gc.collect()
             raise UpscaleAPIError(
-                f"Replicate Kachel (Zeile {job_row}, Spalte {job_col}): {exc}",
+                f"Kachel-Download (Zeile {row}, Spalte {col}): {exc}",
                 status_code=502,
             ) from exc
+        del fo
+        gc.collect()
+
         try:
             tile_arr = _decode_image_bytes_to_rgb_f32(raw_png)
         except UpscaleAPIError:
+            del raw_png
+            gc.collect()
             raise
         except Exception as exc:
+            del raw_png
+            gc.collect()
             raise UpscaleAPIError(
-                f"Replicate Kachel-Decode (Zeile {job_row}, Spalte {job_col}): {exc}",
+                f"Replicate Kachel-Decode (Zeile {row}, Spalte {col}): {exc}",
                 status_code=502,
             ) from exc
-        tw_in, th_in = tile.size
+        del raw_png
+        gc.collect()
+
+        tw_in = x1 - x0
+        th_in = y1 - y0
         exp_w, exp_h = tw_in * factor_int, th_in * factor_int
         if tile_arr.shape[1] != exp_w or tile_arr.shape[0] != exp_h:
             tile_arr = _resize_rgb_f32_lanczos(tile_arr, exp_w, exp_h)
-        return job_row, job_col, x0, y0, tile_arr
 
-    ex = ThreadPoolExecutor(max_workers=max_workers)
-    futures = [ex.submit(_run_tile, j) for j in jobs]
-    tile_data: dict[tuple[int, int], tuple[int, int, np.ndarray]] = {}
-    try:
-        for future in as_completed(futures):
-            try:
-                job_row, job_col, jx0, jy0, t_arr = future.result()
-            except UpscaleAPIError:
-                raise
-            except Exception as exc:
-                raise UpscaleAPIError(
-                    f"Replicate Tiling: {exc}",
-                    status_code=502,
-                ) from exc
-            tile_data[(job_row, job_col)] = (jx0, jy0, t_arr)
-    except BaseException:
-        ex.shutdown(wait=False, cancel_futures=True)
-        raise
-    else:
-        ex.shutdown(wait=True)
+        th, tw, _ = tile_arr.shape
+        ox = x0 * factor_int
+        oy = y0 * factor_int
+        mask = _build_blend_mask(
+            tw,
+            th,
+            overlap_out,
+            blend_left=col > 0,
+            blend_top=row > 0,
+        )
+        _tiling_fuse_add_weighted(acc, wsum, oy, ox, tile_arr, mask)
+        del tile_arr, mask
+        gc.collect()
 
-    for row in range(rows):
-        for col in range(cols):
-            x0, y0, tile_arr = tile_data[(row, col)]
-            th, tw, _ = tile_arr.shape
-            ox = x0 * factor_int
-            oy = y0 * factor_int
-            mask = _build_blend_mask(
-                tw,
-                th,
-                overlap_out,
-                blend_left=col > 0,
-                blend_top=row > 0,
-            )
-            _tiling_fuse_add_weighted(acc, wsum, oy, ox, tile_arr, mask)
+    del file_outputs, jobs, futs
+    gc.collect()
 
     out_u8 = _tiling_finalize_to_rgb8(acc, wsum)
+    del acc, wsum
+    gc.collect()
+
     rgba_out = _rgb8_to_rgba_u8(out_u8)
+    del out_u8
+    gc.collect()
     if smart_scale_applied:
         bgr = cv2.cvtColor(rgba_out, cv2.COLOR_RGBA2BGR)
         bgr2 = cv2.resize(
@@ -478,8 +641,12 @@ def _replicate_upscale_tiled(
             interpolation=cv2.INTER_LANCZOS4,
         )
         rgba_out = cv2.cvtColor(bgr2, cv2.COLOR_BGR2RGBA)
-    out = PILImage.fromarray(rgba_out, "RGBA").convert("RGB")
-    return out
+        del bgr, bgr2
+        gc.collect()
+    pil_out = PILImage.fromarray(rgba_out, "RGBA").convert("RGB")
+    del rgba_out
+    gc.collect()
+    return _pil_to_webp_q90_rgb(pil_out)
 
 
 
