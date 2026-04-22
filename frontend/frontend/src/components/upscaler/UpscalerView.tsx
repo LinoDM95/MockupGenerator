@@ -1,5 +1,6 @@
 import {
   AlertCircle,
+  ArrowLeft,
   CheckCircle2,
   ChevronDown,
   Copy,
@@ -87,11 +88,21 @@ const MAX_BATCH_FILES_CLOUD = 15;
 /** PrintFlow Engine (lokal): mehr Motive pro Durchgang. */
 const MAX_BATCH_FILES_LOCAL = 50;
 
-const UPSCALER_SECTION_DESCRIPTION = PRINTFLOW_LOCAL_STACK_ENABLED
-  ? "Vertex (Imagen, BYOK), Replicate (Server) oder PrintFlow Engine (lokal). Ein Bild: Vorher/Nachher; mehrere: Ergebnisliste mit ZIP."
-  : "Vertex (BYOK) oder Replicate (Server). Ein Bild: Vorher/Nachher; mehrere: Ergebnisliste mit ZIP.";
+const UPSCALER_HERO_CHOICE_DESCRIPTION =
+  "Wähle zuerst, wo skaliert wird — im nächsten Schritt legst du deine Motive in der Dropzone ab und stellst die Optionen dazu ein.";
+
+const UPSCALER_STEP_CONFIG_DESCRIPTION = PRINTFLOW_LOCAL_STACK_ENABLED
+  ? "Motive per Dropzone hinzufügen; links die passenden Einstellungen (Vertex, Replicate oder PrintFlow Engine)."
+  : "Motive per Dropzone hinzufügen; links die passenden Einstellungen (Vertex oder Replicate).";
 
 type UpscalerEngineMode = "vertex" | "replicate" | "local";
+
+const labelForEngineMode = (m: UpscalerEngineMode) =>
+  m === "vertex"
+    ? "Vertex (Cloud)"
+    : m === "replicate"
+      ? "Replicate (Cloud)"
+      : "PrintFlow Engine (lokal)";
 
 type ItemStatus = "pending" | "running" | "done" | "error" | "cancelled";
 
@@ -181,6 +192,8 @@ export const UpscalerView = () => {
   const [progressTotal, setProgressTotal] = useState(0);
 
   const [engineMode, setEngineMode] = useState<UpscalerEngineMode>("vertex");
+  /** Erst Engine wählen (Vollbild), dann erscheint Dropzone + Einstellungen. */
+  const [engineChoiceConfirmed, setEngineChoiceConfirmed] = useState(false);
   const [parallelTiles, setParallelTiles] =
     useState<ParallelTilesOption>("auto");
 
@@ -901,7 +914,109 @@ export const UpscalerView = () => {
     [items],
   );
 
-  // ── Empty: Engine links, UploadQueueGrid rechts (wie Generator: narrowPrimary + MOTIVE) ──
+  // ── Leer, noch keine Engine: nur große Auswahl (keine Dropzone) ──
+  if (items.length === 0 && !engineChoiceConfirmed) {
+    return (
+      <AppPage>
+        <div className="space-y-6">
+          <AppPageSectionHeader
+            align="centerSm"
+            icon={Maximize}
+            title="KI Upscaler"
+            description={UPSCALER_HERO_CHOICE_DESCRIPTION}
+          />
+          <div className="w-full min-w-0">
+            <div className="mx-auto w-full max-w-5xl rounded-2xl bg-slate-50/80 p-5 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 sm:p-8 lg:min-h-[min(32rem,70dvh)] lg:px-10 lg:py-12">
+              <p className="text-center text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                Schritt 1
+              </p>
+              <h2 className="mt-1 text-balance text-center text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                Wo soll skaliert werden?
+              </h2>
+              <p className="mt-2 text-balance text-center text-sm font-medium text-slate-600">
+                Tippen, um Einstellungen und Dropzone zu öffnen.
+              </p>
+              <fieldset className="mt-8 min-w-0">
+                <legend className="sr-only">Upscaling-Engine wählen</legend>
+                <div
+                  className={cn(
+                    "grid auto-rows-fr gap-4",
+                    PRINTFLOW_LOCAL_STACK_ENABLED
+                      ? "sm:grid-cols-2 lg:grid-cols-3"
+                      : "sm:grid-cols-2",
+                  )}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEngineMode("vertex");
+                      setEngineChoiceConfirmed(true);
+                    }}
+                    className="flex min-h-[9.5rem] flex-col justify-between rounded-2xl bg-white p-6 text-left shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 transition-all hover:ring-indigo-500/20 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] sm:p-7"
+                  >
+                    <p className="text-base font-bold tracking-tight text-slate-900 sm:text-lg">
+                      Vertex (Cloud)
+                    </p>
+                    <p className="mt-3 text-sm font-medium leading-relaxed text-slate-600">
+                      Imagen, eigenes GCP-Konto (BYOK)
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEngineMode("replicate");
+                      setEngineChoiceConfirmed(true);
+                    }}
+                    className="flex min-h-[9.5rem] flex-col justify-between rounded-2xl bg-white p-6 text-left shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 transition-all hover:ring-indigo-500/20 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] sm:p-7"
+                  >
+                    <p className="text-base font-bold tracking-tight text-slate-900 sm:text-lg">
+                      Replicate (Cloud)
+                    </p>
+                    <p className="mt-3 text-sm font-medium leading-relaxed text-slate-600">
+                      Real-ESRGAN, Token auf dem Server
+                    </p>
+                  </button>
+                  {PRINTFLOW_LOCAL_STACK_ENABLED ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEngineMode("local");
+                        setEngineChoiceConfirmed(true);
+                      }}
+                      className="flex min-h-[9.5rem] flex-col justify-between rounded-2xl bg-white p-6 text-left shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 transition-all hover:ring-indigo-500/20 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] sm:p-7"
+                    >
+                      <p className="text-base font-bold tracking-tight text-slate-900 sm:text-lg">
+                        PrintFlow Engine (lokal)
+                      </p>
+                      <p className="mt-3 text-sm font-medium leading-relaxed text-slate-600">
+                        Kostenlos — nutzt deine Grafikkarte
+                      </p>
+                    </button>
+                  ) : null}
+                </div>
+              </fieldset>
+            </div>
+            {(vertexUpscaleReady === null || replicateUpscaleReady === null) ? (
+              <div
+                role="status"
+                className="mx-auto mt-4 flex max-w-5xl items-start gap-3 rounded-xl bg-slate-50 px-4 py-4 text-sm font-medium text-slate-600 ring-1 ring-inset ring-slate-900/5"
+                aria-live="polite"
+              >
+                <Loader2
+                  className="mt-0.5 shrink-0 animate-spin text-indigo-600"
+                  size={18}
+                  aria-hidden
+                />
+                <p>Status der Cloud-Engines wird geprüft …</p>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </AppPage>
+    );
+  }
+
+  // ── Leer, Engine bestätigt: Einstellungen links, Dropzone rechts (wie Generator) ──
   if (items.length === 0) {
     return (
       <AppPage>
@@ -910,16 +1025,26 @@ export const UpscalerView = () => {
           align="centerSm"
           icon={Maximize}
           title="KI Upscaler"
-          description={UPSCALER_SECTION_DESCRIPTION}
+          description={UPSCALER_STEP_CONFIG_DESCRIPTION}
         />
 
         <WorkspaceEngineSplitLayout
           variant="queue"
           narrowPrimary
-          primaryAriaLabel="Engine und Einstellungen"
+          primaryAriaLabel="Upscaling-Einstellungen"
           secondaryAriaLabel="Motive hochladen"
           primary={
             <div className="relative">
+              <Button
+                type="button"
+                variant="ghost"
+                className="mb-1 w-full justify-start gap-1.5 px-0 text-slate-600 hover:bg-transparent hover:text-slate-900"
+                onClick={() => setEngineChoiceConfirmed(false)}
+                aria-label="Zurueck zur Engine-Auswahl"
+              >
+                <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
+                Andere Engine
+              </Button>
               <LoadingOverlay
                 show={
                   engineMode === "local" &&
@@ -936,77 +1061,14 @@ export const UpscalerView = () => {
                 }
               />
             <div className={workspaceEmbeddedPaddedClassName}>
-              <fieldset>
-                <legend className="text-xs font-medium text-slate-500">Engine</legend>
-                <div
-                  className={cn(
-                    "mt-3 grid gap-3",
-                    PRINTFLOW_LOCAL_STACK_ENABLED
-                      ? "sm:grid-cols-3"
-                      : "sm:grid-cols-2",
-                  )}
-                >
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={engineMode === "vertex"}
-                    onClick={() => setEngineMode("vertex")}
-                    className={cn(
-                      "rounded-xl p-4 text-left shadow-[0_2px_8px_rgb(0,0,0,0.04)] transition-all ring-1",
-                      engineMode === "vertex"
-                        ? "bg-indigo-50 ring-indigo-500/25"
-                        : "bg-white ring-slate-900/5 hover:bg-slate-50",
-                    )}
-                  >
-                    <p className="text-sm font-semibold tracking-tight text-slate-900">
-                      Vertex (Cloud)
-                    </p>
-                    <p className="mt-1 text-xs font-medium text-slate-500">
-                      Imagen, eigenes GCP-Konto (BYOK)
-                    </p>
-                  </button>
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={engineMode === "replicate"}
-                    onClick={() => setEngineMode("replicate")}
-                    className={cn(
-                      "rounded-xl p-4 text-left shadow-[0_2px_8px_rgb(0,0,0,0.04)] transition-all ring-1",
-                      engineMode === "replicate"
-                        ? "bg-indigo-50 ring-indigo-500/25"
-                        : "bg-white ring-slate-900/5 hover:bg-slate-50",
-                    )}
-                  >
-                    <p className="text-sm font-semibold tracking-tight text-slate-900">
-                      Replicate (Cloud)
-                    </p>
-                    <p className="mt-1 text-xs font-medium text-slate-500">
-                      Real-ESRGAN, Token auf dem Server
-                    </p>
-                  </button>
-                  {PRINTFLOW_LOCAL_STACK_ENABLED ? (
-                    <button
-                      type="button"
-                      role="radio"
-                      aria-checked={engineMode === "local"}
-                      onClick={() => setEngineMode("local")}
-                      className={cn(
-                        "rounded-xl p-4 text-left shadow-[0_2px_8px_rgb(0,0,0,0.04)] transition-all ring-1",
-                        engineMode === "local"
-                          ? "bg-indigo-50 ring-indigo-500/25"
-                          : "bg-white ring-slate-900/5 hover:bg-slate-50",
-                      )}
-                    >
-                      <p className="text-sm font-semibold tracking-tight text-slate-900">
-                        PrintFlow Engine (lokal)
-                      </p>
-                      <p className="mt-1 text-xs font-medium text-slate-500">
-                        Kostenlos — nutzt deine Grafikkarte
-                      </p>
-                    </button>
-                  ) : null}
-                </div>
-              </fieldset>
+              <div className="border-b border-slate-100 pb-4" aria-label="Aktive Engine (ohne Umschaltung)">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                  Aktive Engine
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">
+                  {labelForEngineMode(engineMode)}
+                </p>
+              </div>
               {engineMode === "local" && isOnline ? (
                 <div className="mt-4 border-t border-slate-100 pt-4">
                   {canRunLocalUpscale ? (
@@ -1104,6 +1166,53 @@ export const UpscalerView = () => {
                   ) : null}
                 </div>
               ) : null}
+
+              <div className="mt-4 border-t border-slate-100 pt-4">
+                <p className="mb-2 text-xs font-medium text-slate-500">
+                  Skalierung (fuer alle Dateien)
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {UPSCALE_FACTOR_UI_OPTIONS.map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => setFactor(f)}
+                      className={cn(
+                        "rounded-xl px-4 py-2.5 text-sm font-semibold shadow-[0_2px_8px_rgb(0,0,0,0.04)] transition-all duration-200 ring-1",
+                        factor === f
+                          ? "bg-indigo-50 text-indigo-700 ring-indigo-500/25"
+                          : "bg-white text-slate-600 ring-slate-900/5 hover:bg-slate-50",
+                      )}
+                    >
+                      {f}×
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-4 border-t border-slate-100 pt-4">
+                <Button
+                  onClick={() => void handleBatchUpscale()}
+                  className="w-full"
+                  disabled={
+                    isProcessing ||
+                    upscaleQueueCount === 0 ||
+                    (isCloudEngine && selectedCloudReady !== true) ||
+                    (engineMode === "local" &&
+                      (!canRunLocalUpscale ||
+                        isChecking ||
+                        installingModelId !== null ||
+                        uninstallingModelId !== null))
+                  }
+                >
+                  <Maximize size={16} aria-hidden />
+                  Upscale starten
+                </Button>
+                <p className="mt-2 text-xs font-medium text-slate-500">
+                  Fuege zuerst Motive in der Dropzone ein — der Start-Button
+                  aktiviert sich danach.
+                </p>
+              </div>
             </div>
 
             {engineMode === "local" && !isOnline && !isChecking ? (
@@ -1261,7 +1370,7 @@ export const UpscalerView = () => {
         <WorkspaceEngineSplitLayout
           variant="queue"
           narrowPrimary
-          primaryAriaLabel="Engine und Einstellungen"
+          primaryAriaLabel="Upscaling-Einstellungen"
           secondaryAriaLabel="Ausgewaehlte Motive"
           secondary={
             <div className="relative min-h-0">
@@ -1482,80 +1591,20 @@ export const UpscalerView = () => {
               </Button>
             </Card>
             <div className={workspaceEmbeddedPanelClassName}>
-              <div className="border-b border-slate-100 px-5 py-4">
-                <fieldset>
-                  <legend className="mb-2 block text-xs font-medium text-slate-500">
-                    Engine
-                  </legend>
-                  <div
-                    className={cn(
-                      "grid gap-3",
-                      PRINTFLOW_LOCAL_STACK_ENABLED
-                        ? "sm:grid-cols-3"
-                        : "sm:grid-cols-2",
-                    )}
-                  >
-                    <button
-                      type="button"
-                      role="radio"
-                      aria-checked={engineMode === "vertex"}
-                      onClick={() => setEngineMode("vertex")}
-                      className={cn(
-                        "rounded-xl p-4 text-left shadow-[0_2px_8px_rgb(0,0,0,0.04)] transition-all ring-1",
-                        engineMode === "vertex"
-                          ? "bg-indigo-50 ring-indigo-500/25"
-                          : "bg-white ring-slate-900/5 hover:bg-slate-50",
-                      )}
-                    >
-                      <p className="text-sm font-semibold tracking-tight text-slate-900">
-                        Vertex (Cloud)
-                      </p>
-                      <p className="mt-1 text-xs font-medium text-slate-500">
-                        Imagen, eigenes Konto (BYOK)
-                      </p>
-                    </button>
-                    <button
-                      type="button"
-                      role="radio"
-                      aria-checked={engineMode === "replicate"}
-                      onClick={() => setEngineMode("replicate")}
-                      className={cn(
-                        "rounded-xl p-4 text-left shadow-[0_2px_8px_rgb(0,0,0,0.04)] transition-all ring-1",
-                        engineMode === "replicate"
-                          ? "bg-indigo-50 ring-indigo-500/25"
-                          : "bg-white ring-slate-900/5 hover:bg-slate-50",
-                      )}
-                    >
-                      <p className="text-sm font-semibold tracking-tight text-slate-900">
-                        Replicate (Cloud)
-                      </p>
-                      <p className="mt-1 text-xs font-medium text-slate-500">
-                        Real-ESRGAN, Server-Token
-                      </p>
-                    </button>
-                    {PRINTFLOW_LOCAL_STACK_ENABLED ? (
-                      <button
-                        type="button"
-                        role="radio"
-                        aria-checked={engineMode === "local"}
-                        onClick={() => setEngineMode("local")}
-                        className={cn(
-                          "rounded-xl p-4 text-left shadow-[0_2px_8px_rgb(0,0,0,0.04)] transition-all ring-1",
-                          engineMode === "local"
-                            ? "bg-indigo-50 ring-indigo-500/25"
-                            : "bg-white ring-slate-900/5 hover:bg-slate-50",
-                        )}
-                      >
-                        <p className="text-sm font-semibold tracking-tight text-slate-900">
-                          PrintFlow Engine (lokal)
-                        </p>
-                        <p className="mt-1 text-xs font-medium text-slate-500">
-                          Kostenlos — nutzt deine Grafikkarte
-                        </p>
-                      </button>
-                    ) : null}
-                  </div>
-                </fieldset>
+              <div
+                className="border-b border-slate-100 px-5 py-4"
+                aria-label="Aktive Engine (ohne Umschaltung)"
+              >
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                  Aktive Engine
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">
+                  {labelForEngineMode(engineMode)}
+                </p>
+                <p className="mt-1 text-xs font-medium text-slate-500">
+                  Andere Engine: zuerst &quot;Liste leeren&quot;, danach links oben
+                  &quot;Andere Engine&quot;.
+                </p>
               </div>
 
               <div className="border-b border-slate-100 px-5 py-4">
