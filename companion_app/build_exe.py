@@ -74,7 +74,9 @@ def main() -> int:
         "--hidden-import=uvicorn.protocols.websockets.auto",
         "--hidden-import=uvicorn.lifespan",
         "--hidden-import=uvicorn.lifespan.on",
+        "--hidden-import=anyio._backends._asyncio",
         "--collect-submodules=uvicorn",
+        "--collect-submodules=anyio",
         "--collect-submodules=multipart",
         "--collect-submodules=pystray",
     ]

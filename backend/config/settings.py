@@ -323,7 +323,11 @@ PINTEREST_SCOPES = (
 
 # --- Content Security Policy (django-csp) ---
 CSP_DEFAULT_SRC = ("'self'",)
-CSP_SCRIPT_SRC = ("'self'",)
+# 'self' + Hash für Inline-Script in frontend/index.html (Farbschema-Hydration vor erstem Paint).
+CSP_SCRIPT_SRC = (
+    "'self'",
+    "'sha256-vrORqV4hs8gNaY/qLiOZ4UiSS7jJ4fNtZJS54gevctg='",
+)
 CSP_STYLE_SRC = ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com")
 CSP_FONT_SRC = ("'self'", "https://fonts.gstatic.com", "data:")
 CSP_IMG_SRC = ("'self'", "data:", "blob:", "https:")

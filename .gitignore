@@ -46,6 +46,8 @@ backend/venv/
 frontend/frontend/node_modules/
 # PrintFlowEngine.exe in public/ ist absichtlich versioniert (Download nach collectstatic).
 frontend/frontend/public/MockupLocalEngine.exe
+frontend/frontend/public/companion_server.log
+frontend/frontend/public/companion_start_error.txt
 frontend/frontend/dist/
 frontend/frontend/dist-ssr/
 frontend/frontend/.vite/

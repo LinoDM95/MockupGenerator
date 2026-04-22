@@ -93,10 +93,6 @@ if errorlevel 1 (
       echo Starte PrintFlowEngine.exe - Port 8001 frei ^(Tray-App ohne Konsole; bei dev lieber venv nutzen^).
       start "" /D "%ROOT%" "%ROOT%PrintFlowEngine.exe"
       set "STARTED_SERVER=1"
-    ) else if exist "%ROOT%MockupLocalEngine.exe" (
-      echo Starte MockupLocalEngine.exe ^(Legacy^) - Port 8001 frei.
-      start "" /D "%ROOT%" "%ROOT%MockupLocalEngine.exe"
-      set "STARTED_SERVER=1"
     ) else (
       echo Hinweis: Kein backend\env|venv, kein python in PATH, keine PrintFlowEngine.exe - Local Engine nicht gestartet.
     )

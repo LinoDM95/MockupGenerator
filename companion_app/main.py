@@ -26,6 +26,16 @@ from fastapi.responses import Response
 from PIL import Image as PILImage
 from pydantic import BaseModel
 
+# PyInstaller onefile: Uvicorn/FastAPI ziehen Submodules erst beim Serverstart — ohne diese
+# Zeilen fehlen sie oft im Bundle und der Thread in _run_uvicorn stirbt sofort (Tray bleibt).
+# AnyIO 4: Backend heißt anyio._backends._asyncio (nicht mehr anyio.backends.asyncio).
+import anyio._backends._asyncio  # noqa: F401
+import uvicorn.loops.auto  # noqa: F401
+import uvicorn.protocols.http.auto  # noqa: F401
+import uvicorn.protocols.websockets.auto  # noqa: F401
+import uvicorn.lifespan.on  # noqa: F401
+from email.message import Message as _EmailMessageForPyInstaller  # noqa: F401
+
 from companion_app import model_store, tile_progress
 from companion_app.local_services import (
     UpscaleError,
@@ -166,6 +176,8 @@ app.add_middleware(
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
+    # Chrome: https-Seite (Render) → http://127.0.0.1:8001 (Private Network Access / „loopback“).
+    allow_private_network=True,
     expose_headers=[
         "X-Original-Width",
         "X-Original-Height",
@@ -597,6 +609,25 @@ def _windows_autostart_set(enabled: bool) -> None:
                 pass
 
 
+def _ensure_stdio_for_frozen_gui() -> None:
+    """
+    PyInstaller --noconsole (Windows subsystem): sys.stdin/out/err können None sein.
+    Uvicorns Logging-Formatter ruft stream.isatty() auf → ohne echte Streams bricht der Start ab.
+    """
+    if not getattr(sys, "frozen", False):
+        return
+    devnull = os.devnull
+    try:
+        if sys.stdin is None:
+            sys.stdin = open(devnull, "r", encoding="utf-8", errors="replace")
+        if sys.stdout is None:
+            sys.stdout = open(devnull, "w", encoding="utf-8", errors="replace")
+        if sys.stderr is None:
+            sys.stderr = open(devnull, "w", encoding="utf-8", errors="replace")
+    except OSError:
+        pass
+
+
 def _run_uvicorn() -> None:
     import traceback
 
@@ -675,6 +706,7 @@ def _run_with_tray() -> None:
 
 if __name__ == "__main__":
     if getattr(sys, "frozen", False):
+        _ensure_stdio_for_frozen_gui()
         _run_with_tray()
     else:
         import uvicorn
