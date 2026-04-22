@@ -19,6 +19,7 @@ google-genai>=1.73,<2
 google-auth>=2.0,<3
 replicate>=0.28,<1
 numpy>=2.0,<3
+opencv-python-headless>=4.8,<5
 whitenoise>=6.8,<7
 gunicorn>=23.0,<24
 sentry-sdk>=2.0,<3

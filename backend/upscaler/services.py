@@ -10,6 +10,8 @@ from io import BytesIO
 from urllib.parse import quote
 from typing import Any, Tuple
 
+import cv2
+import numpy as np
 from PIL import Image as PILImage
 from replicate import Client
 from replicate.exceptions import ModelError
@@ -93,10 +95,8 @@ def _build_blend_mask(
     *,
     blend_left: bool,
     blend_top: bool,
-) -> Any:
-    """Build a float32 alpha mask (H, W) with linear feathering in overlap zones."""
-    import numpy as np
-
+) -> np.ndarray:
+    """Float32-Maske (H, W) mit linearem Verlauf in Ueberlappungszonen (vectorisiert, numpy)."""
     mask = np.ones((tile_h, tile_w), dtype=np.float32)
     ow_x = min(overlap_out, tile_w) if blend_left else 0
     ow_y = min(overlap_out, tile_h) if blend_top else 0
@@ -112,21 +112,171 @@ def _build_blend_mask(
     return mask
 
 
+def _decode_image_bytes_to_rgb_f32(png_or_image_bytes: bytes) -> np.ndarray:
+    """Dekodiert Kachel-Bytes (PNG) mit OpenCV, BGR(A) -> RGB, float32 [0, 255]."""
+    arr = np.frombuffer(png_or_image_bytes, dtype=np.uint8)
+    im = cv2.imdecode(arr, cv2.IMREAD_UNCHANGED)
+    if im is None:
+        raise UpscaleAPIError(
+            "Kachel-Bild war nicht decodierbar (cv2.imdecode).",
+            status_code=503,
+        )
+    if im.ndim == 2:
+        im = cv2.cvtColor(im, cv2.COLOR_GRAY2BGR)
+    c = im.shape[2]
+    if c == 3:
+        rgb = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
+    else:
+        im = cv2.cvtColor(im, cv2.COLOR_BGRA2RGBA)
+        rgb = im[:, :, :3]
+    return rgb.astype(np.float32)
+
+
+def _resize_rgb_f32_lanczos(
+    tile_rgb_f32: np.ndarray,
+    target_w: int,
+    target_h: int,
+) -> np.ndarray:
+    """LANCZOS4 über uint8, Ausgabe float32 (H, W, 3). width/height in Pixeln (cv2)."""
+    t = np.clip(tile_rgb_f32, 0.0, 255.0).astype(np.uint8)
+    b = cv2.cvtColor(t, cv2.COLOR_RGB2BGR)
+    b2 = cv2.resize(
+        b,
+        (target_w, target_h),
+        interpolation=cv2.INTER_LANCZOS4,
+    )
+    r = cv2.cvtColor(b2, cv2.COLOR_BGR2RGB)
+    return r.astype(np.float32)
+
+
+def _tiling_fuse_add_weighted(
+    acc: np.ndarray,
+    wsum: np.ndarray,
+    oy: int,
+    ox: int,
+    tile_rgb_f32: np.ndarray,
+    mask_2d: np.ndarray,
+) -> None:
+    th, tw, _ = tile_rgb_f32.shape
+    m3 = mask_2d[:, :, np.newaxis]
+    acc[oy : oy + th, ox : ox + tw, :] += tile_rgb_f32 * m3
+    wsum[oy : oy + th, ox : ox + tw] += mask_2d
+
+
+def _tiling_finalize_to_rgb8(acc: np.ndarray, wsum: np.ndarray) -> np.ndarray:
+    w = np.maximum(wsum, 1e-6)
+    out = acc / w[:, :, np.newaxis]
+    return np.clip(out, 0, 255).astype(np.uint8)
+
+
+def _rgb8_to_rgba_u8(rgb_u8: np.ndarray) -> np.ndarray:
+    h, w, _ = rgb_u8.shape
+    a = np.full((h, w, 1), 255, dtype=np.uint8)
+    return np.concatenate([rgb_u8, a], axis=2)
+
+
+def _pil_to_rgb8_array(pil: PILImage.Image) -> np.ndarray:
+    p = pil if pil.mode == "RGB" else pil.convert("RGB")
+    return np.asarray(p, dtype=np.uint8)
+
+
+def _replicate_client_run_to_png_bytes(
+    client: Client,
+    model_ref: str,
+    pil_tile: PILImage.Image,
+    factor_int: int,
+) -> bytes:
+    """Laeuft Replicate-Modell, liefert Rohtext-Bytes (PNG) der Ausgabedatei."""
+    if factor_int not in (2, 4):
+        raise UpscaleError(f"Intern: Replicate erwartet Faktor 2 oder 4, nicht {factor_int}.")
+
+    img_byte_arr = BytesIO()
+    pil_tile.save(img_byte_arr, format="PNG")
+    img_byte_arr.seek(0)
+
+    try:
+        output = client.run(
+            model_ref,
+            input={
+                "image": img_byte_arr,
+                "scale": factor_int,
+                "face_enhance": False,
+            },
+            use_file_output=True,
+        )
+    except ModelError as exc:
+        err = getattr(getattr(exc, "prediction", None), "error", None) or str(exc)
+        err_s = str(err) if err is not None else ""
+        logger.warning("Replicate ModelError: %s", (err_s or "")[:500])
+        lower = err_s.lower()
+        if "402" in err_s or "pay" in lower or "credit" in lower or "balance" in lower:
+            raise UpscaleAPIError(
+                "Replicate: Nicht genug Guthaben auf dem API-Konto. Bitte auf replicate.com "
+                "unter Account / Billing aufladen, einige Minuten warten und erneut versuchen.",
+                status_code=402,
+            ) from exc
+        raise UpscaleAPIError(
+            f"Upscale fehlgeschlagen: {err_s or 'unbekannter Fehler'}",
+            status_code=502,
+        ) from exc
+    except Exception as exc:  # noqa: BLE001 — nach oben mappen
+        msg = str(exc)
+        logger.warning("Replicate: %s", (msg or "")[:500])
+        um = msg.upper()
+        if "401" in msg or "UNAUTHORIZED" in um:
+            raise UpscaleAPIError(
+                "Replicate API-Token ungueltig oder abgelaufen.",
+                status_code=401,
+            ) from exc
+        if "403" in msg or "PERMISSION" in um:
+            raise UpscaleAPIError(
+                "Replicate: Zugriff verweigert. Token und Berechtigungen pruefen.",
+                status_code=403,
+            ) from exc
+        if "429" in msg or "RATE" in um:
+            raise UpscaleAPIError(
+                "Replicate-Rate-Limit. Bitte kurz warten und erneut versuchen.",
+                status_code=429,
+            ) from exc
+        if "402" in msg or "PAYMENT REQUIRED" in um:
+            raise UpscaleAPIError(
+                "Replicate: Nicht genug Guthaben auf dem API-Konto. Bitte auf replicate.com "
+                "unter Account / Billing aufladen, einige Minuten warten und erneut versuchen.",
+                status_code=402,
+            ) from exc
+        if "503" in msg or "UNAVAILABLE" in um:
+            raise UpscaleAPIError(
+                "Der Upscale-Dienst ist gerade nicht erreichbar. Bitte spaeter erneut versuchen.",
+                status_code=503,
+            ) from exc
+        raise UpscaleAPIError(
+            f"Upscale fehlgeschlagen: {msg}",
+            status_code=502,
+        ) from exc
+
+    if output is None:
+        raise UpscaleAPIError("Replicate lieferte kein Ergebnis.", status_code=503)
+    if isinstance(output, list):
+        if not output:
+            raise UpscaleAPIError("Replicate lieferte eine leere Ausgabeliste.", status_code=503)
+        first = output[0]
+    else:
+        first = output
+    if not isinstance(first, FileOutput):
+        raise UpscaleAPIError(
+            f"Unerwartetes Replicate-Output-Format: {type(first).__name__}",
+            status_code=503,
+        )
+    return first.read()
+
+
 def _replicate_upscale_tiled(
     client: Client,
     model_ref: str,
     pil_img: PILImage.Image,
     factor_int: int,
 ) -> PILImage.Image:
-    """Grosses Bild: ueberlappende Kacheln, pro Kachel Replicate, dann Mischen."""
-    try:
-        import numpy as np
-    except ModuleNotFoundError as exc:
-        raise UpscaleError(
-            "Fuer grosse Bilder (Tiling) wird NumPy benoetigt. "
-            "Bitte im Backend ausfuehren: pip install numpy"
-        ) from exc
-
+    """Grosses Bild: ueberlappende Kacheln, pro Kachel Replicate, dann Mischen (OpenCV/numpy)."""
     orig_w, orig_h = pil_img.size
     w, h = orig_w, orig_h
 
@@ -198,10 +348,15 @@ def _replicate_upscale_tiled(
             factor_int,
         )
         if smart_scale_applied:
-            out = out.resize(
+            o = _pil_to_rgb8_array(out)
+            b = cv2.cvtColor(o, cv2.COLOR_RGB2BGR)
+            b2 = cv2.resize(
+                b,
                 (orig_w * factor_int, orig_h * factor_int),
-                PILImage.Resampling.LANCZOS,
+                interpolation=cv2.INTER_LANCZOS4,
             )
+            o2 = cv2.cvtColor(b2, cv2.COLOR_BGR2RGB)
+            return PILImage.fromarray(o2, "RGB")
         return out
 
     logger.info(
@@ -217,8 +372,9 @@ def _replicate_upscale_tiled(
     )
 
     overlap_out = overlap * factor_int
-    result = np.zeros((target_h, target_w, 3), dtype=np.float32)
-    weights = np.zeros((target_h, target_w), dtype=np.float32)
+    # Arbeits-„Leinwand“: 3× float32 (gewichtet), Ausgabe unten einmalig als RGBA/PNG
+    acc = np.zeros((target_h, target_w, 3), dtype=np.float32)
+    wsum = np.zeros((target_h, target_w), dtype=np.float32)
 
     jobs: list[tuple[int, int, int, int, int, int, int]] = []
     k = 0
@@ -235,11 +391,11 @@ def _replicate_upscale_tiled(
 
     def _run_tile(
         job: tuple[int, int, int, int, int, int, int],
-    ) -> tuple[int, int, int, int, Any, int, int]:
+    ) -> tuple[int, int, int, int, np.ndarray]:
         job_row, job_col, x0, y0, x1, y1, idx = job
         tile = pil_img.crop((x0, y0, x1, y1))
         logger.info(
-            "Tile %d/%d: src (%d,%d)-(%d,%d) = %dx%d (parallel Replicate)",
+            "Tile %d/%d: src (%d,%d)-(%d,%d) = %dx%d (parallel Replicate, cv2-Decode)",
             idx,
             total_tiles,
             x0,
@@ -251,7 +407,9 @@ def _replicate_upscale_tiled(
         )
         c = _replicate_client()
         try:
-            upscaled_tile = _call_replicate_api(c, model_ref, tile, factor_int)
+            raw_png = _replicate_client_run_to_png_bytes(
+                c, model_ref, tile, factor_int
+            )
         except UpscaleAPIError:
             raise
         except Exception as exc:
@@ -259,24 +417,28 @@ def _replicate_upscale_tiled(
                 f"Replicate Kachel (Zeile {job_row}, Spalte {job_col}): {exc}",
                 status_code=502,
             ) from exc
+        try:
+            tile_arr = _decode_image_bytes_to_rgb_f32(raw_png)
+        except UpscaleAPIError:
+            raise
+        except Exception as exc:
+            raise UpscaleAPIError(
+                f"Replicate Kachel-Decode (Zeile {job_row}, Spalte {job_col}): {exc}",
+                status_code=502,
+            ) from exc
         tw_in, th_in = tile.size
         exp_w, exp_h = tw_in * factor_int, th_in * factor_int
-        if upscaled_tile.size != (exp_w, exp_h):
-            upscaled_tile = upscaled_tile.resize(
-                (exp_w, exp_h),
-                PILImage.Resampling.LANCZOS,
-            )
-        tile_arr = np.array(upscaled_tile.convert("RGB"), dtype=np.float32)
-        t_h, t_w = tile_arr.shape[:2]
-        return job_row, job_col, x0, y0, tile_arr, t_h, t_w
+        if tile_arr.shape[1] != exp_w or tile_arr.shape[0] != exp_h:
+            tile_arr = _resize_rgb_f32_lanczos(tile_arr, exp_w, exp_h)
+        return job_row, job_col, x0, y0, tile_arr
 
     ex = ThreadPoolExecutor(max_workers=max_workers)
     futures = [ex.submit(_run_tile, j) for j in jobs]
-    tile_data: dict[tuple[int, int], tuple[int, int, Any, int, int]] = {}
+    tile_data: dict[tuple[int, int], tuple[int, int, np.ndarray]] = {}
     try:
         for future in as_completed(futures):
             try:
-                job_row, job_col, jx0, jy0, t_arr, t_h, t_w = future.result()
+                job_row, job_col, jx0, jy0, t_arr = future.result()
             except UpscaleAPIError:
                 raise
             except Exception as exc:
@@ -284,7 +446,7 @@ def _replicate_upscale_tiled(
                     f"Replicate Tiling: {exc}",
                     status_code=502,
                 ) from exc
-            tile_data[(job_row, job_col)] = (jx0, jy0, t_arr, t_h, t_w)
+            tile_data[(job_row, job_col)] = (jx0, jy0, t_arr)
     except BaseException:
         ex.shutdown(wait=False, cancel_futures=True)
         raise
@@ -293,7 +455,8 @@ def _replicate_upscale_tiled(
 
     for row in range(rows):
         for col in range(cols):
-            x0, y0, tile_arr, th, tw = tile_data[(row, col)]
+            x0, y0, tile_arr = tile_data[(row, col)]
+            th, tw, _ = tile_arr.shape
             ox = x0 * factor_int
             oy = y0 * factor_int
             mask = _build_blend_mask(
@@ -303,19 +466,19 @@ def _replicate_upscale_tiled(
                 blend_left=col > 0,
                 blend_top=row > 0,
             )
-            result[oy : oy + th, ox : ox + tw] += tile_arr * mask[:, :, np.newaxis]
-            weights[oy : oy + th, ox : ox + tw] += mask
+            _tiling_fuse_add_weighted(acc, wsum, oy, ox, tile_arr, mask)
 
-    weights = np.maximum(weights, 1e-6)
-    result /= weights[:, :, np.newaxis]
-    result = np.clip(result, 0, 255).astype(np.uint8)
-
-    out = PILImage.fromarray(result, "RGB")
+    out_u8 = _tiling_finalize_to_rgb8(acc, wsum)
+    rgba_out = _rgb8_to_rgba_u8(out_u8)
     if smart_scale_applied:
-        out = out.resize(
+        bgr = cv2.cvtColor(rgba_out, cv2.COLOR_RGBA2BGR)
+        bgr2 = cv2.resize(
+            bgr,
             (orig_w * factor_int, orig_h * factor_int),
-            PILImage.Resampling.LANCZOS,
+            interpolation=cv2.INTER_LANCZOS4,
         )
+        rgba_out = cv2.cvtColor(bgr2, cv2.COLOR_BGR2RGBA)
+    out = PILImage.fromarray(rgba_out, "RGBA").convert("RGB")
     return out
 
 
@@ -580,15 +743,7 @@ def _vertex_upscale_tiled(
     credentials: Any,
 ) -> PILImage.Image:
     """Upscale a large image by splitting it into overlapping tiles,
-    upscaling each, then blending them back together."""
-    try:
-        import numpy as np
-    except ModuleNotFoundError as exc:
-        raise UpscaleError(
-            "Fuer grosse Bilder (Tiling) wird NumPy benoetigt. "
-            "Bitte im Backend ausfuehren: pip install numpy"
-        ) from exc
-
+    upscaling each, then blending them back together (OpenCV/numpy)."""
     factor_str = f"x{factor_int}"
     orig_w, orig_h = pil_img.size
     w, h = orig_w, orig_h
@@ -667,10 +822,15 @@ def _vertex_upscale_tiled(
             credentials,
         )
         if smart_scale_applied:
-            out = out.resize(
+            o = _pil_to_rgb8_array(out)
+            b = cv2.cvtColor(o, cv2.COLOR_RGB2BGR)
+            b2 = cv2.resize(
+                b,
                 (orig_w * factor_int, orig_h * factor_int),
-                PILImage.Resampling.LANCZOS,
+                interpolation=cv2.INTER_LANCZOS4,
             )
+            o2 = cv2.cvtColor(b2, cv2.COLOR_BGR2RGB)
+            return PILImage.fromarray(o2, "RGB")
         return out
 
     logger.info(
@@ -686,8 +846,8 @@ def _vertex_upscale_tiled(
     )
 
     overlap_out = overlap * factor_int
-    result = np.zeros((target_h, target_w, 3), dtype=np.float32)
-    weights = np.zeros((target_h, target_w), dtype=np.float32)
+    acc = np.zeros((target_h, target_w, 3), dtype=np.float32)
+    wsum = np.zeros((target_h, target_w), dtype=np.float32)
 
     tile_idx = 0
     for row in range(rows):
@@ -713,13 +873,15 @@ def _vertex_upscale_tiled(
             )
             tw_in, th_in = tile.size
             exp_w, exp_h = tw_in * factor_int, th_in * factor_int
-            if upscaled_tile.size != (exp_w, exp_h):
-                upscaled_tile = upscaled_tile.resize(
-                    (exp_w, exp_h),
-                    PILImage.Resampling.LANCZOS,
+            rgb_u8 = _pil_to_rgb8_array(upscaled_tile)
+            if rgb_u8.shape[1] != exp_w or rgb_u8.shape[0] != exp_h:
+                b = cv2.cvtColor(rgb_u8, cv2.COLOR_RGB2BGR)
+                b2 = cv2.resize(
+                    b, (exp_w, exp_h), interpolation=cv2.INTER_LANCZOS4
                 )
-            tile_arr = np.array(upscaled_tile.convert("RGB"), dtype=np.float32)
-            th, tw = tile_arr.shape[:2]
+                rgb_u8 = cv2.cvtColor(b2, cv2.COLOR_BGR2RGB)
+            tile_arr = rgb_u8.astype(np.float32)
+            th, tw, _ = tile_arr.shape
 
             ox = x0 * factor_int
             oy = y0 * factor_int
@@ -729,22 +891,19 @@ def _vertex_upscale_tiled(
                 blend_left=col > 0,
                 blend_top=row > 0,
             )
+            _tiling_fuse_add_weighted(acc, wsum, oy, ox, tile_arr, mask)
 
-            result[oy : oy + th, ox : ox + tw] += tile_arr * mask[:, :, np.newaxis]
-            weights[oy : oy + th, ox : ox + tw] += mask
-
-    # Avoid division by zero
-    weights = np.maximum(weights, 1e-6)
-    result /= weights[:, :, np.newaxis]
-    result = np.clip(result, 0, 255).astype(np.uint8)
-
-    out = PILImage.fromarray(result, "RGB")
+    out_u8 = _tiling_finalize_to_rgb8(acc, wsum)
+    rgba_out = _rgb8_to_rgba_u8(out_u8)
     if smart_scale_applied:
-        out = out.resize(
+        bgr = cv2.cvtColor(rgba_out, cv2.COLOR_RGBA2BGR)
+        bgr2 = cv2.resize(
+            bgr,
             (orig_w * factor_int, orig_h * factor_int),
-            PILImage.Resampling.LANCZOS,
+            interpolation=cv2.INTER_LANCZOS4,
         )
-    return out
+        rgba_out = cv2.cvtColor(bgr2, cv2.COLOR_BGR2RGBA)
+    return PILImage.fromarray(rgba_out, "RGBA").convert("RGB")
 
 
 def _vertex_upscale_one_native_pass(
@@ -844,28 +1003,7 @@ def _replicate_client() -> Client:
     return Client(api_token=token)
 
 
-def _replicate_output_to_pil(client: Client, output: Any) -> PILImage.Image:
-    if output is None:
-        raise UpscaleAPIError(
-            "Replicate lieferte kein Ergebnis.",
-            status_code=503,
-        )
-    if isinstance(output, list):
-        if not output:
-            raise UpscaleAPIError(
-                "Replicate lieferte eine leere Ausgabeliste.",
-                status_code=503,
-            )
-        first = output[0]
-    else:
-        first = output
-    if isinstance(first, FileOutput):
-        raw = first.read()
-    else:
-        raise UpscaleAPIError(
-            f"Unerwartetes Replicate-Output-Format: {type(first).__name__}",
-            status_code=503,
-        )
+def _replicate_png_bytes_to_pil(raw: bytes) -> PILImage.Image:
     try:
         return PILImage.open(BytesIO(raw))
     except PILImage.UnidentifiedImageError as exc:
@@ -885,75 +1023,9 @@ def _call_replicate_api(
     pil_tile: PILImage.Image,
     factor_int: int,
 ) -> PILImage.Image:
-    """Einen Replicate Real-ESRGAN-Lauf; factor_int 2 oder 4."""
-    if factor_int not in (2, 4):
-        raise UpscaleError(f"Intern: Replicate erwartet Faktor 2 oder 4, nicht {factor_int}.")
-
-    img_byte_arr = BytesIO()
-    pil_tile.save(img_byte_arr, format="PNG")
-    img_byte_arr.seek(0)
-
-    try:
-        output = client.run(
-            model_ref,
-            input={
-                "image": img_byte_arr,
-                "scale": factor_int,
-                "face_enhance": False,
-            },
-            use_file_output=True,
-        )
-    except ModelError as exc:
-        err = getattr(getattr(exc, "prediction", None), "error", None) or str(exc)
-        err_s = str(err) if err is not None else ""
-        logger.warning("Replicate ModelError: %s", (err_s or "")[:500])
-        lower = err_s.lower()
-        if "402" in err_s or "pay" in lower or "credit" in lower or "balance" in lower:
-            raise UpscaleAPIError(
-                "Replicate: Nicht genug Guthaben auf dem API-Konto. Bitte auf replicate.com "
-                "unter Account / Billing aufladen, einige Minuten warten und erneut versuchen.",
-                status_code=402,
-            ) from exc
-        raise UpscaleAPIError(
-            f"Upscale fehlgeschlagen: {err_s or 'unbekannter Fehler'}",
-            status_code=502,
-        ) from exc
-    except Exception as exc:  # noqa: BLE001 — nach oben mappen
-        msg = str(exc)
-        logger.warning("Replicate: %s", (msg or "")[:500])
-        um = msg.upper()
-        if "401" in msg or "UNAUTHORIZED" in um:
-            raise UpscaleAPIError(
-                "Replicate API-Token ungueltig oder abgelaufen.",
-                status_code=401,
-            ) from exc
-        if "403" in msg or "PERMISSION" in um:
-            raise UpscaleAPIError(
-                "Replicate: Zugriff verweigert. Token und Berechtigungen pruefen.",
-                status_code=403,
-            ) from exc
-        if "429" in msg or "RATE" in um:
-            raise UpscaleAPIError(
-                "Replicate-Rate-Limit. Bitte kurz warten und erneut versuchen.",
-                status_code=429,
-            ) from exc
-        if "402" in msg or "PAYMENT REQUIRED" in um:
-            raise UpscaleAPIError(
-                "Replicate: Nicht genug Guthaben auf dem API-Konto. Bitte auf replicate.com "
-                "unter Account / Billing aufladen, einige Minuten warten und erneut versuchen.",
-                status_code=402,
-            ) from exc
-        if "503" in msg or "UNAVAILABLE" in um:
-            raise UpscaleAPIError(
-                "Der Upscale-Dienst ist gerade nicht erreichbar. Bitte spaeter erneut versuchen.",
-                status_code=503,
-            ) from exc
-        raise UpscaleAPIError(
-            f"Upscale fehlgeschlagen: {msg}",
-            status_code=502,
-        ) from exc
-
-    return _replicate_output_to_pil(client, output)
+    """Einen Replicate Real-ESRGAN-Lauf; factor_int 2 oder 4 (PNG -> PIL)."""
+    raw = _replicate_client_run_to_png_bytes(client, model_ref, pil_tile, factor_int)
+    return _replicate_png_bytes_to_pil(raw)
 
 
 def _replicate_upscale_full_single(
