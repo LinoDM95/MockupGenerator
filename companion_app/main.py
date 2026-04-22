@@ -23,6 +23,8 @@ import httpx
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
 from PIL import Image as PILImage
 from pydantic import BaseModel
 
@@ -170,13 +172,29 @@ def _cors_origins() -> list[str]:
 
 app = FastAPI(title="PrintFlow Engine", version=CURRENT_VERSION)
 
+
+class PrivateNetworkAccessHeaderMiddleware(BaseHTTPMiddleware):
+    """
+    Chrome Private Network Access: Bei „einfachen“ GETs sendet der Browser oft kein OPTIONS-Preflight.
+    Starlette setzt ``Access-Control-Allow-Private-Network`` nur auf Preflight-Antworten — dann fehlt
+    der Header auf der echten Antwort und der Fetch wird trotzdem blockiert. Diese Middleware ergänzt
+    den Header auf jeder Antwort mit ``Origin`` (z. B. https://…onrender.com).
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        if request.headers.get("origin"):
+            response.headers["Access-Control-Allow-Private-Network"] = "true"
+        return response
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins(),
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
-    # Chrome: https-Seite (Render) → http://127.0.0.1:8001 (Private Network Access / „loopback“).
+    # Chrome: https-Seite → loopback (Preflight-Pfad).
     allow_private_network=True,
     expose_headers=[
         "X-Original-Width",
@@ -185,6 +203,8 @@ app.add_middleware(
         "X-Upscaled-Height",
     ],
 )
+# Zuletzt registriert = äußerste Schicht: Header auch auf GET/POST-Antworten anhängen.
+app.add_middleware(PrivateNetworkAccessHeaderMiddleware)
 
 
 @app.get("/status")

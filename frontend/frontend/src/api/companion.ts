@@ -1,4 +1,7 @@
-import { COMPANION_BASE_URL } from "../lib/companion/companionConstants";
+import {
+  COMPANION_BASE_URL,
+  mergeCompanionFetchInit,
+} from "../lib/companion/companionConstants";
 
 export type CompanionModelSpeed = "schnell" | "mittel" | "langsamer";
 
@@ -31,7 +34,10 @@ export type CompanionStatus = {
 };
 
 export const fetchCompanionCatalog = async (): Promise<CompanionCatalog> => {
-  const res = await fetch(`${COMPANION_BASE_URL}/models/catalog`);
+  const res = await fetch(
+    `${COMPANION_BASE_URL}/models/catalog`,
+    mergeCompanionFetchInit(),
+  );
   if (!res.ok) {
     throw new Error(`Katalog: HTTP ${res.status}`);
   }
@@ -39,7 +45,10 @@ export const fetchCompanionCatalog = async (): Promise<CompanionCatalog> => {
 };
 
 export const fetchCompanionStatus = async (): Promise<CompanionStatus> => {
-  const res = await fetch(`${COMPANION_BASE_URL}/status`);
+  const res = await fetch(
+    `${COMPANION_BASE_URL}/status`,
+    mergeCompanionFetchInit(),
+  );
   if (!res.ok) {
     throw new Error(`Status: HTTP ${res.status}`);
   }
@@ -47,11 +56,14 @@ export const fetchCompanionStatus = async (): Promise<CompanionStatus> => {
 };
 
 export const installCompanionModel = async (modelId: string): Promise<void> => {
-  const res = await fetch(`${COMPANION_BASE_URL}/install-model`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model_id: modelId }),
-  });
+  const res = await fetch(
+    `${COMPANION_BASE_URL}/install-model`,
+    mergeCompanionFetchInit({
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model_id: modelId }),
+    }),
+  );
   if (!res.ok) {
     let detail = await res.text();
     try {
@@ -65,11 +77,14 @@ export const installCompanionModel = async (modelId: string): Promise<void> => {
 };
 
 export const setCompanionActiveModel = async (modelId: string): Promise<void> => {
-  const res = await fetch(`${COMPANION_BASE_URL}/models/active`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model_id: modelId }),
-  });
+  const res = await fetch(
+    `${COMPANION_BASE_URL}/models/active`,
+    mergeCompanionFetchInit({
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model_id: modelId }),
+    }),
+  );
   if (!res.ok) {
     let detail = await res.text();
     try {
@@ -83,11 +98,14 @@ export const setCompanionActiveModel = async (modelId: string): Promise<void> =>
 };
 
 export const uninstallCompanionModel = async (modelId: string): Promise<void> => {
-  const res = await fetch(`${COMPANION_BASE_URL}/uninstall-model`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model_id: modelId }),
-  });
+  const res = await fetch(
+    `${COMPANION_BASE_URL}/uninstall-model`,
+    mergeCompanionFetchInit({
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model_id: modelId }),
+    }),
+  );
   if (!res.ok) {
     let detail = await res.text();
     try {
@@ -101,9 +119,10 @@ export const uninstallCompanionModel = async (modelId: string): Promise<void> =>
 };
 
 export const uninstallCompanionVulkanRuntime = async (): Promise<void> => {
-  const res = await fetch(`${COMPANION_BASE_URL}/uninstall-vulkan-runtime`, {
-    method: "POST",
-  });
+  const res = await fetch(
+    `${COMPANION_BASE_URL}/uninstall-vulkan-runtime`,
+    mergeCompanionFetchInit({ method: "POST" }),
+  );
   if (!res.ok) {
     let detail = await res.text();
     try {

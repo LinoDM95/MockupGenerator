@@ -1,4 +1,4 @@
-import { COMPANION_BASE_URL } from "./companionConstants";
+import { COMPANION_BASE_URL, mergeCompanionFetchInit } from "./companionConstants";
 import { formatRemainingMs } from "../workSession/formatEta";
 
 const EWMA_ALPHA = 0.38;
@@ -29,6 +29,7 @@ export const fetchCompanionTileProgress = async (
 ): Promise<CompanionTileProgressResponse> => {
   const res = await fetch(
     `${COMPANION_BASE_URL}/tile-progress/${encodeURIComponent(jobId)}`,
+    mergeCompanionFetchInit(),
   );
   if (!res.ok) {
     throw new Error(`tile-progress: HTTP ${res.status}`);

@@ -23,7 +23,10 @@ import {
   type UpscaleResult,
 } from "../api/upscaler";
 
-import { COMPANION_BASE_URL } from "../lib/companion/companionConstants";
+import {
+  COMPANION_BASE_URL,
+  mergeCompanionFetchInit,
+} from "../lib/companion/companionConstants";
 import {
   fetchCompanionTileProgress,
   type CompanionTileProgressReady,
@@ -48,7 +51,10 @@ const fetchWithTimeout = async (
   const controller = new AbortController();
   const t = window.setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(input, { ...rest, signal: controller.signal });
+    return await fetch(
+      input,
+      mergeCompanionFetchInit({ ...rest, signal: controller.signal }),
+    );
   } finally {
     window.clearTimeout(t);
   }
@@ -236,11 +242,14 @@ export const useCompanionApp = () => {
       }
 
       try {
-        const res = await fetch(`${COMPANION_BASE_URL}/upscale`, {
-          method: "POST",
-          body: form,
-          signal,
-        });
+        const res = await fetch(
+          `${COMPANION_BASE_URL}/upscale`,
+          mergeCompanionFetchInit({
+            method: "POST",
+            body: form,
+            signal,
+          }),
+        );
 
         if (!res.ok) {
           let detail = await res.text();
