@@ -13,6 +13,11 @@ interface ImportMetaEnv {
    * Optional: direkte Download-URL zur EXE (Build-Zeit). Wenn leer: `/api/public/printflow-engine/`.
    */
   readonly VITE_LOCAL_ENGINE_DOWNLOAD_URL?: string;
+  /**
+   * Setzt `StartMockupApp.bat` beim `npm run dev`: Upscaler zeigt PrintFlow Engine (lokal).
+   * Ohne diese Variable bleibt nur die Cloud-Engine sichtbar.
+   */
+  readonly VITE_PRINTFLOW_LOCAL_STACK?: string;
   /** Anzeigename der App in Rechtstexten (Default: PrintFlow). */
   readonly VITE_APP_DISPLAY_NAME?: string;
   /** Impressum / Datenschutz: Firmen- oder Anbietername. */

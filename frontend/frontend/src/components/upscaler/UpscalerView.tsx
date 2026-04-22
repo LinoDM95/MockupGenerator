@@ -25,8 +25,8 @@ import type {
 } from "../../api/companion";
 import type { UpscaleTotalFactor } from "../../api/upscaler";
 import {
-  UpscaleVertexApiNotEnabledError,
   upscaleImage,
+  UpscaleVertexApiNotEnabledError,
 } from "../../api/upscaler";
 import { ApiError, refreshAccessToken } from "../../api/client";
 import { useCompanionBatchTileEta } from "../../hooks/useCompanionBatchTileEta";
@@ -46,6 +46,7 @@ import {
   MAX_UPSCALER_IMAGE_BYTES,
   RASTER_IMAGE_ACCEPT_HTML,
 } from "../../lib/generator/imageUploadAccept";
+import { PRINTFLOW_LOCAL_STACK_ENABLED } from "../../lib/companion/companionConstants";
 import {
   PRINTFLOW_ENGINE_DOWNLOAD_HREF,
   PRINTFLOW_ENGINE_EXE_FILENAME,
@@ -55,6 +56,10 @@ import {
   workspaceEmbeddedPanelClassName,
 } from "../../lib/ui/workspaceSurfaces";
 import { UPSCALE_MAX_OUTPUT_PIXELS } from "../../lib/upscaler/upscaleMaxOutputPixels";
+import {
+  formatReplicateSessionEta,
+  maxReplicateParallelWorkers,
+} from "../../lib/upscaler/replicateTileParallel";
 import { formatUpscaleUserMessage } from "../../lib/upscaler/upscaleUserMessage";
 import { toast } from "../../lib/ui/toast";
 import { useAppStore } from "../../store/appStore";
@@ -77,10 +82,16 @@ import {
 import { WorkspaceEngineSplitLayout } from "../ui/layout/WorkspaceEngineSplitLayout";
 import { WorkSessionShell } from "../ui/workSession/WorkSessionShell";
 
-/** Cloud (Vertex): konservativ wegen API-Kosten/Quota. */
+/** Cloud (Replicate): konservativ wegen API-Kosten/Quota. */
 const MAX_BATCH_FILES_CLOUD = 15;
-/** PrintFlow Engine (lokal): keine Vertex-Limits — mehr Motive pro Durchgang. */
+/** PrintFlow Engine (lokal): mehr Motive pro Durchgang. */
 const MAX_BATCH_FILES_LOCAL = 50;
+
+const UPSCALER_SECTION_DESCRIPTION = PRINTFLOW_LOCAL_STACK_ENABLED
+  ? "Vertex (Imagen, BYOK), Replicate (Server) oder PrintFlow Engine (lokal). Ein Bild: Vorher/Nachher; mehrere: Ergebnisliste mit ZIP."
+  : "Vertex (BYOK) oder Replicate (Server). Ein Bild: Vorher/Nachher; mehrere: Ergebnisliste mit ZIP.";
+
+type UpscalerEngineMode = "vertex" | "replicate" | "local";
 
 type ItemStatus = "pending" | "running" | "done" | "error" | "cancelled";
 
@@ -134,7 +145,9 @@ const isAbortError = (e: unknown): boolean =>
 export const UpscalerView = () => {
   const activeTab = useAppStore((s) => s.activeTab);
   const workspaceTab = useAppStore((s) => s.workspaceTab);
-  const goToIntegrationWizardStep = useAppStore((s) => s.goToIntegrationWizardStep);
+  const goToIntegrationWizardStep = useAppStore(
+    (s) => s.goToIntegrationWizardStep,
+  );
   const setEditingSetId = useAppStore((s) => s.setEditingSetId);
   const setNavigationLocked = useAppStore((s) => s.setNavigationLocked);
   const openConfirm = useAppStore((s) => s.openConfirm);
@@ -153,7 +166,12 @@ export const UpscalerView = () => {
 
   const [items, setItems] = useState<BatchItem[]>([]);
   const [factor, setFactor] = useState<UpscaleTotalFactor>(4);
-  const [vertexReady, setVertexReady] = useState<boolean | null>(null);
+  const [vertexUpscaleReady, setVertexUpscaleReady] = useState<boolean | null>(
+    null,
+  );
+  const [replicateUpscaleReady, setReplicateUpscaleReady] = useState<
+    boolean | null
+  >(null);
   const [vertexApiGate, setVertexApiGate] = useState<string | null>(null);
   const [genericError, setGenericError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -162,9 +180,24 @@ export const UpscalerView = () => {
   const [progressIdx, setProgressIdx] = useState(0);
   const [progressTotal, setProgressTotal] = useState(0);
 
-  const [engineMode, setEngineMode] = useState<"cloud" | "local">("cloud");
+  const [engineMode, setEngineMode] = useState<UpscalerEngineMode>("vertex");
   const [parallelTiles, setParallelTiles] =
     useState<ParallelTilesOption>("auto");
+
+  useEffect(() => {
+    if (!PRINTFLOW_LOCAL_STACK_ENABLED) {
+      setEngineMode((m) => (m === "local" ? "vertex" : m));
+    }
+  }, []);
+
+  const isCloudEngine =
+    engineMode === "vertex" || engineMode === "replicate";
+  const selectedCloudReady =
+    engineMode === "vertex"
+      ? vertexUpscaleReady
+      : engineMode === "replicate"
+        ? replicateUpscaleReady
+        : null;
 
   useEffect(() => {
     if (factor === 2) setFactor(4);
@@ -193,7 +226,7 @@ export const UpscalerView = () => {
     uninstallModelById,
     uninstallVulkanRuntime,
     upscaleWithCompanion,
-  } = useCompanionApp();
+  } = useCompanionApp({ enabled: PRINTFLOW_LOCAL_STACK_ENABLED });
 
   const canRunLocalUpscale = useMemo(() => {
     return (
@@ -237,9 +270,11 @@ export const UpscalerView = () => {
     void (async () => {
       try {
         const s = await fetchAiStatus();
-        setVertexReady(!!s.vertex_upscaler_configured);
+        setVertexUpscaleReady(!!s.vertex_upscaler_configured);
+        setReplicateUpscaleReady(!!s.replicate_upscale_configured);
       } catch {
-        setVertexReady(false);
+        setVertexUpscaleReady(false);
+        setReplicateUpscaleReady(false);
       }
     })();
   }, [activeTab, workspaceTab]);
@@ -280,8 +315,14 @@ export const UpscalerView = () => {
     setItems((prev) => {
       const remaining = maxBatch - prev.length;
       if (remaining <= 0) {
+        const scopeLabel =
+          engineMode === "local"
+            ? "lokal"
+            : engineMode === "vertex"
+              ? "Vertex"
+              : "Replicate";
         toast.error(
-          `Maximal ${maxBatch} Dateien pro Durchgang (${engineMode === "local" ? "lokal" : "Cloud"}).`,
+          `Maximal ${maxBatch} Dateien pro Durchgang (${scopeLabel}).`,
         );
         return prev;
       }
@@ -515,9 +556,14 @@ export const UpscalerView = () => {
         );
         return;
       }
-    } else if (vertexReady !== true) {
+    } else if (engineMode === "vertex" && vertexUpscaleReady !== true) {
       toast.error(
-        "Bitte zuerst unter Integrationen → Gemini (KI) ein Vertex-Dienstkonto hinterlegen.",
+        "Vertex: Bitte in der KI-Integration ein Service-Account-.json hinterlegen.",
+      );
+      return;
+    } else if (engineMode === "replicate" && replicateUpscaleReady !== true) {
+      toast.error(
+        "Replicate ist auf dem Server nicht konfiguriert (REPLICATE_API_TOKEN).",
       );
       return;
     }
@@ -545,12 +591,12 @@ export const UpscalerView = () => {
     setNavigationLocked(true);
 
     let anySuccess = false;
-    let vertexAborted = false;
     let successInThisRun = 0;
     let finishedNormally = false;
+    let vertexAborted = false;
 
     try {
-      if (engineMode === "cloud") {
+      if (isCloudEngine) {
         const tokenOk = await refreshAccessToken();
         if (!tokenOk) {
           toast.error(
@@ -565,7 +611,29 @@ export const UpscalerView = () => {
       if (engineMode === "local") {
         resetCompanionTileEta();
       }
-      setSessionEtaLabel(getRemainingLabel(todo.length));
+      {
+        const first = todo[0]?.it;
+        if (
+          engineMode === "replicate" &&
+          first &&
+          first.originalWidth &&
+          first.originalHeight
+        ) {
+          const p = maxReplicateParallelWorkers(
+            first.originalWidth,
+            first.originalHeight,
+            factor,
+          );
+          setSessionEtaLabel(
+            formatReplicateSessionEta(
+              p,
+              getRemainingLabel(todo.length),
+            ),
+          );
+        } else {
+          setSessionEtaLabel(getRemainingLabel(todo.length));
+        }
+      }
       setProgressTotal(todo.length);
       setProgressIdx(0);
 
@@ -575,6 +643,22 @@ export const UpscalerView = () => {
         if (engineMode === "local") {
           beginCompanionTileImage();
           setSessionEtaLabel("Restzeit wird geschätzt …");
+        } else if (engineMode === "replicate") {
+          const ow = it.originalWidth;
+          const oh = it.originalHeight;
+          const rest = getRemainingLabel(Math.max(0, todo.length - i));
+          if (ow && oh) {
+            setSessionEtaLabel(
+              formatReplicateSessionEta(
+                maxReplicateParallelWorkers(ow, oh, factor),
+                rest,
+              ),
+            );
+          } else {
+            setSessionEtaLabel(
+              formatReplicateSessionEta(8, rest),
+            );
+          }
         } else {
           setSessionEtaLabel(getRemainingLabel(Math.max(0, todo.length - i)));
         }
@@ -606,7 +690,11 @@ export const UpscalerView = () => {
                     );
                   },
                 })
-              : await upscaleImage(it.file, upscaleParams, { signal });
+              : await upscaleImage(it.file, upscaleParams, {
+                  signal,
+                  cloudEngine:
+                    engineMode === "replicate" ? "replicate" : "vertex",
+                });
           const elapsed = performance.now() - t0;
           recordSample(elapsed);
           if (engineMode === "local" && lastTileSnap) {
@@ -659,7 +747,7 @@ export const UpscalerView = () => {
 
           if (
             e instanceof UpscaleVertexApiNotEnabledError &&
-            engineMode === "cloud"
+            engineMode === "vertex"
           ) {
             vertexAborted = true;
             setVertexApiGate(e.activationUrl);
@@ -709,7 +797,7 @@ export const UpscalerView = () => {
         setShowResults(true);
         if (vertexAborted) {
           toast.error(
-            "Vertex API nicht aktiv — weiter geht es nach Aktivierung. Fertige Bilder kannst du trotzdem laden.",
+            "Vertex API nicht aktiv — nach Aktivierung erneut versuchen. Fertige Bilder ggf. oben prüfen.",
           );
         } else if (todo.length > 1) {
           const failedInRun = todo.length - successInThisRun;
@@ -737,7 +825,9 @@ export const UpscalerView = () => {
     factor,
     isProcessing,
     engineMode,
-    vertexReady,
+    isCloudEngine,
+    vertexUpscaleReady,
+    replicateUpscaleReady,
     isOnline,
     isOutdated,
     vulkanRuntimeInstalled,
@@ -820,7 +910,7 @@ export const UpscalerView = () => {
           align="centerSm"
           icon={Maximize}
           title="KI Upscaler"
-          description="Cloud: Google Imagen / Vertex. Lokal: PrintFlow Engine auf deiner GPU — nacheinander verarbeitet. Ein Bild: Vorher/Nachher; mehrere: Ergebnisliste mit ZIP."
+          description={UPSCALER_SECTION_DESCRIPTION}
         />
 
         <WorkspaceEngineSplitLayout
@@ -848,45 +938,73 @@ export const UpscalerView = () => {
             <div className={workspaceEmbeddedPaddedClassName}>
               <fieldset>
                 <legend className="text-xs font-medium text-slate-500">Engine</legend>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div
+                  className={cn(
+                    "mt-3 grid gap-3",
+                    PRINTFLOW_LOCAL_STACK_ENABLED
+                      ? "sm:grid-cols-3"
+                      : "sm:grid-cols-2",
+                  )}
+                >
                   <button
                     type="button"
                     role="radio"
-                    aria-checked={engineMode === "cloud"}
-                    onClick={() => setEngineMode("cloud")}
+                    aria-checked={engineMode === "vertex"}
+                    onClick={() => setEngineMode("vertex")}
                     className={cn(
                       "rounded-xl p-4 text-left shadow-[0_2px_8px_rgb(0,0,0,0.04)] transition-all ring-1",
-                      engineMode === "cloud"
+                      engineMode === "vertex"
                         ? "bg-indigo-50 ring-indigo-500/25"
                         : "bg-white ring-slate-900/5 hover:bg-slate-50",
                     )}
                   >
                     <p className="text-sm font-semibold tracking-tight text-slate-900">
-                      Cloud Engine (Vertex)
+                      Vertex (Cloud)
                     </p>
                     <p className="mt-1 text-xs font-medium text-slate-500">
-                      Standard — Imagen 4.0 in der Cloud
+                      Imagen, eigenes GCP-Konto (BYOK)
                     </p>
                   </button>
                   <button
                     type="button"
                     role="radio"
-                    aria-checked={engineMode === "local"}
-                    onClick={() => setEngineMode("local")}
+                    aria-checked={engineMode === "replicate"}
+                    onClick={() => setEngineMode("replicate")}
                     className={cn(
                       "rounded-xl p-4 text-left shadow-[0_2px_8px_rgb(0,0,0,0.04)] transition-all ring-1",
-                      engineMode === "local"
+                      engineMode === "replicate"
                         ? "bg-indigo-50 ring-indigo-500/25"
                         : "bg-white ring-slate-900/5 hover:bg-slate-50",
                     )}
                   >
                     <p className="text-sm font-semibold tracking-tight text-slate-900">
-                      PrintFlow Engine (lokal)
+                      Replicate (Cloud)
                     </p>
                     <p className="mt-1 text-xs font-medium text-slate-500">
-                      Kostenlos — nutzt deine Grafikkarte
+                      Real-ESRGAN, Token auf dem Server
                     </p>
                   </button>
+                  {PRINTFLOW_LOCAL_STACK_ENABLED ? (
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={engineMode === "local"}
+                      onClick={() => setEngineMode("local")}
+                      className={cn(
+                        "rounded-xl p-4 text-left shadow-[0_2px_8px_rgb(0,0,0,0.04)] transition-all ring-1",
+                        engineMode === "local"
+                          ? "bg-indigo-50 ring-indigo-500/25"
+                          : "bg-white ring-slate-900/5 hover:bg-slate-50",
+                      )}
+                    >
+                      <p className="text-sm font-semibold tracking-tight text-slate-900">
+                        PrintFlow Engine (lokal)
+                      </p>
+                      <p className="mt-1 text-xs font-medium text-slate-500">
+                        Kostenlos — nutzt deine Grafikkarte
+                      </p>
+                    </button>
+                  ) : null}
                 </div>
               </fieldset>
               {engineMode === "local" && isOnline ? (
@@ -1002,7 +1120,8 @@ export const UpscalerView = () => {
               </div>
             ) : null}
 
-            {vertexReady === null && engineMode === "cloud" ? (
+            {(vertexUpscaleReady === null || replicateUpscaleReady === null) &&
+            isCloudEngine ? (
               <div
                 role="status"
                 className="flex items-start gap-3 rounded-xl bg-slate-50 px-4 py-4 text-sm font-medium text-slate-600 ring-1 ring-inset ring-slate-900/5"
@@ -1013,21 +1132,19 @@ export const UpscalerView = () => {
                   size={18}
                   aria-hidden
                 />
-                <p>Cloud-Konfiguration (Vertex) wird geprüft …</p>
+                <p>Cloud-Engines (Vertex, Replicate) werden geprüft …</p>
               </div>
             ) : null}
 
-            {vertexReady === false && engineMode === "cloud" ? (
+            {engineMode === "vertex" && vertexUpscaleReady === false ? (
               <div
                 role="status"
                 className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-950"
               >
-                <p className="font-medium">Vertex-Dienstkonto fehlt</p>
+                <p className="font-medium">Vertex nicht bereit</p>
                 <p className="mt-1 text-xs text-amber-900/90">
-                  Für den Upscaler brauchst du ein eigenes Google-Cloud-Dienstkonto
-                  (BYOK). Richte es im geführten Assistenten unter{" "}
-                  <span className="font-semibold">Schritt 3: Vertex AI</span> ein
-                  (oder unter Integrationen → Gemini (KI) → Vertex AI).
+                  Hinterlege in der KI-Integration dein Vertex-Service-Account-.json
+                  (BYOK).
                 </p>
                 <Button
                   variant="outline"
@@ -1037,8 +1154,20 @@ export const UpscalerView = () => {
                     setEditingSetId(null);
                   }}
                 >
-                  <Settings size={16} /> Vertex einrichten
+                  <Settings size={16} /> KI-Integration
                 </Button>
+              </div>
+            ) : null}
+
+            {engineMode === "replicate" && replicateUpscaleReady === false ? (
+              <div
+                role="status"
+                className="rounded-xl bg-slate-50 px-4 py-4 text-sm font-medium text-slate-600 ring-1 ring-inset ring-slate-900/5"
+              >
+                <p>Replicate nicht bereit</p>
+                <p className="mt-1 text-xs font-medium text-slate-500">
+                  Der Betreiber muss REPLICATE_API_TOKEN in der Server-.env setzen.
+                </p>
               </div>
             ) : null}
             </div>
@@ -1115,7 +1244,7 @@ export const UpscalerView = () => {
           message={zipProgress.message || "ZIP wird erstellt …"}
         />
       ) : null}
-      {!isProcessing && vertexApiGate && engineMode === "cloud" ? (
+      {!isProcessing && vertexApiGate && engineMode === "vertex" ? (
         <VertexApiNotEnabledBox activationUrl={vertexApiGate} />
       ) : null}
 
@@ -1275,7 +1404,8 @@ export const UpscalerView = () => {
               })}
             </UploadQueueGrid>
 
-            {vertexReady === null && engineMode === "cloud" ? (
+            {(vertexUpscaleReady === null || replicateUpscaleReady === null) &&
+            isCloudEngine ? (
               <div
                 className="flex items-start gap-3 rounded-xl bg-slate-50/80 px-5 py-3 text-xs font-medium text-slate-600 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-inset ring-slate-900/5"
                 role="status"
@@ -1286,13 +1416,16 @@ export const UpscalerView = () => {
                   size={16}
                   aria-hidden
                 />
-                <p>Cloud-Konfiguration (Vertex) wird geprüft …</p>
+                <p>Cloud-Engines werden geprüft …</p>
               </div>
             ) : null}
 
-            {vertexReady === false && engineMode === "cloud" ? (
+            {engineMode === "vertex" && vertexUpscaleReady === false ? (
               <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-5 py-3 text-xs text-amber-950 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-amber-200/60">
-                <p className="font-medium">Vertex-Dienstkonto fehlt</p>
+                <p className="font-medium">Vertex nicht bereit</p>
+                <p className="mt-1 text-amber-900/90">
+                  Service-Account-.json in der KI-Integration hinterlegen.
+                </p>
                 <Button
                   variant="outline"
                   className="mt-2 border-amber-300 bg-white text-xs text-amber-950"
@@ -1301,8 +1434,17 @@ export const UpscalerView = () => {
                     setEditingSetId(null);
                   }}
                 >
-                  <Settings size={14} /> Vertex einrichten
+                  <Settings size={14} /> KI-Integration
                 </Button>
+              </div>
+            ) : null}
+
+            {engineMode === "replicate" && replicateUpscaleReady === false ? (
+              <div className="rounded-xl bg-slate-50/80 px-5 py-3 text-xs font-medium text-slate-600 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-inset ring-slate-900/5">
+                <p>Replicate nicht bereit</p>
+                <p className="mt-1 text-slate-500">
+                  REPLICATE_API_TOKEN muss auf dem Server gesetzt sein.
+                </p>
               </div>
             ) : null}
             </div>
@@ -1345,45 +1487,73 @@ export const UpscalerView = () => {
                   <legend className="mb-2 block text-xs font-medium text-slate-500">
                     Engine
                   </legend>
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <div
+                    className={cn(
+                      "grid gap-3",
+                      PRINTFLOW_LOCAL_STACK_ENABLED
+                        ? "sm:grid-cols-3"
+                        : "sm:grid-cols-2",
+                    )}
+                  >
                     <button
                       type="button"
                       role="radio"
-                      aria-checked={engineMode === "cloud"}
-                      onClick={() => setEngineMode("cloud")}
+                      aria-checked={engineMode === "vertex"}
+                      onClick={() => setEngineMode("vertex")}
                       className={cn(
                         "rounded-xl p-4 text-left shadow-[0_2px_8px_rgb(0,0,0,0.04)] transition-all ring-1",
-                        engineMode === "cloud"
+                        engineMode === "vertex"
                           ? "bg-indigo-50 ring-indigo-500/25"
                           : "bg-white ring-slate-900/5 hover:bg-slate-50",
                       )}
                     >
                       <p className="text-sm font-semibold tracking-tight text-slate-900">
-                        Cloud Engine (Vertex)
+                        Vertex (Cloud)
                       </p>
                       <p className="mt-1 text-xs font-medium text-slate-500">
-                        Standard — Imagen 4.0 in der Cloud
+                        Imagen, eigenes Konto (BYOK)
                       </p>
                     </button>
                     <button
                       type="button"
                       role="radio"
-                      aria-checked={engineMode === "local"}
-                      onClick={() => setEngineMode("local")}
+                      aria-checked={engineMode === "replicate"}
+                      onClick={() => setEngineMode("replicate")}
                       className={cn(
                         "rounded-xl p-4 text-left shadow-[0_2px_8px_rgb(0,0,0,0.04)] transition-all ring-1",
-                        engineMode === "local"
+                        engineMode === "replicate"
                           ? "bg-indigo-50 ring-indigo-500/25"
                           : "bg-white ring-slate-900/5 hover:bg-slate-50",
                       )}
                     >
                       <p className="text-sm font-semibold tracking-tight text-slate-900">
-                        PrintFlow Engine (lokal)
+                        Replicate (Cloud)
                       </p>
                       <p className="mt-1 text-xs font-medium text-slate-500">
-                        Kostenlos — nutzt deine Grafikkarte
+                        Real-ESRGAN, Server-Token
                       </p>
                     </button>
+                    {PRINTFLOW_LOCAL_STACK_ENABLED ? (
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={engineMode === "local"}
+                        onClick={() => setEngineMode("local")}
+                        className={cn(
+                          "rounded-xl p-4 text-left shadow-[0_2px_8px_rgb(0,0,0,0.04)] transition-all ring-1",
+                          engineMode === "local"
+                            ? "bg-indigo-50 ring-indigo-500/25"
+                            : "bg-white ring-slate-900/5 hover:bg-slate-50",
+                        )}
+                      >
+                        <p className="text-sm font-semibold tracking-tight text-slate-900">
+                          PrintFlow Engine (lokal)
+                        </p>
+                        <p className="mt-1 text-xs font-medium text-slate-500">
+                          Kostenlos — nutzt deine Grafikkarte
+                        </p>
+                      </button>
+                    ) : null}
                   </div>
                 </fieldset>
               </div>
@@ -1418,7 +1588,7 @@ export const UpscalerView = () => {
                   disabled={
                     isProcessing ||
                     upscaleQueueCount === 0 ||
-                    (engineMode === "cloud" && vertexReady !== true) ||
+                    (isCloudEngine && selectedCloudReady !== true) ||
                     (engineMode === "local" &&
                       (!canRunLocalUpscale ||
                         isChecking ||
@@ -1818,10 +1988,9 @@ const VertexApiNotEnabledBox = ({
     role="status"
     className="rounded-xl bg-[#eef2ff] px-4 py-4 text-sm text-[#1e1b4b] ring-1 ring-inset ring-[rgb(99_102_241/0.25)]"
   >
-    <p className="font-semibold text-[#1e1b4b]">Fast geschafft!</p>
+    <p className="font-semibold text-[#1e1b4b]">Vertex AI API</p>
     <p className="mt-2 leading-relaxed text-[rgb(30_27_75/0.95)]">
-      Du musst die Vertex AI API in deinem Google Cloud Projekt noch aktivieren,
-      bevor du dein erstes Bild skalieren kannst.
+      Die Vertex-AI-API muss in deinem Google-Cloud-Projekt noch aktiviert werden.
     </p>
     <Button
       className="mt-4 w-full sm:w-auto"
@@ -1829,13 +1998,8 @@ const VertexApiNotEnabledBox = ({
         window.open(activationUrl, "_blank", "noopener,noreferrer")
       }
     >
-      Jetzt API aktivieren
+      API bei Google aktivieren
     </Button>
-    <p className="mt-3 text-xs leading-relaxed text-[rgb(55_48_163/0.9)]">
-      Klicke auf den Button, aktiviere die API bei Google und warte ca. 2–3
-      Minuten. Klicke danach einfach hier noch einmal auf &quot;Alle
-      hochskalieren&quot; bzw. &quot;Upscale starten&quot;.
-    </p>
   </div>
 );
 

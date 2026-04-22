@@ -67,7 +67,8 @@ if errorlevel 1 (
 call :port_listening 5173
 if errorlevel 1 (
   echo Starte Frontend-Dev-Server - Port 5173 ist frei.
-  start "" /MIN /HIGH /D "%FRONTEND%" cmd /k "npm run dev"
+  REM VITE_PRINTFLOW_LOCAL_STACK: Upscaler zeigt PrintFlow Engine (lokal); reines npm run dev ohne diese Variable nicht.
+  start "" /MIN /HIGH /D "%FRONTEND%" cmd /k "set VITE_PRINTFLOW_LOCAL_STACK=1&& npm run dev"
   set "STARTED_SERVER=1"
 ) else (
   echo Vite laeuft bereits auf Port 5173 - kein neuer Start.

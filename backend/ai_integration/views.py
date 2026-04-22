@@ -159,6 +159,9 @@ class AIStatusView(APIView):
                 {
                     "connected": False,
                     "vertex_upscaler_configured": False,
+                    "replicate_upscale_configured": bool(
+                        (os.environ.get("REPLICATE_API_TOKEN") or "").strip()
+                    ),
                     "provider": None,
                     "model_name": None,
                     "use_grounding": False,
@@ -173,6 +176,9 @@ class AIStatusView(APIView):
                 {
                     "connected": False,
                     "vertex_upscaler_configured": False,
+                    "replicate_upscale_configured": bool(
+                        (os.environ.get("REPLICATE_API_TOKEN") or "").strip()
+                    ),
                     "provider": None,
                     "model_name": None,
                     "use_grounding": False,

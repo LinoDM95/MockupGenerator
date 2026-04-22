@@ -27,7 +27,7 @@ from .services import (
 logger = logging.getLogger(__name__)
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
-MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB (Imagen limit)
+MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
 TOTAL_FACTORS = frozenset({2, 4, 8, 16})
 MAX_TARGET_SIDE = 16384
 
@@ -68,6 +68,15 @@ def _parse_positive_int(raw: str | None) -> int | None:
     return v if v >= 1 else None
 
 
+def _parse_cloud_engine(raw: str | None) -> str | None:
+    if raw is None:
+        return None
+    s = str(raw).strip().lower()
+    if s in ("vertex", "replicate"):
+        return s
+    return None
+
+
 class UpscaleImageView(APIView):
     """POST -- upload an image and receive the AI-upscaled version back."""
 
@@ -79,17 +88,8 @@ class UpscaleImageView(APIView):
             user=request.user, is_active=True
         ).first()
         sa_json = conn.get_service_account_json() if conn else ""
-        if not conn or not sa_json.strip():
-            return Response(
-                {
-                    "detail": (
-                        "Vertex AI Service Account fehlt. Bitte unter KI-Integration "
-                        "im Bereich 'Google Cloud Vertex AI (Upscaler)' die .json-Datei "
-                        "hinterlegen."
-                    )
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        has_vertex = bool(sa_json and sa_json.strip())
+        has_replicate = bool((os.environ.get("REPLICATE_API_TOKEN") or "").strip())
 
         image = request.FILES.get("image")
         if not image:
@@ -115,6 +115,36 @@ class UpscaleImageView(APIView):
             return Response(
                 {"detail": f"Bild zu gross (max {mb} MB)."},
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        cloud_engine = _parse_cloud_engine(request.data.get("cloud_engine"))
+        if cloud_engine is None:
+            return Response(
+                {
+                    "detail": (
+                        "Das Feld 'cloud_engine' ist erforderlich: 'vertex' oder 'replicate'."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if cloud_engine == "vertex" and not has_vertex:
+            return Response(
+                {
+                    "detail": (
+                        "Vertex: Kein Dienstkonto. Bitte unter KI-Integration "
+                        "die Vertex-Service-Account-.json hinterlegen."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if cloud_engine == "replicate" and not has_replicate:
+            return Response(
+                {
+                    "detail": (
+                        "Replicate ist auf dem Server nicht konfiguriert (REPLICATE_API_TOKEN)."
+                    )
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
         tw = _parse_positive_int(request.data.get("target_width"))
@@ -208,6 +238,7 @@ class UpscaleImageView(APIView):
                 result_img = upscale_image(
                     pil_img=pil_img,
                     service_account_json=sa_json,
+                    cloud_engine=cloud_engine,
                     target_width=tw,
                     target_height=th,
                 )
@@ -216,6 +247,7 @@ class UpscaleImageView(APIView):
                 result_img = upscale_image(
                     pil_img=pil_img,
                     service_account_json=sa_json,
+                    cloud_engine=cloud_engine,
                     factor_total=factor_total,
                 )
         except VertexAPINotEnabledError as exc:

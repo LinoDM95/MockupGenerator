@@ -5,11 +5,15 @@ import logging
 import math
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import BytesIO
-from typing import Any, Tuple
 from urllib.parse import quote
+from typing import Any, Tuple
 
 from PIL import Image as PILImage
+from replicate import Client
+from replicate.exceptions import ModelError
+from replicate.helpers import FileOutput
 
 from upscaler.limits import MAX_OUTPUT_PIXELS
 
@@ -19,12 +23,38 @@ _DEFAULT_VERTEX_LOCATION = "us-central1"
 # Vertex AI / Prediction API require OAuth scope; bare SA creds alone are rejected.
 _CLOUD_PLATFORM_SCOPE = "https://www.googleapis.com/auth/cloud-platform"
 
+# Real-ESRGAN auf Replicate: pro Aufruf Faktor 2 oder 4.
+_DEFAULT_REPLICATE_MODEL = "nightmareai/real-esrgan"
+
+
+class UpscaleError(Exception):
+    pass
+
+
+class UpscaleUserInputError(UpscaleError):
+    """Ungueltige Nutzerparameter — HTTP 400."""
+
+    pass
+
+
+class UpscaleAPIError(UpscaleError):
+    """Fehler von Imagen/Vertex, Replicate oder Infrastruktur."""
+
+    def __init__(self, message: str, status_code: int = 500):
+        super().__init__(message)
+        self.status_code = status_code
+
+
+class VertexAPINotEnabledError(UpscaleError):
+    """Vertex AI API (aiplatform) not enabled for the GCP project."""
+
+    def __init__(self, project_id: str) -> None:
+        super().__init__("Die Vertex AI API ist nicht aktiviert.")
+        self.project_id = project_id
+
+
 OVERLAP_SRC = 64
-# Pro Vertex-Aufruf nur x2 / x4 (Imagen API).
-VALID_FACTORS: dict[str, int] = {"x2": 2, "x4": 4}
-# Öffentliche Gesamtfaktoren (8/16 als Kette aus nativen Schritten).
 TOTAL_UPSCALE_FACTORS: frozenset[int] = frozenset({2, 4, 8, 16})
-# Mindest-Skalierung vor Tiling (isotrop), um API-Kacheln zu sparen; zu starke Reduktion vermeiden.
 SMART_SCALE_MIN = 0.85
 
 
@@ -49,30 +79,246 @@ def smallest_cover_factor(required_scale: float) -> int | None:
     return None
 
 
-class UpscaleError(Exception):
-    pass
+def _tiling_grid_dims(w: int, h: int, overlap: int, step: int) -> tuple[int, int]:
+    """Spalten/Zeilen wie in _upscale_tiled: ceil((dim - overlap) / step), mind. 1."""
+    cols = max(1, math.ceil((w - overlap) / step))
+    rows = max(1, math.ceil((h - overlap) / step))
+    return cols, rows
 
 
-class UpscaleUserInputError(UpscaleError):
-    """Ungueltige Nutzerparameter — HTTP 400."""
+def _build_blend_mask(
+    tile_w: int,
+    tile_h: int,
+    overlap_out: int,
+    *,
+    blend_left: bool,
+    blend_top: bool,
+) -> Any:
+    """Build a float32 alpha mask (H, W) with linear feathering in overlap zones."""
+    import numpy as np
 
-    pass
+    mask = np.ones((tile_h, tile_w), dtype=np.float32)
+    ow_x = min(overlap_out, tile_w) if blend_left else 0
+    ow_y = min(overlap_out, tile_h) if blend_top else 0
+
+    if blend_left and ow_x > 0:
+        ramp = np.linspace(0.0, 1.0, ow_x, dtype=np.float32)
+        mask[:, :ow_x] *= ramp[np.newaxis, :]
+
+    if blend_top and ow_y > 0:
+        ramp = np.linspace(0.0, 1.0, ow_y, dtype=np.float32)
+        mask[:ow_y, :] *= ramp[:, np.newaxis]
+
+    return mask
 
 
-class UpscaleAPIError(UpscaleError):
-    """Wraps errors from the Imagen API."""
+def _replicate_upscale_tiled(
+    client: Client,
+    model_ref: str,
+    pil_img: PILImage.Image,
+    factor_int: int,
+) -> PILImage.Image:
+    """Grosses Bild: ueberlappende Kacheln, pro Kachel Replicate, dann Mischen."""
+    try:
+        import numpy as np
+    except ModuleNotFoundError as exc:
+        raise UpscaleError(
+            "Fuer grosse Bilder (Tiling) wird NumPy benoetigt. "
+            "Bitte im Backend ausfuehren: pip install numpy"
+        ) from exc
 
-    def __init__(self, message: str, status_code: int = 500):
-        super().__init__(message)
-        self.status_code = status_code
+    orig_w, orig_h = pil_img.size
+    w, h = orig_w, orig_h
+
+    max_tile_px = int(math.isqrt(MAX_OUTPUT_PIXELS))
+    max_tile_src = max_tile_px // factor_int
+
+    if max_tile_src < 128:
+        raise UpscaleError(
+            "Bildaufloesung ist zu hoch fuer den gewaehlten Faktor."
+        )
+
+    overlap = min(OVERLAP_SRC, max_tile_src // 4)
+    step = max_tile_src - overlap
+
+    cols, rows = _tiling_grid_dims(w, h, overlap, step)
+    total_tiles = cols * rows
+
+    smart_scale_applied = False
+    candidates: list[tuple[float, str, int, int, int, int]] = []
+    if total_tiles > 1:
+        if rows > 1:
+            h_cap = (rows - 1) * step + overlap
+            s_row = h_cap / float(h)
+            if s_row < 1.0 and s_row >= SMART_SCALE_MIN - 1e-12:
+                w_n = max(1, round(orig_w * s_row))
+                h_n = max(1, round(orig_h * s_row))
+                c2, r2 = _tiling_grid_dims(w_n, h_n, overlap, step)
+                if c2 * r2 < total_tiles:
+                    candidates.append((s_row, "fewer_rows", c2, r2, w_n, h_n))
+        if cols > 1:
+            w_cap = (cols - 1) * step + overlap
+            s_col = w_cap / float(w)
+            if s_col < 1.0 and s_col >= SMART_SCALE_MIN - 1e-12:
+                w_n = max(1, round(orig_w * s_col))
+                h_n = max(1, round(orig_h * s_col))
+                c2, r2 = _tiling_grid_dims(w_n, h_n, overlap, step)
+                if c2 * r2 < total_tiles:
+                    candidates.append((s_col, "fewer_cols", c2, r2, w_n, h_n))
+
+        if candidates:
+            best_s, how, cols, rows, w, h = max(candidates, key=lambda t: t[0])
+            total_tiles = cols * rows
+            smart_scale_applied = True
+            pil_img = pil_img.resize((w, h), PILImage.Resampling.LANCZOS)
+            oc0, or0 = _tiling_grid_dims(orig_w, orig_h, overlap, step)
+            tiles_before = oc0 * or0
+            logger.info(
+                "Smart-scale tiled upscale: optimized input %dx%d -> %dx%d (%s, s=%.4f) "
+                "API tiles %d -> %d (was %dx%d grid)",
+                orig_w,
+                orig_h,
+                w,
+                h,
+                how,
+                best_s,
+                tiles_before,
+                total_tiles,
+                oc0,
+                or0,
+            )
+
+    target_w, target_h = w * factor_int, h * factor_int
+
+    if total_tiles == 1:
+        out = _replicate_upscale_full_single(
+            client,
+            model_ref,
+            pil_img,
+            factor_int,
+        )
+        if smart_scale_applied:
+            out = out.resize(
+                (orig_w * factor_int, orig_h * factor_int),
+                PILImage.Resampling.LANCZOS,
+            )
+        return out
+
+    logger.info(
+        "Tiled upscale: %dx%d -> %dx%d, grid %dx%d (%d tiles), overlap=%dpx",
+        w,
+        h,
+        target_w,
+        target_h,
+        cols,
+        rows,
+        total_tiles,
+        overlap,
+    )
+
+    overlap_out = overlap * factor_int
+    result = np.zeros((target_h, target_w, 3), dtype=np.float32)
+    weights = np.zeros((target_h, target_w), dtype=np.float32)
+
+    jobs: list[tuple[int, int, int, int, int, int, int]] = []
+    k = 0
+    for row in range(rows):
+        for col in range(cols):
+            k += 1
+            x0 = min(col * step, max(0, w - max_tile_src))
+            y0 = min(row * step, max(0, h - max_tile_src))
+            x1 = min(x0 + max_tile_src, w)
+            y1 = min(y0 + max_tile_src, h)
+            jobs.append((row, col, x0, y0, x1, y1, k))
+
+    max_workers = min(8, max(1, total_tiles))
+
+    def _run_tile(
+        job: tuple[int, int, int, int, int, int, int],
+    ) -> tuple[int, int, int, int, Any, int, int]:
+        job_row, job_col, x0, y0, x1, y1, idx = job
+        tile = pil_img.crop((x0, y0, x1, y1))
+        logger.info(
+            "Tile %d/%d: src (%d,%d)-(%d,%d) = %dx%d (parallel Replicate)",
+            idx,
+            total_tiles,
+            x0,
+            y0,
+            x1,
+            y1,
+            x1 - x0,
+            y1 - y0,
+        )
+        c = _replicate_client()
+        try:
+            upscaled_tile = _call_replicate_api(c, model_ref, tile, factor_int)
+        except UpscaleAPIError:
+            raise
+        except Exception as exc:
+            raise UpscaleAPIError(
+                f"Replicate Kachel (Zeile {job_row}, Spalte {job_col}): {exc}",
+                status_code=502,
+            ) from exc
+        tw_in, th_in = tile.size
+        exp_w, exp_h = tw_in * factor_int, th_in * factor_int
+        if upscaled_tile.size != (exp_w, exp_h):
+            upscaled_tile = upscaled_tile.resize(
+                (exp_w, exp_h),
+                PILImage.Resampling.LANCZOS,
+            )
+        tile_arr = np.array(upscaled_tile.convert("RGB"), dtype=np.float32)
+        t_h, t_w = tile_arr.shape[:2]
+        return job_row, job_col, x0, y0, tile_arr, t_h, t_w
+
+    ex = ThreadPoolExecutor(max_workers=max_workers)
+    futures = [ex.submit(_run_tile, j) for j in jobs]
+    tile_data: dict[tuple[int, int], tuple[int, int, Any, int, int]] = {}
+    try:
+        for future in as_completed(futures):
+            try:
+                job_row, job_col, jx0, jy0, t_arr, t_h, t_w = future.result()
+            except UpscaleAPIError:
+                raise
+            except Exception as exc:
+                raise UpscaleAPIError(
+                    f"Replicate Tiling: {exc}",
+                    status_code=502,
+                ) from exc
+            tile_data[(job_row, job_col)] = (jx0, jy0, t_arr, t_h, t_w)
+    except BaseException:
+        ex.shutdown(wait=False, cancel_futures=True)
+        raise
+    else:
+        ex.shutdown(wait=True)
+
+    for row in range(rows):
+        for col in range(cols):
+            x0, y0, tile_arr, th, tw = tile_data[(row, col)]
+            ox = x0 * factor_int
+            oy = y0 * factor_int
+            mask = _build_blend_mask(
+                tw,
+                th,
+                overlap_out,
+                blend_left=col > 0,
+                blend_top=row > 0,
+            )
+            result[oy : oy + th, ox : ox + tw] += tile_arr * mask[:, :, np.newaxis]
+            weights[oy : oy + th, ox : ox + tw] += mask
+
+    weights = np.maximum(weights, 1e-6)
+    result /= weights[:, :, np.newaxis]
+    result = np.clip(result, 0, 255).astype(np.uint8)
+
+    out = PILImage.fromarray(result, "RGB")
+    if smart_scale_applied:
+        out = out.resize(
+            (orig_w * factor_int, orig_h * factor_int),
+            PILImage.Resampling.LANCZOS,
+        )
+    return out
 
 
-class VertexAPINotEnabledError(UpscaleError):
-    """Vertex AI API (aiplatform) not enabled for the GCP project."""
-
-    def __init__(self, project_id: str):
-        super().__init__("Die Vertex AI API ist nicht aktiviert.")
-        self.project_id = project_id
 
 
 def _get_vertex_client(service_account_json: str) -> Tuple[Any, str, Any]:
@@ -239,7 +485,7 @@ def _vertex_upscale_user_message(msg: str) -> str | None:
     return None
 
 
-def _call_upscale_api(
+def _call_vertex_upscale_api(
     client,
     pil_tile: PILImage.Image,
     factor_str: str,
@@ -314,7 +560,7 @@ def _call_upscale_api(
     return _generated_image_to_pil(response.generated_images[0], credentials)
 
 
-def _upscale_single(
+def _vertex_upscale_full_single(
     client,
     pil_img: PILImage.Image,
     factor_str: str,
@@ -323,43 +569,10 @@ def _upscale_single(
 ) -> PILImage.Image:
     """Upscale the full image in a single API call (output <= 17MP)."""
     logger.info("Single upscale %s with factor %s", pil_img.size, factor_str)
-    return _call_upscale_api(client, pil_img, factor_str, project_id, credentials)
+    return _call_vertex_upscale_api(client, pil_img, factor_str, project_id, credentials)
 
 
-def _tiling_grid_dims(w: int, h: int, overlap: int, step: int) -> tuple[int, int]:
-    """Spalten/Zeilen wie in _upscale_tiled: ceil((dim - overlap) / step), mind. 1."""
-    cols = max(1, math.ceil((w - overlap) / step))
-    rows = max(1, math.ceil((h - overlap) / step))
-    return cols, rows
-
-
-def _build_blend_mask(
-    tile_w: int,
-    tile_h: int,
-    overlap_out: int,
-    *,
-    blend_left: bool,
-    blend_top: bool,
-) -> Any:
-    """Build a float32 alpha mask (H, W) with linear feathering in overlap zones."""
-    import numpy as np
-
-    mask = np.ones((tile_h, tile_w), dtype=np.float32)
-    ow_x = min(overlap_out, tile_w) if blend_left else 0
-    ow_y = min(overlap_out, tile_h) if blend_top else 0
-
-    if blend_left and ow_x > 0:
-        ramp = np.linspace(0.0, 1.0, ow_x, dtype=np.float32)
-        mask[:, :ow_x] *= ramp[np.newaxis, :]
-
-    if blend_top and ow_y > 0:
-        ramp = np.linspace(0.0, 1.0, ow_y, dtype=np.float32)
-        mask[:ow_y, :] *= ramp[:, np.newaxis]
-
-    return mask
-
-
-def _upscale_tiled(
+def _vertex_upscale_tiled(
     client,
     pil_img: PILImage.Image,
     factor_int: int,
@@ -446,7 +659,7 @@ def _upscale_tiled(
     target_w, target_h = w * factor_int, h * factor_int
 
     if total_tiles == 1:
-        out = _upscale_single(
+        out = _vertex_upscale_full_single(
             client,
             pil_img,
             factor_str,
@@ -495,7 +708,7 @@ def _upscale_tiled(
             if tile_idx > 1:
                 time.sleep(0.5)
 
-            upscaled_tile = _call_upscale_api(
+            upscaled_tile = _call_vertex_upscale_api(
                 client, tile, factor_str, project_id, credentials
             )
             tw_in, th_in = tile.size
@@ -534,27 +747,27 @@ def _upscale_tiled(
     return out
 
 
-def _upscale_one_native_pass(
+def _vertex_upscale_one_native_pass(
     client,
     pil_img: PILImage.Image,
     native_int: int,
     project_id: str,
     credentials: Any,
 ) -> PILImage.Image:
-    """Ein Vertex-Upscale-Schritt mit nativem Faktor 2 oder 4 (inkl. Tiling)."""
+    """Ein Vertex-Upscale-Schritt mit nativem Faktor 2 oder 4 (inkl. Tiling).
+
+    Immer die Kachel-Pipeline nutzen: bei langen/wilden Seitenverhältnissen kann
+    trotz moderater Gesamt-Fläche ein Gitter nötig sein. ``total_tiles==1`` ist
+    dann ein schneller Einzelaufruf (gleiche Logik wie lokal/PrintFlow Engine).
+    """
     if native_int not in (2, 4):
         raise UpscaleError(f"Intern: nativer Faktor muss 2 oder 4 sein, nicht {native_int}.")
-    factor_str = f"x{native_int}"
-    w, h = pil_img.size
-    target_pixels = (w * native_int) * (h * native_int)
     if pil_img.mode == "RGBA":
         pil_img = pil_img.convert("RGB")
-    if target_pixels <= MAX_OUTPUT_PIXELS:
-        return _upscale_single(client, pil_img, factor_str, project_id, credentials)
-    return _upscale_tiled(client, pil_img, native_int, project_id, credentials)
+    return _vertex_upscale_tiled(client, pil_img, native_int, project_id, credentials)
 
 
-def upscale_image(
+def _upscale_image_vertex(
     pil_img: PILImage.Image,
     service_account_json: str,
     *,
@@ -597,7 +810,7 @@ def upscale_image(
         client, project_id, credentials = _get_vertex_client(service_account_json)
         img: PILImage.Image = pil_img
         for step in native_steps_for_total_factor(cover):
-            img = _upscale_one_native_pass(
+            img = _vertex_upscale_one_native_pass(
                 client, img, step, project_id, credentials
             )
         if img.size != (tw, th):
@@ -611,5 +824,264 @@ def upscale_image(
     client, project_id, credentials = _get_vertex_client(service_account_json)
     img = pil_img
     for step in native_steps_for_total_factor(factor_total):
-        img = _upscale_one_native_pass(client, img, step, project_id, credentials)
+        img = _vertex_upscale_one_native_pass(client, img, step, project_id, credentials)
     return img
+
+
+def _replicate_model_ref() -> str:
+    raw = (os.environ.get("REPLICATE_UPSCALE_MODEL") or "").strip()
+    return raw or _DEFAULT_REPLICATE_MODEL
+
+
+def _replicate_client() -> Client:
+    token = (os.environ.get("REPLICATE_API_TOKEN") or "").strip()
+    if not token:
+        raise UpscaleAPIError(
+            "Upscale ist nicht konfiguriert: REPLICATE_API_TOKEN fehlt in der "
+            "Server-Umgebung (.env).",
+            status_code=503,
+        )
+    return Client(api_token=token)
+
+
+def _replicate_output_to_pil(client: Client, output: Any) -> PILImage.Image:
+    if output is None:
+        raise UpscaleAPIError(
+            "Replicate lieferte kein Ergebnis.",
+            status_code=503,
+        )
+    if isinstance(output, list):
+        if not output:
+            raise UpscaleAPIError(
+                "Replicate lieferte eine leere Ausgabeliste.",
+                status_code=503,
+            )
+        first = output[0]
+    else:
+        first = output
+    if isinstance(first, FileOutput):
+        raw = first.read()
+    else:
+        raise UpscaleAPIError(
+            f"Unerwartetes Replicate-Output-Format: {type(first).__name__}",
+            status_code=503,
+        )
+    try:
+        return PILImage.open(BytesIO(raw))
+    except PILImage.UnidentifiedImageError as exc:
+        logger.warning(
+            "Replicate-Bytes sind kein decodierbares Bild (len=%s)",
+            len(raw),
+        )
+        raise UpscaleAPIError(
+            "Das Upscale-Ergebnis war kein gueltiges Bild. Bitte spaeter erneut versuchen.",
+            status_code=503,
+        ) from exc
+
+
+def _call_replicate_api(
+    client: Client,
+    model_ref: str,
+    pil_tile: PILImage.Image,
+    factor_int: int,
+) -> PILImage.Image:
+    """Einen Replicate Real-ESRGAN-Lauf; factor_int 2 oder 4."""
+    if factor_int not in (2, 4):
+        raise UpscaleError(f"Intern: Replicate erwartet Faktor 2 oder 4, nicht {factor_int}.")
+
+    img_byte_arr = BytesIO()
+    pil_tile.save(img_byte_arr, format="PNG")
+    img_byte_arr.seek(0)
+
+    try:
+        output = client.run(
+            model_ref,
+            input={
+                "image": img_byte_arr,
+                "scale": factor_int,
+                "face_enhance": False,
+            },
+            use_file_output=True,
+        )
+    except ModelError as exc:
+        err = getattr(getattr(exc, "prediction", None), "error", None) or str(exc)
+        err_s = str(err) if err is not None else ""
+        logger.warning("Replicate ModelError: %s", (err_s or "")[:500])
+        lower = err_s.lower()
+        if "402" in err_s or "pay" in lower or "credit" in lower or "balance" in lower:
+            raise UpscaleAPIError(
+                "Replicate: Nicht genug Guthaben auf dem API-Konto. Bitte auf replicate.com "
+                "unter Account / Billing aufladen, einige Minuten warten und erneut versuchen.",
+                status_code=402,
+            ) from exc
+        raise UpscaleAPIError(
+            f"Upscale fehlgeschlagen: {err_s or 'unbekannter Fehler'}",
+            status_code=502,
+        ) from exc
+    except Exception as exc:  # noqa: BLE001 — nach oben mappen
+        msg = str(exc)
+        logger.warning("Replicate: %s", (msg or "")[:500])
+        um = msg.upper()
+        if "401" in msg or "UNAUTHORIZED" in um:
+            raise UpscaleAPIError(
+                "Replicate API-Token ungueltig oder abgelaufen.",
+                status_code=401,
+            ) from exc
+        if "403" in msg or "PERMISSION" in um:
+            raise UpscaleAPIError(
+                "Replicate: Zugriff verweigert. Token und Berechtigungen pruefen.",
+                status_code=403,
+            ) from exc
+        if "429" in msg or "RATE" in um:
+            raise UpscaleAPIError(
+                "Replicate-Rate-Limit. Bitte kurz warten und erneut versuchen.",
+                status_code=429,
+            ) from exc
+        if "402" in msg or "PAYMENT REQUIRED" in um:
+            raise UpscaleAPIError(
+                "Replicate: Nicht genug Guthaben auf dem API-Konto. Bitte auf replicate.com "
+                "unter Account / Billing aufladen, einige Minuten warten und erneut versuchen.",
+                status_code=402,
+            ) from exc
+        if "503" in msg or "UNAVAILABLE" in um:
+            raise UpscaleAPIError(
+                "Der Upscale-Dienst ist gerade nicht erreichbar. Bitte spaeter erneut versuchen.",
+                status_code=503,
+            ) from exc
+        raise UpscaleAPIError(
+            f"Upscale fehlgeschlagen: {msg}",
+            status_code=502,
+        ) from exc
+
+    return _replicate_output_to_pil(client, output)
+
+
+def _replicate_upscale_full_single(
+    client: Client,
+    model_ref: str,
+    pil_img: PILImage.Image,
+    factor_int: int,
+) -> PILImage.Image:
+    """Bild in einem Replicate-Aufruf (Ausgabe <= MAX_OUTPUT_PIXELS-Logik in _replicate_upscale_tiled)."""
+    logger.info("Single upscale %s with factor %s", pil_img.size, factor_int)
+    return _call_replicate_api(client, model_ref, pil_img, factor_int)
+
+
+def _replicate_upscale_one_native_pass(
+    client: Client,
+    model_ref: str,
+    pil_img: PILImage.Image,
+    native_int: int,
+) -> PILImage.Image:
+    """Ein Replicate-Upscale-Schritt mit nativem Faktor 2 oder 4 (inkl. Tiling).
+
+    Immer dieselbe Kachel-Pipeline wie Vertex und PrintFlow: Gitter aus
+    ``max_tile_src``/Overlap; kein reiner Flächentest, damit z. B. Panorama-Streifen
+    korrekt in Kacheln laufen. Bei genau einer Kachel: intern ein Einzel-API-Call.
+    """
+    if native_int not in (2, 4):
+        raise UpscaleError(f"Intern: nativer Faktor muss 2 oder 4 sein, nicht {native_int}.")
+    if pil_img.mode == "RGBA":
+        pil_img = pil_img.convert("RGB")
+    return _replicate_upscale_tiled(client, model_ref, pil_img, native_int)
+
+
+def _upscale_image_replicate(
+    pil_img: PILImage.Image,
+    *,
+    factor_total: int | None = None,
+    target_width: int | None = None,
+    target_height: int | None = None,
+) -> PILImage.Image:
+    """Upscale: entweder ``factor_total`` in (2,4,8,16) oder exakte Zielgröße.
+
+    8/16 laufen als Kette aus 2x-/4x-Real-ESRGAN. Bei Zielauflösung: bis zum
+    deckenden Faktor, danach LANCZOS.
+    """
+    has_target = target_width is not None and target_height is not None
+    has_factor = factor_total is not None
+
+    if has_target == has_factor:
+        raise UpscaleError(
+            "Genau einer der Modi ist erforderlich: factor_total ODER target_width+target_height."
+        )
+
+    if pil_img.mode == "RGBA":
+        pil_img = pil_img.convert("RGB")
+
+    client = _replicate_client()
+    model_ref = _replicate_model_ref()
+
+    if has_target:
+        tw, th = int(target_width), int(target_height)
+        ow, oh = pil_img.size
+        if ow < 1 or oh < 1:
+            raise UpscaleError("Ungueltige Bildgroesse.")
+        required = max(tw / float(ow), th / float(oh))
+        if required <= 1.0:
+            return pil_img.resize((tw, th), PILImage.Resampling.LANCZOS)
+
+        cover = smallest_cover_factor(required)
+        if cover is None:
+            raise UpscaleUserInputError(
+                "Die gewuenschte Zielaufloesung erfordert mehr als 16x Upscaling. "
+                "Bitte kleinere Zielwerte waehlen."
+            )
+
+        img: PILImage.Image = pil_img
+        for step in native_steps_for_total_factor(cover):
+            img = _replicate_upscale_one_native_pass(client, model_ref, img, step)
+        if img.size != (tw, th):
+            img = img.resize((tw, th), PILImage.Resampling.LANCZOS)
+        return img
+
+    assert factor_total is not None
+    if factor_total not in TOTAL_UPSCALE_FACTORS:
+        raise UpscaleError(f"Ungueltiger Faktor: {factor_total}. Erlaubt: 2, 4, 8, 16.")
+
+    img = pil_img
+    for step in native_steps_for_total_factor(factor_total):
+        img = _replicate_upscale_one_native_pass(client, model_ref, img, step)
+    return img
+
+
+def upscale_image(
+    pil_img: PILImage.Image,
+    service_account_json: str = "",
+    *,
+    cloud_engine: str,
+    factor_total: int | None = None,
+    target_width: int | None = None,
+    target_height: int | None = None,
+) -> PILImage.Image:
+    """Cloud-Upscale: explizit ``vertex`` (BYOK) oder ``replicate`` (Server-Token)."""
+    ce = (cloud_engine or "").strip().lower()
+    if ce == "vertex":
+        sa = (service_account_json or "").strip()
+        if not sa:
+            raise UpscaleUserInputError(
+                "Vertex: Kein Dienstkonto. Bitte unter KI-Integration die "
+                "Vertex-Service-Account-.json hinterlegen."
+            )
+        return _upscale_image_vertex(
+            pil_img,
+            sa,
+            factor_total=factor_total,
+            target_width=target_width,
+            target_height=target_height,
+        )
+    if ce == "replicate":
+        if not (os.environ.get("REPLICATE_API_TOKEN") or "").strip():
+            raise UpscaleAPIError(
+                "Replicate: REPLICATE_API_TOKEN fehlt in der Server-Konfiguration.",
+                status_code=503,
+            )
+        return _upscale_image_replicate(
+            pil_img,
+            factor_total=factor_total,
+            target_width=target_width,
+            target_height=target_height,
+        )
+    raise UpscaleUserInputError(
+        "cloud_engine muss 'vertex' oder 'replicate' sein."
+    )

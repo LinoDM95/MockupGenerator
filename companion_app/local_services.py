@@ -11,7 +11,7 @@ import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 from PIL import Image as PILImage
 
@@ -463,23 +463,17 @@ def _upscale_one_native_pass_local(
     max_tile_workers: int = 1,
     progress_job_id: str | None = None,
 ) -> PILImage.Image:
-    """Ein Real-ESRGAN-Schritt mit nativem Faktor 2 oder 4."""
+    """Ein Real-ESRGAN-Schritt mit nativem Faktor 2 oder 4 (immer Kachel-Pipeline).
+
+    Wie Cloud-Upscale: Kacheln aus max. Kachelgröße/Overlap, nicht nur nach
+    Gesamt-Ausgabepixeln — lange Panoramen werden so korrekt zerlegt.
+    """
     if native_int not in (2, 4):
         raise UpscaleError(f"Intern: nativer Faktor muss 2 oder 4 sein, nicht {native_int}.")
-    factor_str: Literal["x2", "x4"] = "x2" if native_int == 2 else "x4"
-    w, h = pil_img.size
     factor_int = native_int
-    target_pixels = (w * factor_int) * (h * factor_int)
     if pil_img.mode == "RGBA":
         pil_img = pil_img.convert("RGB")
     w_cap = max(1, min(max_tile_workers, MAX_TILE_WORKERS_CAP))
-    if target_pixels <= MAX_OUTPUT_PIXELS:
-        return _upscale_single_local(
-            pil_img,
-            factor_str,
-            ncnn_model_name,
-            progress_job_id=progress_job_id,
-        )
     return _upscale_tiled_local(
         pil_img,
         factor_int,

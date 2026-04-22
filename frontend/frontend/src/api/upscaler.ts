@@ -3,6 +3,9 @@ import { ApiError, apiFetch } from "./client";
 /** Gesamtfaktor (KI-Kette aus 2x-/4x-Schritten im Backend). */
 export type UpscaleTotalFactor = 2 | 4 | 8 | 16;
 
+/** Cloud-Upscale: explizit Vertex (BYOK) oder Replicate (Server-Token). */
+export type UpscaleCloudEngine = "vertex" | "replicate";
+
 export type UpscaleImageParams =
   | { kind: "factor"; factor: UpscaleTotalFactor }
   | { kind: "target"; targetWidth: number; targetHeight: number };
@@ -15,7 +18,7 @@ export type UpscaleResult = {
   upscaledHeight: number;
 };
 
-/** Vertex AI (aiplatform) API not enabled for the user's GCP project — use activationUrl. */
+/** Vertex AI (aiplatform) im GCP-Projekt des Nutzers noch nicht aktiviert — activationUrl. */
 export class UpscaleVertexApiNotEnabledError extends Error {
   readonly activationUrl: string;
 
@@ -73,16 +76,17 @@ export const appendUpscaleParams = (
 export const upscaleImage = async (
   file: File,
   params: UpscaleImageParams,
-  options?: { signal?: AbortSignal },
+  options: { cloudEngine: UpscaleCloudEngine; signal?: AbortSignal },
 ): Promise<UpscaleResult> => {
   const form = new FormData();
   form.append("image", file);
+  form.append("cloud_engine", options.cloudEngine);
   appendUpscaleParams(form, params);
 
   const res = await apiFetch("/api/upscaler/upscale/", {
     method: "POST",
     body: form,
-    signal: options?.signal,
+    signal: options.signal,
   });
 
   if (!res.ok) {

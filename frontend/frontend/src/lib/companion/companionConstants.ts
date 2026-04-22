@@ -1,16 +1,25 @@
 /**
  * PrintFlow Engine — lokaler FastAPI-Dienst (Standard: Port 8001, Django bleibt auf 8000).
  *
- * - Dev (Vite): Requests gehen über `/__companion` → Proxy gleicher Origin, kein CORS-Problem.
- * - Produktion / Django-SPA (Port 8000): Direkt `http://127.0.0.1:8001` — CORS im Companion inkl. https://mockupgenerator-aixo.onrender.com; weitere Origins: `COMPANION_CORS_ORIGINS`.
- *
- * Override: `VITE_COMPANION_URL` z. B. `http://127.0.0.1:8001`
+ * - **Upscaler „lokal“** nur, wenn `PRINTFLOW_LOCAL_STACK_ENABLED` (Vite per `StartMockupApp.bat` mit
+ *   `VITE_PRINTFLOW_LOCAL_STACK=1`). Sonst kein Companion im UI, keine Polls.
+ * - Dev mit lokalem Stack: `/__companion` → Vite-Proxy, gleiche Origin.
+ * - Override: `VITE_COMPANION_URL` z. B. `http://127.0.0.1:8001`
  */
 const envUrl = import.meta.env.VITE_COMPANION_URL?.trim();
 
 export const COMPANION_BASE_URL =
   envUrl ||
   (import.meta.env.DEV ? "/__companion" : "http://localhost:8001");
+
+/**
+ * Nur `true`, wenn der Vite-Dev-Server mit `VITE_PRINTFLOW_LOCAL_STACK=1` oder `true` gestartet wurde
+ * (`StartMockupApp.bat` setzt das). Reines `npm run dev` / Produktion: `false` — kein lokaler Engine-Modus.
+ */
+export const PRINTFLOW_LOCAL_STACK_ENABLED =
+  import.meta.env.DEV &&
+  (import.meta.env.VITE_PRINTFLOW_LOCAL_STACK === "1" ||
+    import.meta.env.VITE_PRINTFLOW_LOCAL_STACK === "true");
 
 const isLoopbackHostname = (hostname: string): boolean => {
   const h = hostname.toLowerCase();

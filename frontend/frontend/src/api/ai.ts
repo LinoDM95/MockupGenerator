@@ -4,6 +4,8 @@ import { compressFileForAI } from "../lib/canvas/image";
 export type AIConnectionStatus = {
   connected: boolean;
   vertex_upscaler_configured?: boolean;
+  /** Server-seitig: `REPLICATE_API_TOKEN` in der Backend-.env. */
+  replicate_upscale_configured?: boolean;
   provider?: string;
   model_name?: string;
   use_grounding?: boolean;

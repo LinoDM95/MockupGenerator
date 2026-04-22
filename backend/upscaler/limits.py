@@ -1,4 +1,4 @@
-"""Max. Ausgabe-Pixel pro Kachel beim Tiling (Vertex/Django).
+"""Max. Ausgabe-Pixel pro Kachel beim Tiling (Replicate Real-ESRGAN / Django).
 
 Umgebung: UPSCALE_MAX_OUTPUT_PIXELS (Integer), Standard 17_000_000.
 Logik mit companion_app/upscale_limits.py uebereinstimmen (Konsistenz).

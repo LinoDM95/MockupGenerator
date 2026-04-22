@@ -37,6 +37,11 @@ export { COMPANION_BASE_URL };
 /** Gleiche Quelle wie der Companion: `companion_app/ENGINE_VERSION` (eine Zeile). */
 export const EXPECTED_ENGINE_VERSION = ENGINE_VERSION_EXPECTED.trim();
 
+export type UseCompanionAppOptions = {
+  /** Nur `true` mit `PRINTFLOW_LOCAL_STACK_ENABLED` — sonst keine Requests zum lokalen Engine. */
+  enabled?: boolean;
+};
+
 const STATUS_TIMEOUT_MS = 1000;
 const POLL_INTERVAL_MS = 12_000;
 const TILE_POLL_INTERVAL_MS = 220;
@@ -60,9 +65,10 @@ const fetchWithTimeout = async (
   }
 };
 
-export const useCompanionApp = () => {
+export const useCompanionApp = (options?: UseCompanionAppOptions) => {
+  const enabled = options?.enabled === true;
   const [isOnline, setIsOnline] = useState(false);
-  const [isChecking, setIsChecking] = useState(true);
+  const [isChecking, setIsChecking] = useState(enabled);
   const [engineVersion, setEngineVersion] = useState<string | null>(null);
   const [catalog, setCatalog] = useState<CompanionCatalog | null>(null);
   const [installedModelIds, setInstalledModelIds] = useState<string[]>([]);
@@ -76,6 +82,7 @@ export const useCompanionApp = () => {
   }, [isOnline, engineVersion]);
 
   const checkStatus = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!enabled) return;
     const silent = opts?.silent === true;
     if (!silent) setIsChecking(true);
     try {
@@ -111,18 +118,25 @@ export const useCompanionApp = () => {
     } finally {
       if (mountedRef.current && !silent) setIsChecking(false);
     }
-  }, []);
+  }, [enabled]);
 
   const loadCatalog = useCallback(async () => {
+    if (!enabled) return;
     try {
       const c = await fetchCompanionCatalog();
       if (mountedRef.current) setCatalog(c);
     } catch {
       if (mountedRef.current) setCatalog(null);
     }
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
+    if (!enabled) {
+      mountedRef.current = true;
+      return () => {
+        mountedRef.current = false;
+      };
+    }
     mountedRef.current = true;
     void checkStatus();
     const id = window.setInterval(() => {
@@ -132,42 +146,63 @@ export const useCompanionApp = () => {
       mountedRef.current = false;
       window.clearInterval(id);
     };
-  }, [checkStatus]);
+  }, [enabled, checkStatus]);
 
   useEffect(() => {
-    if (isOnline) void loadCatalog();
-  }, [isOnline, loadCatalog]);
+    if (!enabled || !isOnline) return;
+    void loadCatalog();
+  }, [enabled, isOnline, loadCatalog]);
 
   const installModelById = useCallback(
     async (modelId: string) => {
+      if (!enabled) {
+        throw new Error(
+          "PrintFlow Engine ist nur im per StartMockupApp.bat gestarteten lokalen Dev-Modus verfügbar.",
+        );
+      }
       await installCompanionModel(modelId);
       await checkStatus({ silent: true });
       await loadCatalog();
     },
-    [checkStatus, loadCatalog],
+    [enabled, checkStatus, loadCatalog],
   );
 
   const selectActiveModel = useCallback(
     async (modelId: string) => {
+      if (!enabled) {
+        throw new Error(
+          "PrintFlow Engine ist nur im per StartMockupApp.bat gestarteten lokalen Dev-Modus verfügbar.",
+        );
+      }
       await setCompanionActiveModel(modelId);
       await checkStatus({ silent: true });
     },
-    [checkStatus],
+    [enabled, checkStatus],
   );
 
   const uninstallModelById = useCallback(
     async (modelId: string) => {
+      if (!enabled) {
+        throw new Error(
+          "PrintFlow Engine ist nur im per StartMockupApp.bat gestarteten lokalen Dev-Modus verfügbar.",
+        );
+      }
       await uninstallCompanionModel(modelId);
       await checkStatus({ silent: true });
       await loadCatalog();
     },
-    [checkStatus, loadCatalog],
+    [enabled, checkStatus, loadCatalog],
   );
 
   const uninstallVulkanRuntime = useCallback(async () => {
+    if (!enabled) {
+      throw new Error(
+        "PrintFlow Engine ist nur im per StartMockupApp.bat gestarteten lokalen Dev-Modus verfügbar.",
+      );
+    }
     await uninstallCompanionVulkanRuntime();
     await checkStatus({ silent: true });
-  }, [checkStatus]);
+  }, [enabled, checkStatus]);
 
   const upscaleWithCompanion = useCallback(
     async (
@@ -183,6 +218,11 @@ export const useCompanionApp = () => {
         progressJobId?: string;
       },
     ): Promise<UpscaleResult> => {
+      if (!enabled) {
+        throw new Error(
+          "PrintFlow Engine ist nur im per StartMockupApp.bat gestarteten lokalen Dev-Modus verfügbar.",
+        );
+      }
       if (isOutdated) {
         throw new Error(
           "PrintFlow Engine veraltet — bitte die aktuelle PrintFlowEngine.exe installieren und neu starten.",
@@ -267,7 +307,7 @@ export const useCompanionApp = () => {
         stopTilePoll();
       }
     },
-    [isOutdated],
+    [enabled, isOutdated],
   );
 
   return {

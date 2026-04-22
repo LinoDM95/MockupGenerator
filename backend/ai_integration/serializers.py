@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 
 from rest_framework import serializers
 
@@ -66,12 +67,14 @@ class AIVertexServiceAccountSerializer(serializers.Serializer):
 class AIConnectionStatusSerializer(serializers.ModelSerializer):
     connected = serializers.SerializerMethodField()
     vertex_upscaler_configured = serializers.SerializerMethodField()
+    replicate_upscale_configured = serializers.SerializerMethodField()
 
     class Meta:
         model = AIConnection
         fields = (
             "connected",
             "vertex_upscaler_configured",
+            "replicate_upscale_configured",
             "provider",
             "model_name",
             "use_grounding",
@@ -86,3 +89,6 @@ class AIConnectionStatusSerializer(serializers.ModelSerializer):
 
     def get_vertex_upscaler_configured(self, obj: AIConnection) -> bool:
         return bool(obj.service_account_json_enc and obj.is_active)
+
+    def get_replicate_upscale_configured(self, _obj: AIConnection) -> bool:
+        return bool((os.environ.get("REPLICATE_API_TOKEN") or "").strip())

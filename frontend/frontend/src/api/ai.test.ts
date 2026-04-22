@@ -14,6 +14,7 @@ vi.mock("./client", () => ({
 const defaultAi = {
   connected: true,
   vertex_upscaler_configured: false,
+  replicate_upscale_configured: false,
   prefer_expert_mode: false,
 } as const;
 
