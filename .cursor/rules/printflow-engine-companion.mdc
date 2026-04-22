@@ -1,0 +1,35 @@
+---
+description: PrintFlow Engine (lokale Companion-App) — Build, Version, Deploy, Agent-Pflicht bei Änderungen
+alwaysApply: true
+---
+
+# PrintFlow Engine (`companion_app/`)
+
+Lokaler Windows-Dienst (FastAPI auf `127.0.0.1:8001`, Tray): GPU-Upscaling für den Upscaler. Gebaut als **`PrintFlowEngine.exe`** (PyInstaller). Produktname in der UI: **PrintFlow Engine**.
+
+## Wann der Agent nach Änderungen handeln muss
+
+Bei **jeder** inhaltlichen Änderung unter **`companion_app/`** oder an **`companion_app/ENGINE_VERSION`**, sowie wenn sich das **Verhalten der HTTP-API** (`/status`, `/upscale`, `/install-model`, …) ändert:
+
+1. **`companion_app/ENGINE_VERSION`** anpassen, sobald die ausgelieferte Engine sich für Nutzer unterscheidet (Feature, Bugfix, API-Kontrakt). Die gebaute SPA importiert dieselbe Datei — sonst meldet die App „veraltet“.
+2. **EXE neu bauen** (Repo-Root):  
+   `python companion_app/build_exe.py`  
+   (typisch mit venv, in dem `companion_app/requirements.txt` + PyInstaller installiert sind, z. B. `backend\env`). Das legt **`dist/PrintFlowEngine.exe`** an und kopiert nach **`frontend/frontend/public/PrintFlowEngine.exe`**.
+3. Im **Abschluss der Aufgabe** kurz nennen: *„PrintFlow Engine: ENGINE_VERSION / Neu-Build nötig“* bzw. *„bereits gebaut“*, je nachdem was der User wollte.
+4. Wenn **Frontend** `useCompanionApp`, `src/api/companion.ts`, `src/lib/companion/*` oder Upscaler-Texte betroffen sind: Verhalten mit neuer Engine abgleichen.
+
+## Deploy / Static
+
+- Vite-Prod: Download-Link **`/static/PrintFlowEngine.exe`** nur wenn die EXE **vor** `npm run build` in **`public/`** liegt.
+- **`frontend/frontend/public/PrintFlowEngine.exe`** steht in **`.gitignore`** — Render/CI haben die Datei nicht, solange sie nicht eingecheckt, im Build geholt oder **`VITE_LOCAL_ENGINE_DOWNLOAD_URL`** gesetzt wird.
+- Nach Frontend-Build: **`collectstatic`** (wie in `render.yaml`).
+
+## Technische Anker (nicht duplizieren — Code ist maßgeblich)
+
+- CORS-Zusatz-Origins: `COMPANION_CORS_ORIGINS`; Defaults inkl. Produktions-Host in `companion_app/main.py`.
+- Windows-Autostart (Tray): Registry `PrintFlowLocalEngine` unter HKCU Run.
+- SSRF-Schutz für `/update`: `COMPANION_UPDATE_ALLOWED_HOSTS` / Pfad-Ende `PrintFlowEngine.exe`.
+
+## Tests
+
+Neue Companion-Logik: wo sinnvoll **Backend-/Service-Tests** oder dokumentierte manuelle Checks; die EXE selbst wird im Repo nicht in CI gebaut (Windows).

@@ -1,5 +1,5 @@
 ﻿@echo off
 timeout /t 2 /nobreak
-move /y MockupLocalEngine_new.exe MockupLocalEngine.exe
-start "" MockupLocalEngine.exe
+move /y PrintFlowEngine_new.exe PrintFlowEngine.exe
+start "" PrintFlowEngine.exe
 del "%~f0"

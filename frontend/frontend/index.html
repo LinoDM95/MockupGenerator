@@ -4,13 +4,15 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Creative Engine | Print-on-Demand Automatisierung</title>
+    <title>PrintFlow | Print-on-Demand Automatisierung</title>
     <script>
       // Farbschema-Hydration: VOR dem ersten Paint `.dark` setzen,
       // damit bei Dark-Mode-Start kein heller Flash entsteht.
       (function () {
         try {
-          var stored = localStorage.getItem("ce-color-scheme");
+          var stored =
+            localStorage.getItem("pf-color-scheme") ||
+            localStorage.getItem("ce-color-scheme");
           var isDark =
             stored === "dark" ||
             (stored !== "light" &&

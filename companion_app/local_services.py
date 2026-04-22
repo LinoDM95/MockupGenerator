@@ -114,7 +114,7 @@ def _local_upscale_tile(
             f"Geprueft: {_realesrgan_exe_not_found_detail()}. "
             "Nach Modell-Installation aus dem Katalog sollte die EXE unter companion_app/ liegen "
             "(oder EXE ins Projektroot legen). Optional: Umgebungsvariable REALESRGAN_NCNN_VULKAN_EXE. "
-            "Companion-App neu starten, danach im Upscaler erneut „Installieren“."
+            "PrintFlow Engine neu starten, danach im Upscaler erneut „Installieren“."
         )
 
     if pil_tile.mode != "RGB":

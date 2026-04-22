@@ -46,7 +46,10 @@ import {
   MAX_UPSCALER_IMAGE_BYTES,
   RASTER_IMAGE_ACCEPT_HTML,
 } from "../../lib/generator/imageUploadAccept";
-import { MOCKUP_LOCAL_ENGINE_HREF } from "../../lib/companion/localEngine";
+import {
+  PRINTFLOW_ENGINE_DOWNLOAD_HREF,
+  PRINTFLOW_ENGINE_EXE_FILENAME,
+} from "../../lib/companion/localEngine";
 import {
   workspaceEmbeddedPaddedClassName,
   workspaceEmbeddedPanelClassName,
@@ -76,7 +79,7 @@ import { WorkSessionShell } from "../ui/workSession/WorkSessionShell";
 
 /** Cloud (Vertex): konservativ wegen API-Kosten/Quota. */
 const MAX_BATCH_FILES_CLOUD = 15;
-/** Local Engine: keine Vertex-Limits — mehr Motive pro Durchgang. */
+/** PrintFlow Engine (lokal): keine Vertex-Limits — mehr Motive pro Durchgang. */
 const MAX_BATCH_FILES_LOCAL = 50;
 
 type ItemStatus = "pending" | "running" | "done" | "error" | "cancelled";
@@ -167,7 +170,7 @@ export const UpscalerView = () => {
     if (factor === 2) setFactor(4);
   }, [factor]);
 
-  /** Lokale Companion-/KI-Einstellungen — Standard eingeklappt. */
+  /** Einstellungen für PrintFlow Engine (lokal) — Standard eingeklappt. */
   const [localCompanionOpen, setLocalCompanionOpen] = useState(false);
   const [installingModelId, setInstallingModelId] = useState<string | null>(
     null,
@@ -469,7 +472,7 @@ export const UpscalerView = () => {
 
   const handleUninstallVulkanRuntime = useCallback(async () => {
     const ok = await openConfirm(
-      "realesrgan-ncnn-vulkan.exe und vcomp-DLLs aus dem Companion-Ordner loeschen? Modell-Dateien unter models/ bleiben — danach erneut „Installieren“, um die EXE zurueckzuholen.",
+      "realesrgan-ncnn-vulkan.exe und vcomp-DLLs aus dem PrintFlow-Engine-Ordner loeschen? Modell-Dateien unter models/ bleiben — danach erneut „Installieren“, um die EXE zurueckzuholen.",
     );
     if (!ok) return;
     try {
@@ -487,7 +490,13 @@ export const UpscalerView = () => {
     if (engineMode === "local") {
       if (!isOnline) {
         toast.error(
-          "Local Engine nicht erreichbar. Bitte die Companion-App starten.",
+          "PrintFlow Engine nicht erreichbar. Bitte die Desktop-App starten (Tray-Symbol).",
+        );
+        return;
+      }
+      if (isOutdated) {
+        toast.error(
+          "PrintFlow Engine veraltet. Bitte die aktuelle PrintFlowEngine.exe laden, ersetzen und die App neu starten.",
         );
         return;
       }
@@ -811,7 +820,7 @@ export const UpscalerView = () => {
           align="centerSm"
           icon={Maximize}
           title="KI Upscaler"
-          description="Cloud: Google Imagen / Vertex. Lokal: kostenlose Companion-App auf deiner GPU — nacheinander verarbeitet. Ein Bild: Vorher/Nachher; mehrere: Ergebnisliste mit ZIP."
+          description="Cloud: Google Imagen / Vertex. Lokal: PrintFlow Engine auf deiner GPU — nacheinander verarbeitet. Ein Bild: Vorher/Nachher; mehrere: Ergebnisliste mit ZIP."
         />
 
         <WorkspaceEngineSplitLayout
@@ -872,7 +881,7 @@ export const UpscalerView = () => {
                     )}
                   >
                     <p className="text-sm font-semibold tracking-tight text-slate-900">
-                      Local Engine (Companion App)
+                      PrintFlow Engine (lokal)
                     </p>
                     <p className="mt-1 text-xs font-medium text-slate-500">
                       Kostenlos — nutzt deine Grafikkarte
@@ -895,7 +904,7 @@ export const UpscalerView = () => {
                     onClick={() => setLocalCompanionOpen((o) => !o)}
                     className="flex w-full items-center justify-between gap-2 rounded-lg py-1 text-left text-sm font-semibold text-slate-900 transition-colors hover:text-indigo-700"
                   >
-                    <span>Lokale KI und Companion</span>
+                    <span>Lokale KI — PrintFlow Engine</span>
                     <ChevronDown
                       className={cn(
                         "h-4 w-4 shrink-0 text-slate-500 transition-transform duration-200",
@@ -913,7 +922,7 @@ export const UpscalerView = () => {
                     >
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                          Companion
+                          PrintFlow Engine
                         </span>
                         {isChecking ? (
                           <span className="text-xs font-medium text-slate-500">
@@ -983,11 +992,11 @@ export const UpscalerView = () => {
               <div className="space-y-3">
                 <IntegrationMissingCallout
                   variant="slate"
-                  title="Local Engine nicht gefunden"
-                  description="Um deine eigene Grafikkarte kostenlos zu nutzen, lade dir unsere Local Engine herunter. Führe die Datei nach dem Download einmalig aus."
-                  actionLabel="Local Engine Herunterladen (ca. 25 MB)"
-                  href={MOCKUP_LOCAL_ENGINE_HREF}
-                  download="MockupLocalEngine.exe"
+                  title="PrintFlow Engine nicht gefunden"
+                  description="Um deine eigene Grafikkarte kostenlos zu nutzen, lade PrintFlow Engine (Windows) herunter. Führe PrintFlowEngine.exe nach dem Download einmalig aus."
+                  actionLabel="PrintFlow Engine herunterladen (ca. 25 MB)"
+                  href={PRINTFLOW_ENGINE_DOWNLOAD_HREF}
+                  download={PRINTFLOW_ENGINE_EXE_FILENAME}
                 />
                 <CompanionOfflineCopyUvicornCommand />
               </div>
@@ -1369,7 +1378,7 @@ export const UpscalerView = () => {
                       )}
                     >
                       <p className="text-sm font-semibold tracking-tight text-slate-900">
-                        Local Engine (Companion App)
+                        PrintFlow Engine (lokal)
                       </p>
                       <p className="mt-1 text-xs font-medium text-slate-500">
                         Kostenlos — nutzt deine Grafikkarte
@@ -1428,11 +1437,11 @@ export const UpscalerView = () => {
                 <div className="space-y-3 border-b border-slate-100 px-5 py-4">
                   <IntegrationMissingCallout
                     variant="slate"
-                    title="Local Engine nicht gefunden"
-                    description="Um deine eigene Grafikkarte kostenlos zu nutzen, lade dir unsere Local Engine herunter. Führe die Datei nach dem Download einmalig aus."
-                    actionLabel="Local Engine Herunterladen (ca. 25 MB)"
-                    href={MOCKUP_LOCAL_ENGINE_HREF}
-                    download="MockupLocalEngine.exe"
+                    title="PrintFlow Engine nicht gefunden"
+                    description="Um deine eigene Grafikkarte kostenlos zu nutzen, lade PrintFlow Engine (Windows) herunter. Führe PrintFlowEngine.exe nach dem Download einmalig aus."
+                    actionLabel="PrintFlow Engine herunterladen (ca. 25 MB)"
+                    href={PRINTFLOW_ENGINE_DOWNLOAD_HREF}
+                    download={PRINTFLOW_ENGINE_EXE_FILENAME}
                   />
                   <CompanionOfflineCopyUvicornCommand />
                 </div>
@@ -1453,7 +1462,7 @@ export const UpscalerView = () => {
                     onClick={() => setLocalCompanionOpen((o) => !o)}
                     className="flex w-full items-center justify-between gap-2 rounded-lg py-1 text-left text-sm font-semibold text-slate-900 transition-colors hover:text-indigo-700"
                   >
-                    <span>Lokale KI und Companion</span>
+                    <span>Lokale KI — PrintFlow Engine</span>
                     <ChevronDown
                       className={cn(
                         "h-4 w-4 shrink-0 text-slate-500 transition-transform duration-200",
@@ -1471,7 +1480,7 @@ export const UpscalerView = () => {
                     >
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                          Companion
+                          PrintFlow Engine
                         </span>
                         {isChecking ? (
                           <span className="text-xs font-medium text-slate-500">
@@ -1960,7 +1969,7 @@ const CompanionOfflineCopyUvicornCommand = () => {
   return (
     <div
       role="region"
-      aria-label="Development: Companion per Terminal starten"
+      aria-label="Development: PrintFlow Engine per Terminal starten"
       className="rounded-xl bg-slate-50/80 px-4 py-3 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-900/5"
     >
       <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
@@ -2004,7 +2013,7 @@ const CompanionEngineOutdatedCallout = ({
     className="rounded-xl bg-amber-50 px-4 py-4 text-sm text-amber-950 ring-1 ring-inset ring-amber-500/20"
   >
     <p className="text-[10px] font-bold uppercase tracking-widest text-amber-800/90">
-      Local Engine
+      PrintFlow Engine
     </p>
     <p className="mt-1 font-semibold tracking-tight text-amber-950">
       Version veraltet — lokaler Bereich gesperrt
@@ -2018,20 +2027,20 @@ const CompanionEngineOutdatedCallout = ({
       <span className="font-semibold text-amber-950">
         {EXPECTED_ENGINE_VERSION}
       </span>
-      . Bitte die aktuelle MockupLocalEngine.exe laden, die bestehende Datei
-      ersetzen und die Engine neu starten. Danach ist die Auswahl wieder frei.
+      . Bitte die aktuelle PrintFlowEngine.exe laden, die bestehende Datei
+      ersetzen und PrintFlow Engine neu starten. Danach ist die Auswahl wieder frei.
     </p>
     <ol className="mt-3 list-decimal space-y-1 pl-4 text-xs font-medium text-amber-900/90">
       <li>Neuere Version herunterladen (Button unten).</li>
-      <li>Alte Datei im gleichen Ordner ersetzen und die Local Engine neu starten.</li>
+      <li>Alte Datei im gleichen Ordner ersetzen und PrintFlow Engine neu starten.</li>
     </ol>
     <a
-      href={MOCKUP_LOCAL_ENGINE_HREF}
-      download="MockupLocalEngine.exe"
+      href={PRINTFLOW_ENGINE_DOWNLOAD_HREF}
+      download={PRINTFLOW_ENGINE_EXE_FILENAME}
       className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-amber-950 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-amber-300/80 transition-colors hover:bg-amber-100/80 focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-500/25"
     >
       <Download className="h-4 w-4 shrink-0" aria-hidden />
-      Neuere MockupLocalEngine.exe herunterladen
+      PrintFlow Engine aktualisieren (.exe)
     </a>
   </div>
 );

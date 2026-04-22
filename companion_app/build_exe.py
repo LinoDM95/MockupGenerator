@@ -1,5 +1,5 @@
 """
-Build MockupLocalEngine.exe (Windows) with PyInstaller.
+Build PrintFlow Engine als PrintFlowEngine.exe (Windows, PyInstaller).
 
 Requirements:
   pip install -r companion_app/requirements.txt
@@ -8,14 +8,14 @@ Run from repository root:
   python companion_app/build_exe.py
 
 Output:
-  dist/MockupLocalEngine.exe  (single file, no console window)
+  dist/PrintFlowEngine.exe  (single file, no console window)
 
 After a successful build, the EXE is copied to
-  frontend/frontend/public/MockupLocalEngine.exe
+  frontend/frontend/public/PrintFlowEngine.exe
 so Vite can serve it for the Upscaler download link (no broken HTML downloads).
 
 The executable starts the FastAPI server on 127.0.0.1:8001 (not 8000 — Django) and shows a tray icon
-(pystray). Right-click the tray icon -> "Beenden" to quit.
+(pystray). Tray: optional "Mit Windows starten" (HKCU Run) and "Beenden" to quit.
 
 Notes:
   - Models downloaded via POST /install-model are extracted next to the .exe.
@@ -27,13 +27,20 @@ from __future__ import annotations
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+# Direktaufruf `python companion_app/build_exe.py`: Script-Dir wäre sonst allein auf sys.path[0].
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 COMPANION = Path(__file__).resolve().parent
 MAIN = COMPANION / "main.py"
 CATALOG = COMPANION / "model_catalog.json"
 ENGINE_VER = COMPANION / "ENGINE_VERSION"
+
+PYINSTALLER_NAME = "PrintFlowEngine"
+EXE_FILENAME = f"{PYINSTALLER_NAME}.exe"
 
 
 def main() -> int:
@@ -47,7 +54,7 @@ def main() -> int:
         "PyInstaller",
         str(MAIN),
         "--name",
-        "MockupLocalEngine",
+        PYINSTALLER_NAME,
         "--onefile",
         "--noconsole",
         "--clean",
@@ -56,6 +63,7 @@ def main() -> int:
         "--hidden-import=companion_app.paths",
         "--hidden-import=companion_app.model_store",
         "--hidden-import=companion_app.upscale_limits",
+        "--hidden-import=companion_app.icon_assets",
         "--hidden-import=uvicorn.logging",
         "--hidden-import=uvicorn.loops",
         "--hidden-import=uvicorn.loops.auto",
@@ -84,19 +92,30 @@ def main() -> int:
             file=sys.stderr,
         )
 
-    print("Running:", " ".join(cmd))
-    rc = subprocess.call(cmd, cwd=REPO_ROOT)
+    # Windows: eigenes PrintFlow-Icon (Explorer, Taskleiste) statt PyInstaller-Standard.
+    if sys.platform == "win32":
+        from companion_app.icon_assets import write_exe_icon
+
+        with tempfile.TemporaryDirectory(prefix="printflow-engine-ico-") as td:
+            ico_path = Path(td) / "PrintFlowEngine.ico"
+            write_exe_icon(ico_path)
+            cmd.extend(["--icon", str(ico_path)])
+            print("Running:", " ".join(cmd))
+            rc = subprocess.call(cmd, cwd=REPO_ROOT)
+    else:
+        print("Running:", " ".join(cmd))
+        rc = subprocess.call(cmd, cwd=REPO_ROOT)
     if rc == 0:
-        src = REPO_ROOT / "dist" / "MockupLocalEngine.exe"
+        src = REPO_ROOT / "dist" / EXE_FILENAME
         dest_dir = REPO_ROOT / "frontend" / "frontend" / "public"
-        dest = dest_dir / "MockupLocalEngine.exe"
+        dest = dest_dir / EXE_FILENAME
         if src.is_file():
             dest_dir.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, dest)
-            print(f"Copied to {dest} (Vite static / MockupLocalEngine.exe).")
+            print(f"Copied to {dest} (Vite static / {EXE_FILENAME}).")
         else:
             print(
-                "Warning: dist/MockupLocalEngine.exe not found; skip public/ copy.",
+                f"Warning: dist/{EXE_FILENAME} not found; skip public/ copy.",
                 file=sys.stderr,
             )
     return rc

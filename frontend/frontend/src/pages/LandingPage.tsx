@@ -135,7 +135,7 @@ const Hero = () => {
           className="mx-auto mt-6 max-w-2xl text-base font-medium leading-relaxed text-slate-500 sm:mt-8 sm:text-lg md:text-xl"
         >
           Vorlagen anlegen, Mockups rendern, KI-Texte generieren und direkt als Etsy-Entwurf
-          veröffentlichen. Ein nahtloser Prozess in einer einzigen Engine.
+          veröffentlichen. Ein nahtloser Ablauf mit PrintFlow.
         </motion.p>
 
         <motion.div
@@ -1220,7 +1220,7 @@ export const LandingPage = () => (
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 shadow-inner">
             <Zap size={16} className="text-white" fill="currentColor" />
           </span>
-          Creative Engine
+          PrintFlow
         </span>
         <div className="flex items-center gap-2 sm:gap-3">
           <a

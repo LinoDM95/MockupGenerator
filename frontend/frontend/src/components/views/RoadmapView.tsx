@@ -50,7 +50,7 @@ const geplant: RoadmapItem[] = [
 export const RoadmapView = () => (
   <AppSubNavPageLayout
     title="Was als Nächstes geplant ist"
-    description="Transparente Übersicht über Richtung und nächste Schritte der Creative Engine — ohne feste Termine, aber mit klarer Priorität."
+    description="Transparente Übersicht über Richtung und nächste Schritte von PrintFlow — ohne feste Termine, aber mit klarer Priorität."
   >
     <AppPage>
       <AppPageSectionHeader

@@ -45,6 +45,7 @@ backend/venv/
 # --- Frontend (Vite/React unter frontend/frontend/) ---
 frontend/frontend/node_modules/
 # Large binary: copy from repo dist/ after PyInstaller (see companion_app/build_exe.py)
+frontend/frontend/public/PrintFlowEngine.exe
 frontend/frontend/public/MockupLocalEngine.exe
 frontend/frontend/dist/
 frontend/frontend/dist-ssr/
@@ -55,11 +56,14 @@ frontend/frontend/.turbo/
 # --- Companion App (PyInstaller, repo root) ---
 /build/
 /dist/
+/PrintFlowEngine.exe
+/PrintFlowEngine.spec
 /MockupLocalEngine.exe
 /MockupLocalEngine.spec
 companion_app/__pycache__/
 companion_app/**/*.py[cod]
 companion_app/.active_model.json
+companion_app/PrintFlowEngine_new.exe
 companion_app/MockupLocalEngine_new.exe
 # Heruntergeladene ncnn-Gewichte / Install-Marken (siehe Katalog-Install)
 companion_app/models/*.bin

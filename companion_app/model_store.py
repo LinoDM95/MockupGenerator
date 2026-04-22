@@ -168,7 +168,7 @@ def resolve_ncnn_name_for_upscale(requested_model_id: str | None) -> str:
         mid = get_active_model_id()
     if not mid:
         raise ValueError(
-            "Kein Modell gewaehlt. Bitte unter Local Engine ein Modell installieren und aktiv setzen."
+            "Kein Modell gewaehlt. Bitte ueber die PrintFlow Engine ein Modell installieren und aktiv setzen."
         )
     if not is_model_installed(mid):
         raise ValueError(f"Modell nicht installiert: {mid}")
@@ -365,7 +365,7 @@ async def install_model_from_catalog(model_id: str) -> None:
 
 
 def vulkan_runtime_installed() -> bool:
-    """realesrgan-ncnn-vulkan.exe liegt im Companion-Ordner (neben models/)."""
+    """realesrgan-ncnn-vulkan.exe liegt im PrintFlow-Engine-Ordner (neben models/)."""
     return (companion_dir() / "realesrgan-ncnn-vulkan.exe").is_file()
 
 

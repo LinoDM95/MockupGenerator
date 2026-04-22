@@ -177,6 +177,11 @@ export const useCompanionApp = () => {
         progressJobId?: string;
       },
     ): Promise<UpscaleResult> => {
+      if (isOutdated) {
+        throw new Error(
+          "PrintFlow Engine veraltet — bitte die aktuelle PrintFlowEngine.exe installieren und neu starten.",
+        );
+      }
       const signal = options?.signal;
       const wantTileProgress =
         typeof options?.onTileProgress === "function";
@@ -253,7 +258,7 @@ export const useCompanionApp = () => {
         stopTilePoll();
       }
     },
-    [],
+    [isOutdated],
   );
 
   return {

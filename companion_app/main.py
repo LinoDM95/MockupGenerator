@@ -1,11 +1,11 @@
 """
-Local Companion API — run with:
+PrintFlow Engine — lokaler Dienst. Start:
 
   uvicorn companion_app.main:app --host 127.0.0.1 --port 8001
 
 Port 8001 avoids clashing with Django (runserver on 8000). Override: COMPANION_PORT env.
 
-(from repository root). Frozen build: MockupLocalEngine.exe (see build_exe.py).
+(from repository root). Frozen build: PrintFlowEngine.exe (siehe build_exe.py).
 """
 
 from __future__ import annotations
@@ -49,8 +49,8 @@ MAX_IMAGE_SIZE = 10 * 1024 * 1024
 TOTAL_UPSCALE_FACTORS = frozenset({2, 4, 8, 16})
 MAX_TARGET_SIDE = 16384
 VALID_PARALLEL_TILES = frozenset({"1", "2", "auto"})
-_EXE_NAME = "MockupLocalEngine.exe"
-_NEW_EXE_NAME = "MockupLocalEngine_new.exe"
+_EXE_NAME = "PrintFlowEngine.exe"
+_NEW_EXE_NAME = "PrintFlowEngine_new.exe"
 
 
 def _update_allowed_hosts() -> set[str]:
@@ -62,7 +62,7 @@ def _update_allowed_hosts() -> set[str]:
 
 
 def _validate_update_download_url(raw: str) -> str:
-    """Mitigiert SSRF: nur erlaubte Hosts, Pfad endet auf MockupLocalEngine.exe."""
+    """Mitigiert SSRF: nur erlaubte Hosts, Pfad endet auf PrintFlowEngine.exe."""
     url = (raw or "").strip()
     if not url:
         raise ValueError("download_url ist leer.")
@@ -138,7 +138,7 @@ def _parse_positive_int_form(raw: str | None) -> int | None:
 
 # Browsers treat localhost and 127.0.0.1 as different origins — list both.
 # Django liefert die gebaute SPA oft auf :8000 (Vite-Dev nutzt :5173 + /__companion-Proxy).
-# Override via env: comma-separated extra origins (COMPANION_CORS_ORIGINS), z. B. Produktions-URL.
+# Override via env: comma-separated extra origins (COMPANION_CORS_ORIGINS), z. B. weitere Staging-URLs.
 _DEFAULT_CORS_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
@@ -146,6 +146,7 @@ _DEFAULT_CORS_ORIGINS = [
     "http://127.0.0.1:4173",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
+    "https://mockupgenerator-aixo.onrender.com",
 ]
 
 
@@ -157,7 +158,7 @@ def _cors_origins() -> list[str]:
     return out
 
 
-app = FastAPI(title="Mockup Generator Companion", version=CURRENT_VERSION)
+app = FastAPI(title="PrintFlow Engine", version=CURRENT_VERSION)
 
 app.add_middleware(
     CORSMiddleware,
@@ -306,8 +307,8 @@ async def post_update(body: UpdateBody):
     bat_exact = (
         "@echo off\r\n"
         "timeout /t 2 /nobreak\r\n"
-        "move /y MockupLocalEngine_new.exe MockupLocalEngine.exe\r\n"
-        'start "" MockupLocalEngine.exe\r\n'
+        "move /y PrintFlowEngine_new.exe PrintFlowEngine.exe\r\n"
+        'start "" PrintFlowEngine.exe\r\n'
         'del "%~f0"\r\n'
     )
     try:
@@ -518,6 +519,84 @@ async def upscale(
     )
 
 
+# Windows: gebaute EXE bei Anmeldung starten (Tray-Umschalter).
+_AUTOSTART_RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
+_AUTOSTART_VALUE_NAME = "PrintFlowLocalEngine"
+
+
+def _windows_frozen_autostart_supported() -> bool:
+    return bool(getattr(sys, "frozen", False)) and sys.platform == "win32"
+
+
+def _autostart_exe_path_norm() -> str:
+    return os.path.normcase(os.path.normpath(os.path.abspath(sys.executable)))
+
+
+def _registry_autostart_command() -> str:
+    exe = _autostart_exe_path_norm()
+    if " " in exe:
+        return f'"{exe}"'
+    return exe
+
+
+def _parse_registry_autostart_value(raw: str) -> str:
+    s = (raw or "").strip()
+    if len(s) >= 2 and s[0] == '"' and s[-1] == '"':
+        s = s[1:-1]
+    return os.path.normcase(os.path.normpath(os.path.abspath(s)))
+
+
+def _windows_autostart_is_enabled() -> bool:
+    if not _windows_frozen_autostart_supported():
+        return False
+    import winreg
+
+    try:
+        with winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER,
+            _AUTOSTART_RUN_KEY,
+            0,
+            winreg.KEY_READ,
+        ) as key:
+            raw, _ = winreg.QueryValueEx(key, _AUTOSTART_VALUE_NAME)
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return False
+    try:
+        reg_path = _parse_registry_autostart_value(str(raw))
+    except OSError:
+        return False
+    return reg_path == _autostart_exe_path_norm()
+
+
+def _windows_autostart_set(enabled: bool) -> None:
+    if not _windows_frozen_autostart_supported():
+        raise OSError("Autostart nur unter Windows (gebaute EXE).")
+    import winreg
+
+    access = winreg.KEY_READ | winreg.KEY_WRITE
+    with winreg.OpenKey(
+        winreg.HKEY_CURRENT_USER,
+        _AUTOSTART_RUN_KEY,
+        0,
+        access,
+    ) as key:
+        if enabled:
+            winreg.SetValueEx(
+                key,
+                _AUTOSTART_VALUE_NAME,
+                0,
+                winreg.REG_SZ,
+                _registry_autostart_command(),
+            )
+        else:
+            try:
+                winreg.DeleteValue(key, _AUTOSTART_VALUE_NAME)
+            except FileNotFoundError:
+                pass
+
+
 def _run_uvicorn() -> None:
     import traceback
 
@@ -525,12 +604,12 @@ def _run_uvicorn() -> None:
 
     try:
         logger.info(
-            "Companion HTTP: http://127.0.0.1:%s",
+            "PrintFlow Engine HTTP: http://127.0.0.1:%s",
             COMPANION_PORT,
         )
         uvicorn.run(app, host="127.0.0.1", port=COMPANION_PORT, log_level="info")
     except Exception:
-        logger.exception("Companion HTTP server failed to start or crashed")
+        logger.exception("PrintFlow Engine HTTP server failed to start or crashed")
         if getattr(sys, "frozen", False):
             log_path = companion_dir() / "companion_server.log"
             try:
@@ -541,7 +620,7 @@ def _run_uvicorn() -> None:
             try:
                 err_txt.write_text(
                     "Der HTTP-Server konnte nicht starten. Siehe companion_server.log "
-                    "neben MockupLocalEngine.exe\n",
+                    "neben der PrintFlow Engine (PrintFlowEngine.exe).\n",
                     encoding="utf-8",
                 )
             except OSError:
@@ -551,23 +630,45 @@ def _run_uvicorn() -> None:
 
 def _run_with_tray() -> None:
     import pystray
-    from PIL import Image
     from pystray import Menu, MenuItem
+
+    from companion_app.icon_assets import tray_icon_pil_image
 
     t = threading.Thread(target=_run_uvicorn, daemon=True)
     t.start()
 
-    image = Image.new("RGB", (64, 64), color=(79, 70, 229))
+    image = tray_icon_pil_image()
 
     def on_quit(icon: pystray.Icon, _item: object) -> None:
         icon.stop()
         os._exit(0)
 
+    def on_toggle_autostart(icon: pystray.Icon, _item: object) -> None:
+        if not _windows_frozen_autostart_supported():
+            return
+        try:
+            _windows_autostart_set(not _windows_autostart_is_enabled())
+        except OSError as exc:
+            logger.warning("Autostart konnte nicht gesetzt werden: %s", exc)
+        icon.update_menu()
+
+    menu_entries: list[object] = []
+    if _windows_frozen_autostart_supported():
+        menu_entries.append(
+            MenuItem(
+                "Mit Windows starten",
+                on_toggle_autostart,
+                checked=lambda _item: _windows_autostart_is_enabled(),
+            ),
+        )
+        menu_entries.append(Menu.SEPARATOR)
+    menu_entries.append(MenuItem("Beenden", on_quit))
+
     icon = pystray.Icon(
-        "mockup_local_engine",
+        "printflow_engine",
         image,
-        "Mockup Local Engine",
-        menu=Menu(MenuItem("Beenden", on_quit)),
+        "PrintFlow Engine",
+        menu=Menu(*menu_entries),
     )
     icon.run()
 

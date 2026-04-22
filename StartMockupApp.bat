@@ -89,12 +89,16 @@ if errorlevel 1 (
       echo Starte Local Engine - Port 8001 frei ^(minimiertes Konsolenfenster, python aus PATH^).
       start "" /MIN /HIGH /D "%ROOT%" cmd /k "python -m uvicorn companion_app.main:app --host 127.0.0.1 --port 8001"
       set "STARTED_SERVER=1"
+    ) else if exist "%ROOT%PrintFlowEngine.exe" (
+      echo Starte PrintFlowEngine.exe - Port 8001 frei ^(Tray-App ohne Konsole; bei dev lieber venv nutzen^).
+      start "" /D "%ROOT%" "%ROOT%PrintFlowEngine.exe"
+      set "STARTED_SERVER=1"
     ) else if exist "%ROOT%MockupLocalEngine.exe" (
-      echo Starte MockupLocalEngine.exe - Port 8001 frei ^(Tray-App ohne Konsole; bei dev lieber venv nutzen^).
+      echo Starte MockupLocalEngine.exe ^(Legacy^) - Port 8001 frei.
       start "" /D "%ROOT%" "%ROOT%MockupLocalEngine.exe"
       set "STARTED_SERVER=1"
     ) else (
-      echo Hinweis: Kein backend\env|venv, kein python in PATH, keine MockupLocalEngine.exe - Local Engine nicht gestartet.
+      echo Hinweis: Kein backend\env|venv, kein python in PATH, keine PrintFlowEngine.exe - Local Engine nicht gestartet.
     )
   )
 ) else (

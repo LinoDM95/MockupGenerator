@@ -1,4 +1,4 @@
-"""Liest die gemeinsame Engine-Versionsdatei (dev + PyInstaller onefile)."""
+"""Liest die gemeinsame PrintFlow-Engine-Versionsdatei (dev + PyInstaller onefile)."""
 
 from __future__ import annotations
 

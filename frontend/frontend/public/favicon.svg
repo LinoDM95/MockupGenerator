@@ -1,10 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="Logo">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="PrintFlow">
   <defs>
-    <linearGradient id="ce-logo-grad" x1="3" y1="2" x2="21" y2="22" gradientUnits="userSpaceOnUse">
+    <linearGradient id="pf-logo-grad" x1="3" y1="2" x2="21" y2="22" gradientUnits="userSpaceOnUse">
       <stop stop-color="#6366f1"/>
       <stop offset="1" stop-color="#7c3aed"/>
     </linearGradient>
   </defs>
-  <rect width="24" height="24" rx="6" fill="url(#ce-logo-grad)"/>
+  <rect width="24" height="24" rx="6" fill="url(#pf-logo-grad)"/>
   <polygon fill="#ffffff" points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
 </svg>

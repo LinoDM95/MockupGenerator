@@ -13,6 +13,9 @@ services:
     rootDir: .
     buildCommand: |
       pip install -r backend/requirements.txt &&
+      # Optional: EXE vor „npm run build“ nach public/ legen (Windows-Binary ist gitignored), z. B.:
+      # curl -fsSL -o frontend/frontend/public/PrintFlowEngine.exe "$COMPANION_EXE_URL"
+      # Oder VITE_LOCAL_ENGINE_DOWNLOAD_URL in Render setzen (volle URL zur EXE).
       cd frontend/frontend && npm ci && npm run build &&
       cd ../../backend && python manage.py collectstatic --noinput
     # --timeout 300: Gemini (Expert + Grounding + AFC) kann >30s brauchen; sonst WORKER TIMEOUT / HTTP 500.

@@ -1,5 +1,5 @@
 /**
- * Copies dist/MockupLocalEngine.exe (repo root) -> public/MockupLocalEngine.exe
+ * Copies dist/PrintFlowEngine.exe (repo root) -> public/PrintFlowEngine.exe
  * Run from frontend/frontend: npm run sync:local-engine
  */
 import { copyFileSync, existsSync, mkdirSync } from "node:fs";
@@ -9,9 +9,9 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const frontendRoot = join(__dirname, "..");
 const repoRoot = join(frontendRoot, "..", "..");
-const src = join(repoRoot, "dist", "MockupLocalEngine.exe");
+const src = join(repoRoot, "dist", "PrintFlowEngine.exe");
 const destDir = join(frontendRoot, "public");
-const dest = join(destDir, "MockupLocalEngine.exe");
+const dest = join(destDir, "PrintFlowEngine.exe");
 
 if (!existsSync(src)) {
   console.error(

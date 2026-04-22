@@ -90,7 +90,7 @@ function App() {
               <Zap size={16} className="text-white" fill="currentColor" />
             </div>
             <span className="hidden text-sm font-bold tracking-tight text-slate-900 sm:block">
-              Creative Engine
+              PrintFlow
             </span>
           </div>
 

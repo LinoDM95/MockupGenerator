@@ -1,12 +1,17 @@
 /** LocalStorage-Schlüssel — mit index.html Hydration-Skript synchron halten. */
-export const COLOR_SCHEME_STORAGE_KEY = "ce-color-scheme";
+export const COLOR_SCHEME_STORAGE_KEY = "pf-color-scheme";
+
+/** Früherer Schlüssel (Creative Engine); nur noch für einmaliges Auslesen/Migration. */
+const LEGACY_COLOR_SCHEME_STORAGE_KEY = "ce-color-scheme";
 
 export type ColorSchemeMode = "light" | "dark" | "system";
 
 export const getStoredColorSchemeMode = (): ColorSchemeMode => {
   if (typeof window === "undefined") return "system";
   try {
-    const raw = localStorage.getItem(COLOR_SCHEME_STORAGE_KEY);
+    const raw =
+      localStorage.getItem(COLOR_SCHEME_STORAGE_KEY) ??
+      localStorage.getItem(LEGACY_COLOR_SCHEME_STORAGE_KEY);
     if (raw === "light" || raw === "dark" || raw === "system") return raw;
   } catch {
     /* ignore */
@@ -17,6 +22,11 @@ export const getStoredColorSchemeMode = (): ColorSchemeMode => {
 export const setStoredColorSchemeMode = (mode: ColorSchemeMode): void => {
   try {
     localStorage.setItem(COLOR_SCHEME_STORAGE_KEY, mode);
+    try {
+      localStorage.removeItem(LEGACY_COLOR_SCHEME_STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
   } catch {
     /* ignore */
   }

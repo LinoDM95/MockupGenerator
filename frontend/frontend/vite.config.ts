@@ -9,7 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 /** Repo-Root: `frontend/frontend` → zwei Ebenen hoch (Zugriff auf companion_app/ENGINE_VERSION). */
 const REPO_ROOT = path.resolve(__dirname, '../..')
 
-/** Gleiche Origin wie Vite → kein CORS; Ziel ist MockupLocalEngine / uvicorn auf 8001 */
+/** Gleiche Origin wie Vite → kein CORS; Ziel ist PrintFlow Engine (uvicorn) auf 8001 */
 const companionProxy = {
   target: 'http://127.0.0.1:8001',
   changeOrigin: true,

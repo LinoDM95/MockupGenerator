@@ -1,6 +1,7 @@
 """R2/S3-Objektschlüssel: ein App-weites Präfix und nachvollziehbare Segmente.
 
-Alle Keys dieser Anwendung beginnen mit ``ce/`` (Creative Engine), damit in einem
+Alle Keys dieser Anwendung beginnen mit ``ce/`` (technisches Präfix, historisch;
+Produktname PrintFlow), damit in einem
 geteilten Bucket sofort erkennbar ist, welche Software sie geschrieben hat. Danach
 folgt das Fachmodul (``core``, ``gelato``, ``etsy``, ``automation``).
 

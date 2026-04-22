@@ -15,6 +15,7 @@ backend/          → Django 6 + DRF (API-only, kein Template-Rendering)
   core/           → Haupt-App: TemplateSet → Template → TemplateElement
   etsy/           → Etsy-Integration: OAuth, Listings, Bulk-Jobs (Celery)
     services/     → API-Client, Rate-Limiter, Token-Management
+companion_app/  → PrintFlow Engine (lokaler Windows-Dienst, FastAPI). Pflicht-Workflow bei Änderungen: `.cursor/rules/printflow-engine-companion.mdc`
 frontend/frontend/ → React 19 + Vite 8 + TypeScript 6 + Tailwind 4 SPA
   src/api/        → API-Client mit JWT-Refresh-Logik
   src/components/ → Feature-Ordner (editor/, generator/, etsy/, …) + `ui/` + `views/` (Haupt-Tabs), `shell/`, `auth/`

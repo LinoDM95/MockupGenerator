@@ -93,7 +93,7 @@ export const upscaleImage = async (
   return parseUpscaleImageResponse(res);
 };
 
-/** Shared by Django upscale and Local Companion (same PNG + dimension headers). */
+/** Shared by Django upscale and PrintFlow Engine (same PNG + dimension headers). */
 export const parseUpscaleImageResponse = async (
   res: Response,
 ): Promise<UpscaleResult> => {

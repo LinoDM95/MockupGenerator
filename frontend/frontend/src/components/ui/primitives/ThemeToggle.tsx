@@ -15,7 +15,7 @@ import type { ColorSchemeMode } from "../../../lib/ui/colorScheme";
 
 /**
  * Cinematic Theme-Wechsel (Mond, Nacht-Radial, Strahlen, Sterne / Sonne, Funken).
- * Anbindung: `useColorScheme` + `ce-color-scheme` (kein extra themeStore nötig).
+ * Anbindung: `useColorScheme` + `pf-color-scheme` (kein extra themeStore nötig).
  */
 
 export const THEME_ARC_DURATION_MS = 2000;

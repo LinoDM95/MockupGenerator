@@ -25,7 +25,7 @@ const PLACEHOLDER = "[bitte in .env eintragen]";
 export const getLegalSiteConfig = (): LegalSiteConfig => {
   const entityName = trimOrEmpty(import.meta.env.VITE_LEGAL_ENTITY_NAME);
   return {
-    appName: trimOrEmpty(import.meta.env.VITE_APP_DISPLAY_NAME) || "Creative Engine",
+    appName: trimOrEmpty(import.meta.env.VITE_APP_DISPLAY_NAME) || "PrintFlow",
     entityName: entityName || PLACEHOLDER,
     addressLine1: trimOrEmpty(import.meta.env.VITE_LEGAL_ADDRESS_LINE1) || PLACEHOLDER,
     addressLine2: trimOrEmpty(import.meta.env.VITE_LEGAL_ADDRESS_LINE2) || PLACEHOLDER,

@@ -1,4 +1,4 @@
-"""Resolve the Companion App data directory (dev vs. PyInstaller onefile)."""
+"""PrintFlow Engine: Datenverzeichnis (Dev vs. PyInstaller onefile)."""
 
 from __future__ import annotations
 
