@@ -1,1 +1,2 @@
-PrintFlowEngine.exe (PrintFlow Engine) wird hier nicht ins Git eingecheckt (große Binärdatei).
+PrintFlowEngine.exe (PrintFlow Engine) liegt in diesem Ordner für Vite/collectstatic.
+Nach `python companion_app/build_exe.py` wird sie hierher kopiert; bei neuen Engine-Versionen committen und deployen.

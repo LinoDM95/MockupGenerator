@@ -44,8 +44,7 @@ backend/venv/
 
 # --- Frontend (Vite/React unter frontend/frontend/) ---
 frontend/frontend/node_modules/
-# Large binary: copy from repo dist/ after PyInstaller (see companion_app/build_exe.py)
-frontend/frontend/public/PrintFlowEngine.exe
+# PrintFlowEngine.exe in public/ ist absichtlich versioniert (Download nach collectstatic).
 frontend/frontend/public/MockupLocalEngine.exe
 frontend/frontend/dist/
 frontend/frontend/dist-ssr/

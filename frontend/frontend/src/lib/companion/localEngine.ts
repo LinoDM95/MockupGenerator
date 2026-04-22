@@ -1,22 +1,22 @@
 /**
- * Download-URL für die PrintFlow Engine (`PrintFlowEngine.exe`, Build-Zeit).
+ * Download-URL für die PrintFlow Engine (`PrintFlowEngine.exe`).
  *
- * - Standard: gleiche Origin wie die SPA, Pfad aus `BASE_URL` (Prod: `/static/PrintFlowEngine.exe`
- *   nach `collectstatic`, wenn die Datei in `public/` lag).
- * - Optional: `VITE_LOCAL_ENGINE_DOWNLOAD_URL` — volle oder absolute URL, z. B. Release-Asset oder S3,
- *   wenn die EXE nicht im Repo/`public/` liegt (z. B. wegen .gitignore auf Render).
+ * - Standard: gleiche Origin, Django-Endpunkt `/api/public/printflow-engine/` — leitet auf
+ *   `PRINTFLOW_ENGINE_DOWNLOAD_URL` um oder liefert die EXE aus `staticfiles`, wenn sie im Build war.
+ * - Optional: `VITE_LOCAL_ENGINE_DOWNLOAD_URL` — direkte URL (Build-Zeit), z. B. wenn der Endpunkt
+ *   nicht genutzt werden soll.
  */
 export const PRINTFLOW_ENGINE_EXE_FILENAME = "PrintFlowEngine.exe";
 
-const base = import.meta.env.BASE_URL;
-const normalizedBase = base.endsWith("/") ? base : `${base}/`;
-
 const envDownload = import.meta.env.VITE_LOCAL_ENGINE_DOWNLOAD_URL?.trim();
+
+/** Relativer Pfad zum Django-Download (Prod + Dev mit Proxy auf Port 8000). */
+export const PRINTFLOW_ENGINE_DOWNLOAD_API_PATH = "/api/public/printflow-engine/";
 
 /** @deprecated Bevorzugt `PRINTFLOW_ENGINE_DOWNLOAD_HREF` — Alias für bestehende Imports. */
 export const MOCKUP_LOCAL_ENGINE_HREF =
   envDownload && envDownload.length > 0
     ? envDownload
-    : `${normalizedBase}${PRINTFLOW_ENGINE_EXE_FILENAME}`;
+    : PRINTFLOW_ENGINE_DOWNLOAD_API_PATH;
 
 export const PRINTFLOW_ENGINE_DOWNLOAD_HREF = MOCKUP_LOCAL_ENGINE_HREF;

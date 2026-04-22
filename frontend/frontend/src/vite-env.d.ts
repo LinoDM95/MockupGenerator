@@ -10,8 +10,7 @@ interface ImportMetaEnv {
   /** Optional: API-Origin wenn SPA und API nicht gleiche Domain (z. B. https://api.example.com). */
   readonly VITE_API_BASE_URL?: string;
   /**
-   * Optional: URL zur PrintFlow Engine / PrintFlowEngine.exe (Build-Zeit).
-   * Wenn leer: `{BASE_URL}PrintFlowEngine.exe`.
+   * Optional: direkte Download-URL zur EXE (Build-Zeit). Wenn leer: `/api/public/printflow-engine/`.
    */
   readonly VITE_LOCAL_ENGINE_DOWNLOAD_URL?: string;
   /** Anzeigename der App in Rechtstexten (Default: PrintFlow). */

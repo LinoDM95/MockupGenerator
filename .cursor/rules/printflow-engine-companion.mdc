@@ -21,7 +21,7 @@ Bei **jeder** inhaltlichen Änderung unter **`companion_app/`** oder an **`compa
 ## Deploy / Static
 
 - Vite-Prod: Download-Link **`/static/PrintFlowEngine.exe`** nur wenn die EXE **vor** `npm run build` in **`public/`** liegt.
-- **`frontend/frontend/public/PrintFlowEngine.exe`** steht in **`.gitignore`** — Render/CI haben die Datei nicht, solange sie nicht eingecheckt, im Build geholt oder **`VITE_LOCAL_ENGINE_DOWNLOAD_URL`** gesetzt wird.
+- **`frontend/frontend/public/PrintFlowEngine.exe`** kann **eingecheckt** werden (Deploy-Download); alternativ **`PRINTFLOW_ENGINE_DOWNLOAD_URL`** oder Build-`curl` (siehe `render.yaml`).
 - Nach Frontend-Build: **`collectstatic`** (wie in `render.yaml`).
 
 ## Technische Anker (nicht duplizieren — Code ist maßgeblich)

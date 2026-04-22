@@ -169,6 +169,12 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+# PrintFlow Engine: öffentlicher Download (siehe ``printflow_engine_download``).
+# Auf Render o. Ä. setzen, wenn die EXE nicht im Frontend-Build liegt (z. B. GitHub Release-URL).
+PRINTFLOW_ENGINE_DOWNLOAD_URL = os.environ.get(
+    "PRINTFLOW_ENGINE_DOWNLOAD_URL", ""
+).strip()
+
 if FRONTEND_DIST.is_dir():
     STATICFILES_DIRS = [FRONTEND_DIST]
 else:

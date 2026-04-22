@@ -28,6 +28,7 @@ from core.auth_cookie_views import (
     CookieTokenRefreshView,
     CsrfBootstrapView,
 )
+from core.printflow_engine_download import printflow_engine_download_view
 from core.views import (
     AccountDataExportView,
     ChangePasswordView,
@@ -51,6 +52,11 @@ def spa_entry(_request):
 
 urlpatterns = [
     path("healthz", healthz, name="healthz"),
+    path(
+        "api/public/printflow-engine/",
+        printflow_engine_download_view,
+        name="printflow-engine-download",
+    ),
     path("admin/", admin.site.urls),
     path("api/auth/csrf/", CsrfBootstrapView.as_view(), name="auth-csrf"),
     path("api/auth/login/", CookieLoginView.as_view(), name="auth-login"),
