@@ -1,8 +1,6 @@
 import { motion } from "framer-motion";
 import { Filter, Globe, Loader2, Play, Trash2, Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-
 import { GENERATOR_IMAGE_ACCEPT_HTML } from "../../lib/generator/imageUploadAccept";
 import { filterArtworksByQuery } from "../../lib/generator/artworkSearch";
 import {
@@ -75,14 +73,13 @@ export const BatchQueue = ({
   gelatoPhase = "unknown",
   onGelatoExport,
 }: Props) => {
-  const navigate = useNavigate();
   const goToIntegrationWizardStep = useAppStore((s) => s.goToIntegrationWizardStep);
   const { loadImage } = useCanvasRender();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const filterInputRef = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedArtworkId, setSelectedArtworkId] = useState<string | null>(null);
-  const [rightTab, setRightTab] = useState<0 | 1 | 2>(0);
+  const [rightTab, setRightTab] = useState<0 | 1>(0);
 
   const zipReason = zipBlockReason(artworks, templateSets);
   const zipDisabled = zipReason !== "ok";
@@ -122,10 +119,9 @@ export const BatchQueue = ({
 
   const handlePickFiles = () => fileInputRef.current?.click();
 
-  const rightTabs: readonly { id: 0 | 1 | 2; label: string }[] = [
-    { id: 0, label: "Listing" },
-    { id: 1, label: "Vorlage" },
-    { id: 2, label: "Export" },
+  const rightTabs: readonly { id: 0 | 1; label: string }[] = [
+    { id: 0, label: "Vorlage" },
+    { id: 1, label: "Export" },
   ] as const;
 
   return (
@@ -194,6 +190,12 @@ export const BatchQueue = ({
                 listPool.map((art) => {
                   const ready = Boolean(art.previewUrl);
                   const isSelected = art.id === selectedArtworkId;
+                  const assignedSet = art.setId
+                    ? templateSets.find((s) => s.id === art.setId)
+                    : undefined;
+                  const setLine =
+                    assignedSet?.name ??
+                    (art.setId ? "Set nicht gefunden" : "Kein Vorlagen-Set");
                   return (
                     <li key={art.id}>
                       <div
@@ -224,8 +226,9 @@ export const BatchQueue = ({
                             <p className="truncate text-xs font-medium text-[color:var(--pf-fg)]">
                               {art.name}
                             </p>
-                            <p className="text-[11px] text-[color:var(--pf-fg-subtle)]">
-                              {(art.file.size / (1024 * 1024)).toFixed(2)} MB
+                            <p className="truncate text-[11px] text-[color:var(--pf-fg-subtle)]">
+                              {(art.file.size / (1024 * 1024)).toFixed(2)} MB ·{" "}
+                              <span className="text-[color:var(--pf-fg-muted)]">{setLine}</span>
                             </p>
                           </div>
                           <span
@@ -306,24 +309,6 @@ export const BatchQueue = ({
           </div>
           <div className="min-h-0 flex-1 overflow-auto p-3.5">
             {rightTab === 0 ? (
-              <div className="space-y-3 text-sm font-medium text-[color:var(--pf-fg-muted)]">
-                <p>
-                  Listing-Titel, Tags und Beschreibung bearbeitest du nach dem Export unter{" "}
-                  <strong className="text-[color:var(--pf-fg)]">Publizieren → Etsy-Listings</strong>.
-                </p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => navigate("/app/publizieren/etsy")}
-                >
-                  Zu Etsy-Listings
-                </Button>
-              </div>
-            ) : null}
-
-            {rightTab === 1 ? (
               <div className="space-y-4">
                 {selectedArtwork ? (
                   <Select
@@ -381,7 +366,7 @@ export const BatchQueue = ({
               </div>
             ) : null}
 
-            {rightTab === 2 ? (
+            {rightTab === 1 ? (
               <div className="space-y-4">
                 <Button
                   type="button"

@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Zap } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 
@@ -14,6 +14,7 @@ import {
   animatedGridHeroSurfaceClassName,
 } from "../marketing/AnimatedGridBackground";
 import { LoadingOverlay } from "../ui/LoadingOverlay";
+import { AppLogoMark } from "../ui/branding/AppLogoMark";
 import { Button } from "../ui/primitives/Button";
 import { Input } from "../ui/primitives/Input";
 import { ThemeToggle } from "../ui/primitives/ThemeToggle";
@@ -92,9 +93,7 @@ export const AuthScreen = () => {
           className="mx-auto w-full max-w-[380px]"
         >
           <div className="mb-10 flex items-center gap-2">
-            <div className="flex h-[26px] w-[26px] items-center justify-center rounded-md bg-[color:var(--pf-fg)]">
-              <Zap size={15} className="text-[color:var(--pf-bg)]" fill="currentColor" strokeWidth={2} aria-hidden />
-            </div>
+            <AppLogoMark tileClassName="h-[26px] w-[26px]" iconSize={15} />
             <span className="text-sm font-semibold tracking-tight text-[color:var(--pf-fg)]">{appName}</span>
           </div>
 

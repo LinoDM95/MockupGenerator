@@ -55,9 +55,11 @@ const breadcrumbForPath = (pathname: string): { area: string; label: string } =>
 type Props = {
   user: CurrentUser | null;
   onOpenMobileSidebar: () => void;
+  /** Desktop: Sidebar schmal — Lasche ragt in die Topbar; extra linkes Padding ab md. */
+  sidebarCollapsedDesktop: boolean;
 };
 
-export const AppTopbar = ({ user, onOpenMobileSidebar }: Props) => {
+export const AppTopbar = ({ user, onOpenMobileSidebar, sidebarCollapsedDesktop }: Props) => {
   const location = useLocation();
   const navigate = useNavigate();
   const navigationLocked = useAppStore((s) => s.navigationLocked);
@@ -83,6 +85,7 @@ export const AppTopbar = ({ user, onOpenMobileSidebar }: Props) => {
       <header
         className={cn(
           "flex h-[52px] shrink-0 items-center gap-3 border-b border-[color:var(--pf-border)] bg-[color:var(--pf-bg)] px-6",
+          sidebarCollapsedDesktop && "md:pl-10",
         )}
       >
         <button

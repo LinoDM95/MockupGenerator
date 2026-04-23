@@ -7,16 +7,14 @@ import {
   Link2,
   Maximize,
   UserCircle,
-  Zap,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useReducedMotion } from "framer-motion";
 import { Link, NavLink, useLocation } from "react-router-dom";
 
 import { ACCOUNT_PATH } from "../../lib/appNavigation";
 import { cn } from "../../lib/ui/cn";
 import { useAppStore } from "../../store/appStore";
-
-const SIDEBAR_COLLAPSED_KEY = "printflow-sidebar-collapsed";
+import { AppLogoMark } from "../ui/branding/AppLogoMark";
 
 const NAV_LOCK_TITLE =
   "Während eines laufenden Vorgangs ist die Navigation gesperrt. Bitte warten oder Vorgang abbrechen.";
@@ -98,73 +96,73 @@ const SidebarGroup = ({ eyebrow, collapsed, children }: GroupProps) => (
 type AppSidebarProps = {
   variant: "desktop" | "drawer";
   onNavigate?: () => void;
+  /** Desktop: eingeklappt (schmale Leiste + Lasche). */
+  desktopCollapsed: boolean;
+  onDesktopCollapsedChange: (collapsed: boolean) => void;
 };
 
-export const AppSidebar = ({ variant, onNavigate }: AppSidebarProps) => {
+export const AppSidebar = ({
+  variant,
+  onNavigate,
+  desktopCollapsed: collapsed,
+  onDesktopCollapsedChange: setCollapsed,
+}: AppSidebarProps) => {
   const navigationLocked = useAppStore((s) => s.navigationLocked);
   const templateSets = useAppStore((s) => s.templateSets);
   const artworks = useAppStore((s) => s.artworks);
   const location = useLocation();
-
-  const [collapsed, setCollapsed] = useState(() => {
-    if (typeof localStorage === "undefined") return false;
-    return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1";
-  });
-
-  useEffect(() => {
-    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? "1" : "0");
-  }, [collapsed]);
+  const reduceMotion = useReducedMotion();
 
   const widthClass = collapsed ? "w-14" : "w-[232px]";
   const isDrawer = variant === "drawer";
 
-  const shellClass = cn(
-    "flex h-full min-h-0 flex-col border-r border-[color:var(--pf-border)] bg-[color:var(--pf-bg)]",
-    widthClass,
-    isDrawer && "w-[232px]",
+  const shellWrapperClass = cn(
+    "relative z-10 h-full min-h-0 shrink-0",
+    isDrawer ? "w-[232px]" : widthClass,
+    !isDrawer &&
+      !reduceMotion &&
+      "transition-[width] duration-300 ease-[cubic-bezier(0.33,1,0.68,1)]",
+  );
+
+  const asideClass = cn(
+    "flex h-full min-h-0 w-full flex-col overflow-x-hidden border-r border-[color:var(--pf-border)] bg-[color:var(--pf-bg)]",
   );
 
   const integrationsActive = location.pathname.startsWith("/app/integrationen");
 
   return (
-    <aside className={shellClass}>
+    <div className={shellWrapperClass}>
+      <aside className={asideClass}>
       <div
         className={cn(
-          "flex h-[52px] shrink-0 items-center gap-2.5 border-b border-[color:var(--pf-border)] px-3",
-          collapsed && !isDrawer && "justify-center px-2",
+          "flex h-[52px] shrink-0 items-center border-b border-[color:var(--pf-border)] px-3",
+          collapsed && !isDrawer ? "justify-center" : "gap-2.5",
         )}
       >
-        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-zinc-900 dark:bg-zinc-100">
-          <Zap size={14} className="text-white dark:text-zinc-900" fill="currentColor" />
-        </div>
-        {!collapsed || isDrawer ? (
-          <>
+        <div
+          className={cn(
+            "flex min-h-0 w-full items-center",
+            collapsed && !isDrawer ? "justify-center" : "min-w-0 flex-1 gap-2.5",
+          )}
+        >
+          <AppLogoMark tileClassName="h-6 w-6" iconSize={14} />
+          {!collapsed || isDrawer ? (
             <span className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight text-[color:var(--pf-fg)]">
               PrintFlow
             </span>
-            {!isDrawer ? (
-              <button
-                type="button"
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900"
-                title="Einklappen"
-                aria-label="Seitenleiste einklappen"
-                onClick={() => setCollapsed(true)}
-              >
-                <ChevronLeft size={16} strokeWidth={2} />
-              </button>
-            ) : null}
-          </>
-        ) : (
-          <button
-            type="button"
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900"
-            title="Aufklappen"
-            aria-label="Seitenleiste aufklappen"
-            onClick={() => setCollapsed(false)}
-          >
-            <ChevronRight size={16} strokeWidth={2} />
-          </button>
-        )}
+          ) : null}
+          {!collapsed && !isDrawer ? (
+            <button
+              type="button"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900"
+              title="Einklappen"
+              aria-label="Seitenleiste einklappen"
+              onClick={() => setCollapsed(true)}
+            >
+              <ChevronLeft size={16} strokeWidth={2} />
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <nav
@@ -265,6 +263,45 @@ export const AppSidebar = ({ variant, onNavigate }: AppSidebarProps) => {
           </div>
         </div>
       ) : null}
-    </aside>
+      </aside>
+      {collapsed && !isDrawer ? (
+        <button
+          type="button"
+          className={cn(
+            // fixed: immer sichtbar (alle Routen, Scroll), oben bündig zur 52px-Kopfzeile der Sidebar
+            "group pointer-events-auto fixed left-[calc(3.5rem-1px)] top-1 z-[50] -translate-x-px",
+            "hidden md:flex",
+            "h-10 w-8 items-center justify-center",
+            "rounded-r-[13px] rounded-l-[7px]",
+            "border border-[color:var(--pf-border)] border-l-transparent",
+            "bg-[color:var(--pf-bg)]",
+            "text-[color:var(--pf-fg-subtle)]",
+            "shadow-[0_2px_8px_rgb(0,0,0,0.05),0_1px_2px_rgb(0,0,0,0.04),inset_1px_0_0_rgba(255,255,255,0.55)]",
+            "ring-1 ring-slate-900/[0.06] dark:shadow-[0_4px_16px_rgba(0,0,0,0.28),inset_1px_0_0_rgba(255,255,255,0.05)] dark:ring-white/[0.08]",
+            !reduceMotion &&
+              "hover:border-indigo-200/70 hover:bg-gradient-to-br hover:from-indigo-50 hover:to-violet-50/90 hover:text-indigo-600 hover:shadow-[0_6px_20px_-4px_rgba(79,70,229,0.18),0_2px_6px_rgb(0,0,0,0.05)] dark:hover:border-indigo-500/25 dark:hover:from-indigo-950/50 dark:hover:to-violet-950/40 dark:hover:text-indigo-300",
+            reduceMotion &&
+              "hover:border-[color:var(--pf-border)] hover:bg-[color:var(--pf-bg-muted)] hover:text-[color:var(--pf-fg)] hover:shadow-[0_2px_8px_rgb(0,0,0,0.05)]",
+            !reduceMotion &&
+              "transition-[transform,box-shadow,background-color,border-color,color] duration-200 ease-out active:scale-[0.97]",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/45 focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--pf-bg-subtle)] dark:focus-visible:ring-offset-zinc-950",
+          )}
+          title="Seitenleiste aufklappen"
+          aria-label="Seitenleiste aufklappen"
+          aria-expanded={false}
+          onClick={() => setCollapsed(false)}
+        >
+          <ChevronRight
+            size={15}
+            strokeWidth={2.25}
+            className={cn(
+              "shrink-0 opacity-90",
+              !reduceMotion && "transition-transform duration-200 ease-out group-hover:translate-x-px",
+            )}
+            aria-hidden
+          />
+        </button>
+      ) : null}
+    </div>
   );
 };

@@ -6,6 +6,7 @@ import {
   animatedGridHeroSurfaceClassName,
 } from "../components/marketing/AnimatedGridBackground";
 import { LegalFooterNav } from "../components/legal/LegalFooterNav";
+import { AppLogoMark } from "../components/ui/branding/AppLogoMark";
 import { ThemeToggle } from "../components/ui/primitives/ThemeToggle";
 import { cn } from "../lib/ui/cn";
 import {
@@ -38,7 +39,6 @@ import {
   Tag,
   Upload,
   Users,
-  Zap,
 } from "lucide-react";
 
 const appleEase: [number, number, number, number] = [0.22, 1, 0.36, 1];
@@ -98,18 +98,6 @@ const bentoCardClass =
 
 const bentoCardInnerLight =
   "pointer-events-none absolute inset-0 rounded-[2rem] ring-1 ring-inset ring-slate-900/5";
-
-const LogoMark = ({ className }: { className?: string }) => (
-  <span
-    className={cn(
-      "flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-indigo-500 via-violet-600 to-fuchsia-600 shadow-inner ring-1 ring-inset ring-white/25",
-      className,
-    )}
-    aria-hidden
-  >
-    <Zap size={13} className="text-white" fill="currentColor" strokeWidth={0} />
-  </span>
-);
 
 const landingNavLinkClass =
   "text-[13px] font-medium text-[color:var(--pf-fg-muted)] transition-colors hover:text-[color:var(--pf-fg)]";
@@ -279,7 +267,7 @@ const LandingTopNav = () => (
         to="/"
         className="flex min-w-0 items-center gap-2 text-sm font-semibold tracking-tight text-[color:var(--pf-fg)]"
       >
-        <LogoMark />
+        <AppLogoMark />
         <span className="truncate">PrintFlow</span>
       </Link>
       <nav
@@ -1361,7 +1349,7 @@ const LandingFooter = () => (
   <footer className="border-t border-[color:var(--pf-border)] bg-[color:var(--pf-bg-subtle)] py-8">
     <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-4 sm:flex-row sm:px-6 lg:px-8">
       <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-        <LogoMark />
+        <AppLogoMark />
         <span className="text-sm font-semibold text-[color:var(--pf-fg)]">PrintFlow</span>
         <span className="text-xs font-medium text-[color:var(--pf-fg-muted)]">
           © 2026 · Made in Germany

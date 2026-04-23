@@ -1,6 +1,5 @@
-import { Zap } from "lucide-react";
-
 import { getLegalSiteConfig } from "../../lib/legal/config";
+import { AppLogoMark } from "../ui/branding/AppLogoMark";
 import { LegalFooterNav } from "./LegalFooterNav";
 
 /**
@@ -19,12 +18,7 @@ export const GlobalLegalFooter = () => {
       <div className="mx-auto flex max-w-7xl flex-col items-center gap-5 px-4 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-8">
         <div className="flex flex-col items-center gap-2 text-center">
           <span className="flex items-center gap-2 text-sm font-bold tracking-tight text-zinc-900 sm:text-base dark:text-zinc-100">
-            <span
-              className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900 shadow-sm dark:bg-zinc-100"
-              aria-hidden
-            >
-              <Zap size={16} className="text-white dark:text-zinc-900" fill="currentColor" strokeWidth={2} />
-            </span>
+            <AppLogoMark tileClassName="h-8 w-8 rounded-lg shadow-sm" iconSize={16} />
             {appName}
           </span>
           <p className="text-xs font-medium text-zinc-500 sm:text-sm">

@@ -5,6 +5,10 @@ import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { fetchCurrentUser, type CurrentUser } from "../../api/auth";
 import { registerAppNavigate } from "../../lib/appNavigation";
 import { syncAppStoreWithPathname } from "../../lib/appNavigationSync";
+import {
+  persistSidebarCollapsedDesktop,
+  readInitialSidebarCollapsedDesktop,
+} from "../../lib/shell/sidebarCollapsedStorage";
 import { cn } from "../../lib/ui/cn";
 import { useAppStore } from "../../store/appStore";
 import { AIActivityPanel } from "../ai/AIActivityPanel";
@@ -29,6 +33,9 @@ const AuthenticatedApp = () => {
     /^\/app\/konto\/?$/.test(location.pathname);
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [sidebarCollapsedDesktop, setSidebarCollapsedDesktop] = useState(
+    readInitialSidebarCollapsedDesktop,
+  );
 
   useEffect(() => {
     registerAppNavigate(navigate);
@@ -47,6 +54,10 @@ const AuthenticatedApp = () => {
     setMobileNavOpen(false);
   }, [location.pathname]);
 
+  useEffect(() => {
+    persistSidebarCollapsedDesktop(sidebarCollapsedDesktop);
+  }, [sidebarCollapsedDesktop]);
+
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   return (
@@ -57,7 +68,11 @@ const AuthenticatedApp = () => {
 
       <div className="flex min-h-0 min-h-[100dvh] flex-1">
         <div className="hidden min-h-0 md:flex">
-          <AppSidebar variant="desktop" />
+          <AppSidebar
+            variant="desktop"
+            desktopCollapsed={sidebarCollapsedDesktop}
+            onDesktopCollapsedChange={setSidebarCollapsedDesktop}
+          />
         </div>
 
         {mobileNavOpen ? (
@@ -75,7 +90,11 @@ const AuthenticatedApp = () => {
         ) : null}
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <AppTopbar user={user} onOpenMobileSidebar={() => setMobileNavOpen(true)} />
+          <AppTopbar
+            user={user}
+            onOpenMobileSidebar={() => setMobileNavOpen(true)}
+            sidebarCollapsedDesktop={sidebarCollapsedDesktop}
+          />
           <main
             className={cn(
               "min-h-0 flex-1 overflow-auto bg-[color:var(--pf-bg-subtle)]",

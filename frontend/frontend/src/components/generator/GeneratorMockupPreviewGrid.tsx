@@ -1,4 +1,4 @@
-import { ImageOff, Loader2 } from "lucide-react";
+import { ImageOff, Loader2, MoreHorizontal } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { renderTemplateToCanvas } from "../../lib/canvas/renderTemplate";
@@ -7,9 +7,11 @@ import { templateSetHasTemplates } from "../../lib/generator/generatorZipReadine
 import { cn } from "../../lib/ui/cn";
 import { WORKSPACE_ZINC_MUTED } from "../../lib/ui/workspaceSurfaces";
 import type { ArtworkItem, Template, TemplateSet } from "../../types/mockup";
+import { Card } from "../ui/primitives/Card";
 
 const DEBOUNCE_MS = 320;
-const THUMB_MAX_EDGE = 200;
+/** Genug Pixel für große Kacheln + HiDPI; vorher 200 → stark verpixelt bei object-cover. */
+const THUMB_MAX_EDGE = 960;
 const CONCURRENCY = 2;
 
 type LoadImageFn = (src: string) => Promise<HTMLImageElement>;
@@ -28,12 +30,19 @@ const scaleCanvasToMaxEdge = (
   c.height = th;
   const ctx = c.getContext("2d");
   if (!ctx) return source;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   ctx.drawImage(source, 0, 0, tw, th);
   return c;
 };
 
 const sortTemplates = (templates: Template[]): Template[] =>
   [...templates].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+const templateElementCounts = (tpl: Template) => {
+  const phCount = tpl.elements.filter((e) => e.type === "placeholder").length;
+  return { phCount, designCount: tpl.elements.length - phCount };
+};
 
 type PreviewCell =
   | { status: "loading" }
@@ -117,7 +126,7 @@ export const GeneratorMockupPreviewGrid = ({
                 thumb.toBlob(
                   (b) => (b ? resolve(b) : reject(new Error("toBlob"))),
                   "image/jpeg",
-                  0.82,
+                  0.92,
                 );
               });
               releaseCanvas(thumb);
@@ -211,49 +220,74 @@ export const GeneratorMockupPreviewGrid = ({
   return (
     <div
       className={cn(
-        "grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4",
+        "grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3.5",
         className,
       )}
     >
       {templates.map((tpl) => {
         const cell = cells[tpl.id];
         const status = cell?.status ?? "loading";
+        const { phCount, designCount } = templateElementCounts(tpl);
         return (
-          <div
+          <Card
             key={tpl.id}
-            className="flex flex-col overflow-hidden rounded-[length:var(--pf-radius)] border border-[color:var(--pf-border)] bg-[color:var(--pf-bg-elevated)] shadow-[var(--pf-shadow-sm)]"
+            padding="none"
+            variant="bordered"
+            className="relative flex flex-col overflow-hidden shadow-[var(--pf-shadow-sm)] ring-1 ring-[color:var(--pf-border)]"
           >
-            <div className="relative aspect-[3/4] w-full overflow-hidden bg-[color:var(--pf-bg-muted)]">
-              {status === "ready" && cell && cell.status === "ready" ? (
-                <img
-                  src={cell.url}
-                  alt={`Vorschau ${tpl.name}`}
-                  className="h-full w-full object-cover"
-                  loading="lazy"
-                />
-              ) : null}
-              {status === "loading" ? (
-                <div className="absolute inset-0 flex items-center justify-center bg-[color:var(--pf-bg-muted)]/95">
-                  <Loader2 className="h-8 w-8 animate-spin text-[color:var(--pf-fg-faint)]" aria-hidden />
-                  <span className="sr-only">Vorschau wird berechnet</span>
-                </div>
-              ) : null}
-              {status === "error" ? (
+            <div className="relative aspect-[5/4] w-full overflow-hidden bg-[color:var(--pf-bg-muted)]">
+              <div className="absolute inset-0 flex min-h-0 min-w-0 items-center justify-center p-2.5">
                 <div
-                  className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-zinc-100/90 p-3 text-center dark:bg-zinc-900/90"
-                  role="status"
+                  className="relative max-h-full max-w-full overflow-hidden rounded-md bg-[color:var(--pf-bg-elevated)] ring-1 ring-inset ring-[color:var(--pf-border)]"
+                  style={{ aspectRatio: `${tpl.width} / ${tpl.height}` }}
                 >
-                  <ImageOff className="h-7 w-7 text-[color:var(--pf-fg-faint)]" aria-hidden />
-                  <span className="text-xs font-medium text-[color:var(--pf-fg-muted)]">
-                    Vorschau nicht möglich
-                  </span>
+                  {status === "ready" && cell && cell.status === "ready" ? (
+                    <img
+                      src={cell.url}
+                      alt={`Vorschau ${tpl.name}`}
+                      className="pointer-events-none h-full w-full object-contain"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  ) : null}
+                  {status === "loading" ? (
+                    <div className="absolute inset-0 flex items-center justify-center bg-[color:var(--pf-bg-muted)]/95">
+                      <Loader2
+                        className="h-8 w-8 animate-spin text-[color:var(--pf-fg-faint)]"
+                        aria-hidden
+                      />
+                      <span className="sr-only">Vorschau wird berechnet</span>
+                    </div>
+                  ) : null}
+                  {status === "error" ? (
+                    <div
+                      className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-zinc-100/90 p-3 text-center dark:bg-zinc-900/90"
+                      role="status"
+                    >
+                      <ImageOff className="h-7 w-7 text-[color:var(--pf-fg-faint)]" aria-hidden />
+                      <span className="text-xs font-medium text-[color:var(--pf-fg-muted)]">
+                        Vorschau nicht möglich
+                      </span>
+                    </div>
+                  ) : null}
                 </div>
-              ) : null}
+              </div>
             </div>
-            <p className="truncate border-t border-[color:var(--pf-border-subtle)] px-2.5 py-2 text-xs font-medium text-[color:var(--pf-fg)]">
-              {tpl.name}
-            </p>
-          </div>
+            <div className="flex items-center justify-between gap-2 border-t border-[color:var(--pf-border-subtle)] px-2.5 py-2">
+              <div className="min-w-0">
+                <h3 className="truncate text-xs font-semibold text-[color:var(--pf-fg)]">{tpl.name}</h3>
+                <p className="text-[11px] font-medium text-[color:var(--pf-fg-muted)]">
+                  {phCount} Motive · {designCount} Design
+                </p>
+              </div>
+              <MoreHorizontal
+                className="shrink-0 text-[color:var(--pf-fg-subtle)]"
+                size={13}
+                strokeWidth={2}
+                aria-hidden
+              />
+            </div>
+          </Card>
         );
       })}
     </div>
