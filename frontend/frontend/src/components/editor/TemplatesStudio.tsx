@@ -1,16 +1,16 @@
 import {
-  ArrowLeft,
-  ChevronRight,
   Copy,
   DownloadCloud,
   Folder,
   FolderPlus,
   LayoutTemplate,
+  MoreHorizontal,
   Pencil,
+  Plus,
   Trash2,
   UploadCloud,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   createTemplateSet,
@@ -23,22 +23,26 @@ import {
   patchTemplateSet,
 } from "../../api/sets";
 import { compressImage, dataUrlToBlob, loadImage } from "../../lib/canvas/image";
-import { cardSurfaceElevationDefault } from "../../lib/ui/cardSurface";
 import { cn } from "../../lib/ui/cn";
 import { newClientElementId } from "../../lib/editor/elementId";
 import { getErrorMessage } from "../../lib/common/error";
 import { normalizeTemplateForEditor } from "../../lib/editor/normalizeTemplateForEditor";
 import { sanitizeFileName } from "../../lib/common/sanitize";
 import { toast } from "../../lib/ui/toast";
-import { workspaceEmbeddedPaddedClassName } from "../../lib/ui/workspaceSurfaces";
 import { useLoadTemplateSets } from "../../hooks/useLoadTemplateSets";
 import type { Template, TemplateElement } from "../../types/mockup";
 import { useAppStore } from "../../store/appStore";
 import { TemplateEditor } from "./TemplateEditor";
-import { AppPageSectionHeader, appPageSectionTitleClassName } from "../ui/layout/AppPageSectionHeader";
 import { Button } from "../ui/primitives/Button";
 import { Card } from "../ui/primitives/Card";
 import { LinearLoadingBar } from "../ui/overlay/LinearLoadingBar";
+
+const accentDotForSetId = (id: string): string => {
+  const palette = ["#f59e0b", "#ec4899", "#0ea5e9", "#10b981", "#8b5cf6", "#6366f1"];
+  let n = 0;
+  for (let i = 0; i < id.length; i++) n += id.charCodeAt(i);
+  return palette[n % palette.length]!;
+};
 
 export const TemplatesStudio = () => {
   const templateSets = useAppStore((s) => s.templateSets);
@@ -217,6 +221,50 @@ export const TemplatesStudio = () => {
     }
   };
 
+  const duplicateSetById = async (setId: string) => {
+    const set = templateSets.find((s) => s.id === setId);
+    if (!set) return;
+    const name = await openPrompt("Name der Kopie:", `${set.name} (Kopie)`);
+    if (!name?.trim()) return;
+    setProgressMessage("Set wird für die Kopie exportiert…");
+    try {
+      const exported = await exportSetJson(setId);
+      setProgressMessage("Neues Set wird angelegt…");
+      const created = await createTemplateSet(name.trim());
+      const total = exported.templates.length;
+      for (let i = 0; i < total; i++) {
+        const t = exported.templates[i];
+        setProgressMessage(`Dupliziere Vorlage ${i + 1} von ${total}…`);
+        const res = await fetch(t.bgImage);
+        if (!res.ok) throw new Error(`Bild ${t.name}`);
+        const blob = await res.blob();
+        await createTemplateWithUpload(created.id, blob, "background.jpg", {
+          name: t.name,
+          elements: t.elements,
+        });
+      }
+      setProgressMessage("Vorlagen werden aktualisiert…");
+      await reloadSetsRaw();
+      setEditingSetId(created.id);
+      toast.success(`Set „${name.trim()}" dupliziert.`);
+    } catch (err) {
+      toast.error(`Duplizieren fehlgeschlagen: ${getErrorMessage(err)}`);
+    } finally {
+      setProgressMessage(null);
+    }
+  };
+
+  useEffect(() => {
+    if (templateSets.length === 0) {
+      setEditingSetId(null);
+      return;
+    }
+    const valid = editingSetId != null && templateSets.some((s) => s.id === editingSetId);
+    if (!valid) {
+      setEditingSetId(templateSets[0]!.id);
+    }
+  }, [templateSets, editingSetId, setEditingSetId]);
+
   const handleCloseTemplateEditor = () => {
     setEditingTemplate(null);
     setSelectedElementId(null);
@@ -224,190 +272,116 @@ export const TemplatesStudio = () => {
 
   if (editingTemplate) {
     return (
-      <div className="w-full min-w-0 space-y-6">
-        <AppPageSectionHeader
-          icon={LayoutTemplate}
-          title="Vorlage bearbeiten"
-          description="Motive, Text und Rahmen — gleiche Logik wie im Generator und für Etsy. Den Namen der Vorlage kannst du im Feld darunter ändern."
-        />
+      <div className="w-full min-w-0">
+        <h1 className="sr-only">Vorlage bearbeiten</h1>
         <TemplateEditor onClose={handleCloseTemplateEditor} onSaved={reloadSets} />
       </div>
     );
   }
 
-  if (editingSetId) {
-    const currentSet = templateSets.find((s) => s.id === editingSetId);
-    return (
-      <div className="space-y-6">
-        {progressMessage ? <LinearLoadingBar message={progressMessage} /> : null}
-
-        <div className="w-full min-w-0 pb-6">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-50 ring-1 ring-inset ring-slate-900/5">
-              <Folder className="text-slate-700" size={22} strokeWidth={1.5} aria-hidden />
-            </div>
-            <button
-              type="button"
-              className="group flex min-w-0 cursor-pointer items-center text-left"
-              onClick={() => currentSet && handleRenameSet(currentSet.id, currentSet.name)}
-            >
-              <h2
-                className={cn(
-                  "max-w-[min(100%,24rem)] truncate border-b border-dashed border-transparent group-hover:border-slate-400",
-                  appPageSectionTitleClassName,
-                )}
-              >
-                {currentSet?.name}
-              </h2>
-            </button>
-          </div>
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-[minmax(17rem,22rem)_minmax(0,1fr)] lg:items-start">
-          <aside
-            aria-label="Set-Aktionen"
-            className="order-1 space-y-4 lg:sticky lg:top-4 lg:z-10 lg:self-start"
-          >
-            <div className={workspaceEmbeddedPaddedClassName}>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Aktionen</p>
-              <Button
-                type="button"
-                variant="outline"
-                className="mt-3 w-full justify-start gap-2 font-medium tracking-normal"
-                onClick={() => setEditingSetId(null)}
-              >
-                <ArrowLeft size={18} strokeWidth={1.75} aria-hidden />
-                Alle Vorlagen-Sets
-              </Button>
-              <p className="mt-4 text-xs font-medium leading-relaxed text-slate-500">
-                Neue Vorlage aus JPG oder PNG — danach Motive und Text im Editor anpassen.
-              </p>
-              <label className="mt-3 flex w-full cursor-pointer items-center justify-center rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700">
-                Neue Vorlage (JPG/PNG)
-                <input type="file" className="hidden" accept="image/*" onChange={startNewTemplate} />
-              </label>
-            </div>
-          </aside>
-
-          <section aria-label="Vorlagen in diesem Set" className="order-2 min-w-0">
-            {!currentSet || currentSet.templates.length === 0 ? (
-              <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 py-12 text-center ring-1 ring-inset ring-slate-900/5">
-                <LayoutTemplate className="mx-auto mb-3 text-slate-300" size={48} strokeWidth={1} />
-                <p className="font-medium text-slate-600">Dieses Set ist noch leer.</p>
-                <p className="mt-1 text-sm text-slate-400">
-                  Nutze „Neue Vorlage“ im linken Panel, um ein Hintergrundbild hochzuladen.
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                {currentSet.templates.map((tpl) => {
-                  const phCount = tpl.elements.filter((e) => e.type === "placeholder").length;
-                  const designCount = tpl.elements.length - phCount;
-                  return (
-                    <Card
-                      key={tpl.id}
-                      padding="none"
-                      interactive
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => editTemplate(tpl)}
-                      onKeyDown={(ev) => {
-                        if (ev.key === "Enter" || ev.key === " ") editTemplate(tpl);
-                      }}
-                      className="group relative flex flex-col overflow-hidden"
-                    >
-                      <div className="relative flex h-40 items-center justify-center overflow-hidden border-b border-slate-200/90 bg-white p-2 ring-1 ring-inset ring-slate-900/5">
-                        <div
-                          className="relative flex max-h-full max-w-full items-center justify-center"
-                          style={{ aspectRatio: `${tpl.width}/${tpl.height}` }}
-                        >
-                          <img src={tpl.bgImage} alt="" className="block max-h-full max-w-full object-contain" />
-                          <div className="absolute inset-0">
-                            {tpl.elements.map((el) => (
-                              <div
-                                key={el.id}
-                                className={`absolute border ${
-                                  el.type === "placeholder"
-                                    ? "border-indigo-400 bg-indigo-500/40"
-                                    : "border-purple-400 bg-purple-500/40"
-                                }`}
-                                style={{
-                                  left: `${(el.x / tpl.width) * 100}%`,
-                                  top: `${(el.y / tpl.height) * 100}%`,
-                                  width: `${(el.w / tpl.width) * 100}%`,
-                                  height: `${(el.h / tpl.height) * 100}%`,
-                                  transform: `rotate(${el.rotation ?? 0}deg)`,
-                                }}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="p-3 pr-10">
-                        <h3 className="truncate text-sm font-semibold text-slate-900">{tpl.name}</h3>
-                        <p className="mt-0.5 text-xs text-slate-500">
-                          {phCount} Motive · {designCount} Design
-                        </p>
-                      </div>
-                      <div className="absolute top-2 right-2 flex gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                        <button
-                          type="button"
-                          className="rounded-lg bg-white p-1.5 text-slate-500 ring-1 ring-slate-900/5 transition-colors hover:bg-slate-50 hover:text-indigo-600"
-                          onClick={(ev) => {
-                            ev.stopPropagation();
-                            handleRenameTemplate(tpl.id, tpl.name);
-                          }}
-                        >
-                          <Pencil size={14} strokeWidth={1.75} />
-                        </button>
-                        <button
-                          type="button"
-                          className="rounded-lg bg-red-600 p-1.5 text-white ring-1 ring-red-700/20 transition-colors hover:bg-red-700"
-                          onClick={(ev) => {
-                            ev.stopPropagation();
-                            void handleDeleteTemplate(tpl.id);
-                          }}
-                        >
-                          <Trash2 size={14} strokeWidth={1.75} />
-                        </button>
-                      </div>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-        </div>
-      </div>
-    );
-  }
+  const currentSet =
+    editingSetId != null ? templateSets.find((s) => s.id === editingSetId) : undefined;
 
   return (
-    <div className="space-y-6">
+    <div className="flex min-h-0 w-full min-w-0 flex-col">
       {progressMessage ? <LinearLoadingBar message={progressMessage} /> : null}
-      <AppPageSectionHeader
-        icon={Folder}
-        title="Deine Vorlagen-Sets"
-        description="Sets anlegen, importieren und Vorlagen bearbeiten."
-      />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(17rem,22rem)_minmax(0,1fr)] lg:items-start">
-        <aside
-          aria-label="Sets anlegen und importieren"
-          className="order-1 space-y-4 lg:sticky lg:top-4 lg:z-10 lg:self-start"
+      <div className="grid min-h-[min(820px,calc(100dvh-7rem))] gap-4 lg:grid-cols-[260px_1fr] lg:items-stretch">
+        <Card
+          variant="bordered"
+          padding="none"
+          className="flex min-h-0 flex-col overflow-hidden shadow-[var(--pf-shadow-sm)] ring-1 ring-[color:var(--pf-border)]"
+          aria-label="Vorlagen-Sets"
         >
-          <div className={workspaceEmbeddedPaddedClassName}>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Aktionen</p>
-            <p className="mt-2 text-xs font-medium leading-relaxed text-slate-500">
-              Importiere eine .mockup-Datei oder lege ein leeres Set an — Vorlagen legst du im Set an.
-            </p>
+          <div className="flex items-center justify-between border-b border-[color:var(--pf-border)] px-3.5 py-3">
+            <span className="text-[13px] font-semibold text-[color:var(--pf-fg)]">Vorlagen-Sets</span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 shrink-0 p-0 text-[color:var(--pf-fg-muted)]"
+              onClick={() => void createNewSet()}
+              aria-label="Neues Set anlegen"
+            >
+              <FolderPlus size={15} strokeWidth={1.75} aria-hidden />
+            </Button>
+          </div>
+
+          <div className="min-h-[12rem] flex-1 overflow-y-auto p-1.5">
+            {templateSets.length === 0 ? (
+              <p className="px-2 py-8 text-center text-sm font-medium text-[color:var(--pf-fg-muted)]">
+                Noch keine Sets — nutze „+“ oben oder importiere unten eine .mockup-Datei.
+              </p>
+            ) : (
+              templateSets.map((set) => {
+                const selected = set.id === editingSetId;
+                return (
+                  <div
+                    key={set.id}
+                    role="button"
+                    tabIndex={0}
+                    className={cn(
+                      "relative mb-0.5 cursor-pointer rounded-md border px-2.5 py-2.5 pr-8 transition-colors",
+                      selected
+                        ? "border-[color:var(--pf-accent-border)] bg-[color:var(--pf-accent-bg)]"
+                        : "border-transparent hover:bg-[color:var(--pf-bg-muted)]",
+                    )}
+                    onClick={() => setEditingSetId(set.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") setEditingSetId(set.id);
+                    }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="h-2 w-2 shrink-0 rounded-sm"
+                        style={{ background: accentDotForSetId(set.id) }}
+                        aria-hidden
+                      />
+                      <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[color:var(--pf-fg)]">
+                        {set.name}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 pl-4 text-[11px] font-medium text-[color:var(--pf-fg-muted)]">
+                      {set.templates.length} Vorlagen
+                    </p>
+                    <div
+                      className="absolute right-1 top-1 flex items-center gap-0.5"
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        className="rounded-md p-1 text-[color:var(--pf-fg-subtle)] transition-colors hover:bg-[color:var(--pf-bg-elevated)] hover:text-[color:var(--pf-accent)]"
+                        title="Umbenennen"
+                        aria-label={`Set ${set.name} umbenennen`}
+                        onClick={() => void handleRenameSet(set.id, set.name)}
+                      >
+                        <Pencil size={13} strokeWidth={1.75} />
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-md p-1 text-[color:var(--pf-fg-subtle)] transition-colors hover:bg-[color:var(--pf-danger-bg)] hover:text-[color:var(--pf-danger)]"
+                        title="Set löschen"
+                        aria-label={`Set ${set.name} löschen`}
+                        onClick={() => void handleDeleteSet(set.id)}
+                      >
+                        <Trash2 size={13} strokeWidth={1.75} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="flex gap-1.5 border-t border-[color:var(--pf-border)] p-2.5">
             <label
               className={cn(
-                "mt-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50",
-                cardSurfaceElevationDefault,
+                "flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-[color:var(--pf-border)] bg-[color:var(--pf-bg)] px-2 py-2 text-center text-[11px] font-semibold text-[color:var(--pf-fg)] shadow-[var(--pf-shadow-sm)] transition-colors hover:bg-[color:var(--pf-bg-muted)]",
               )}
             >
-              <UploadCloud size={18} strokeWidth={1.75} aria-hidden /> Set importieren
+              <UploadCloud size={12} strokeWidth={1.75} aria-hidden />
+              Import
               <input
                 type="file"
                 className="hidden"
@@ -417,125 +391,184 @@ export const TemplatesStudio = () => {
             </label>
             <Button
               type="button"
-              onClick={() => void createNewSet()}
-              className="mt-3 w-full gap-2"
+              variant="outline"
+              size="sm"
+              className="flex-1 gap-1 px-2 text-[11px] font-semibold"
+              disabled={!editingSetId}
+              onClick={() => editingSetId && void handleExportSet(editingSetId)}
             >
-              <FolderPlus size={18} strokeWidth={1.75} /> Neues Set
+              <DownloadCloud size={12} strokeWidth={1.75} aria-hidden />
+              Export
             </Button>
           </div>
-        </aside>
+        </Card>
 
-        <section className="order-2 min-w-0" aria-label="Deine Vorlagen-Sets">
-          {templateSets.length === 0 ? (
-            <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 py-16 text-center ring-1 ring-inset ring-slate-900/5">
-              <Folder className="mx-auto mb-3 text-slate-300" size={48} strokeWidth={1} />
-              <h3 className="mb-1 text-lg font-semibold text-slate-800">Noch keine Sets vorhanden</h3>
-              <p className="text-sm text-slate-500">
-                Erstelle ein neues Set oder importiere ein bestehendes — die Aktionen findest du links.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
-          {templateSets.map((set) => (
-            <Card
-              key={set.id}
-              padding="sm"
-              interactive
-              role="button"
-              tabIndex={0}
-              onClick={() => setEditingSetId(set.id)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") setEditingSetId(set.id);
-              }}
-              className="group relative flex flex-col justify-between"
-            >
-              <div className="mb-4 flex items-start justify-between">
-                <div className="rounded-xl bg-indigo-50 p-3 text-indigo-600 ring-1 ring-inset ring-indigo-500/20">
-                  <Folder size={22} strokeWidth={1.75} />
+        <Card
+          variant="bordered"
+          padding="none"
+          className="flex min-h-0 flex-col overflow-hidden shadow-[var(--pf-shadow-sm)] ring-1 ring-[color:var(--pf-border)]"
+          aria-label="Vorlagen im ausgewählten Set"
+        >
+          {currentSet ? (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[color:var(--pf-border)] px-4 py-3">
+                <div className="min-w-0">
+                  <button
+                    type="button"
+                    className="group block max-w-full text-left"
+                    onClick={() => void handleRenameSet(currentSet.id, currentSet.name)}
+                  >
+                    <h2 className="truncate text-[15px] font-semibold tracking-tight text-[color:var(--pf-fg)] decoration-[color:var(--pf-border-strong)] group-hover:underline">
+                      {currentSet.name}
+                    </h2>
+                  </button>
+                  <p className="mt-0.5 text-xs font-medium text-[color:var(--pf-fg-muted)]">
+                    {currentSet.templates.length} Vorlagen
+                  </p>
                 </div>
-                <div className="flex gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                  <button
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
                     type="button"
-                    className="rounded-lg bg-white p-1.5 text-slate-400 ring-1 ring-slate-900/5 transition-colors hover:bg-slate-50 hover:text-emerald-600"
-                    title="Export"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void handleExportSet(set.id);
-                    }}
+                    variant="outline"
+                    size="sm"
+                    className="font-semibold tracking-normal"
+                    onClick={() => void duplicateSetById(currentSet.id)}
                   >
-                    <DownloadCloud size={15} strokeWidth={1.75} />
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded-lg bg-white p-1.5 text-slate-400 ring-1 ring-slate-900/5 transition-colors hover:bg-slate-50 hover:text-indigo-600"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void handleRenameSet(set.id, set.name);
-                    }}
-                  >
-                    <Pencil size={15} strokeWidth={1.75} />
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded-lg bg-white p-1.5 text-slate-400 ring-1 ring-slate-900/5 transition-colors hover:bg-slate-50 hover:text-indigo-600"
-                    title="Duplizieren"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void (async () => {
-                        const name = await openPrompt("Name der Kopie:", `${set.name} (Kopie)`);
-                        if (!name?.trim()) return;
-                        setProgressMessage("Set wird für die Kopie exportiert…");
-                        try {
-                          const exported = await exportSetJson(set.id);
-                          setProgressMessage("Neues Set wird angelegt…");
-                          const created = await createTemplateSet(name.trim());
-                          const total = exported.templates.length;
-                          for (let i = 0; i < total; i++) {
-                            const t = exported.templates[i];
-                            setProgressMessage(`Dupliziere Vorlage ${i + 1} von ${total}…`);
-                            const res = await fetch(t.bgImage);
-                            if (!res.ok) throw new Error(`Bild ${t.name}`);
-                            const blob = await res.blob();
-                            await createTemplateWithUpload(created.id, blob, "background.jpg", {
-                              name: t.name,
-                              elements: t.elements,
-                            });
-                          }
-                          setProgressMessage("Vorlagen werden aktualisiert…");
-                          await reloadSetsRaw();
-                          toast.success(`Set „${name.trim()}" dupliziert.`);
-                        } catch (err) {
-                          toast.error(`Duplizieren fehlgeschlagen: ${getErrorMessage(err)}`);
-                        } finally {
-                          setProgressMessage(null);
-                        }
-                      })();
-                    }}
-                  >
-                    <Copy size={15} strokeWidth={1.75} />
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded-lg bg-white p-1.5 text-slate-400 ring-1 ring-slate-900/5 transition-colors hover:bg-slate-50 hover:text-red-600"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void handleDeleteSet(set.id);
-                    }}
-                  >
-                    <Trash2 size={15} strokeWidth={1.75} />
-                  </button>
+                    <Copy size={13} strokeWidth={1.75} aria-hidden />
+                    Duplizieren
+                  </Button>
+                  <label className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-[color:var(--pf-accent)] px-3 py-2 text-xs font-semibold text-[color:var(--pf-accent-fg)] shadow-sm transition-opacity hover:opacity-95">
+                    <Plus size={13} strokeWidth={2} aria-hidden />
+                    Neue Vorlage
+                    <input type="file" className="hidden" accept="image/*" onChange={startNewTemplate} />
+                  </label>
                 </div>
               </div>
-              <h3 className="mb-1 text-base font-semibold text-slate-900">{set.name}</h3>
-              <p className="flex items-center justify-between text-sm text-slate-500">
-                <span>{set.templates.length} Vorlagen</span>
-                <ChevronRight size={16} className="text-slate-400 transition-colors group-hover:text-indigo-500" />
+
+              <div className="min-h-0 flex-1 overflow-y-auto p-5">
+                {currentSet.templates.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-[color:var(--pf-border)] bg-[color:var(--pf-bg-subtle)] py-16 text-center ring-1 ring-inset ring-[color:var(--pf-border-subtle)]">
+                    <LayoutTemplate
+                      className="mx-auto mb-3 text-[color:var(--pf-fg-faint)]"
+                      size={48}
+                      strokeWidth={1}
+                      aria-hidden
+                    />
+                    <p className="font-semibold text-[color:var(--pf-fg)]">Dieses Set ist noch leer.</p>
+                    <p className="mt-1 text-sm font-medium text-[color:var(--pf-fg-muted)]">
+                      „Neue Vorlage“ lädt ein JPG/PNG — danach bearbeitest du Motive im Editor.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3.5">
+                    {currentSet.templates.map((tpl) => {
+                      const phCount = tpl.elements.filter((e) => e.type === "placeholder").length;
+                      const designCount = tpl.elements.length - phCount;
+                      return (
+                        <Card
+                          key={tpl.id}
+                          padding="none"
+                          variant="bordered"
+                          interactive
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => editTemplate(tpl)}
+                          onKeyDown={(ev) => {
+                            if (ev.key === "Enter" || ev.key === " ") editTemplate(tpl);
+                          }}
+                          className="group relative flex flex-col overflow-hidden shadow-[var(--pf-shadow-sm)] ring-1 ring-[color:var(--pf-border)]"
+                        >
+                          {/* Flachere Vorschau (breiter als hoch); Inhalt skaliert mit Rand */}
+                          <div className="relative aspect-[5/4] w-full overflow-hidden bg-[color:var(--pf-bg-muted)]">
+                            <div className="absolute inset-0 flex min-h-0 min-w-0 items-center justify-center p-2.5">
+                              <div
+                                className="relative max-h-full max-w-full overflow-hidden rounded-md bg-[color:var(--pf-bg-elevated)] ring-1 ring-inset ring-[color:var(--pf-border)]"
+                                style={{ aspectRatio: `${tpl.width} / ${tpl.height}` }}
+                              >
+                                <img
+                                  src={tpl.bgImage}
+                                  alt=""
+                                  className="pointer-events-none h-full w-full object-contain"
+                                />
+                                <div className="pointer-events-none absolute inset-0">
+                                  {tpl.elements.map((el) => (
+                                    <div
+                                      key={el.id}
+                                      className={cn(
+                                        "absolute border",
+                                        el.type === "placeholder"
+                                          ? "border-indigo-400 bg-indigo-500/40"
+                                          : "border-purple-400 bg-purple-500/40",
+                                      )}
+                                      style={{
+                                        left: `${(el.x / tpl.width) * 100}%`,
+                                        top: `${(el.y / tpl.height) * 100}%`,
+                                        width: `${(el.w / tpl.width) * 100}%`,
+                                        height: `${(el.h / tpl.height) * 100}%`,
+                                        transform: `rotate(${el.rotation ?? 0}deg)`,
+                                      }}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between gap-2 border-t border-[color:var(--pf-border-subtle)] px-2.5 py-2">
+                            <div className="min-w-0">
+                              <h3 className="truncate text-xs font-semibold text-[color:var(--pf-fg)]">
+                                {tpl.name}
+                              </h3>
+                              <p className="text-[11px] font-medium text-[color:var(--pf-fg-muted)]">
+                                {phCount} Motive · {designCount} Design
+                              </p>
+                            </div>
+                            <MoreHorizontal
+                              className="shrink-0 text-[color:var(--pf-fg-subtle)]"
+                              size={13}
+                              strokeWidth={2}
+                              aria-hidden
+                            />
+                          </div>
+                          <div className="absolute top-2 right-2 flex gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                            <button
+                              type="button"
+                              className="rounded-lg bg-[color:var(--pf-bg-elevated)] p-1.5 text-[color:var(--pf-fg-muted)] shadow-[var(--pf-shadow-sm)] ring-1 ring-[color:var(--pf-border)] transition-colors hover:text-[color:var(--pf-accent)]"
+                              onClick={(ev) => {
+                                ev.stopPropagation();
+                                void handleRenameTemplate(tpl.id, tpl.name);
+                              }}
+                              aria-label="Vorlage umbenennen"
+                            >
+                              <Pencil size={14} strokeWidth={1.75} />
+                            </button>
+                            <button
+                              type="button"
+                              className="rounded-lg bg-[color:var(--pf-danger)] p-1.5 text-white shadow-sm ring-1 ring-[color:var(--pf-danger)]/30 transition-colors hover:opacity-95"
+                              onClick={(ev) => {
+                                ev.stopPropagation();
+                                void handleDeleteTemplate(tpl.id);
+                              }}
+                              aria-label="Vorlage löschen"
+                            >
+                              <Trash2 size={14} strokeWidth={1.75} />
+                            </button>
+                          </div>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
+              <Folder className="text-[color:var(--pf-fg-faint)]" size={40} strokeWidth={1.25} aria-hidden />
+              <p className="text-sm font-medium text-[color:var(--pf-fg-muted)]">
+                Wähle ein Vorlagen-Set in der linken Liste.
               </p>
-            </Card>
-          ))}
             </div>
           )}
-        </section>
+        </Card>
       </div>
     </div>
   );

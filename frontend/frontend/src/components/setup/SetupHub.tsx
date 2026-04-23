@@ -28,6 +28,7 @@ import {
 } from "../../lib/common/integrationAvailability";
 import { cn } from "../../lib/ui/cn";
 import { toast } from "../../lib/ui/toast";
+import { WORKSPACE_PANEL_SURFACE, WORKSPACE_ZINC_MUTED } from "../../lib/ui/workspaceSurfaces";
 import { useAppStore } from "../../store/appStore";
 import { AISetup } from "../ai/AISetup";
 import { EtsyIntegrationSetup } from "../etsy/EtsyIntegrationSetup";
@@ -35,7 +36,6 @@ import { GelatoSetup } from "../gelato/GelatoSetup";
 import { MarketingIntegrationSetup } from "../marketing/MarketingIntegrationSetup";
 import { AppPageSectionHeader } from "../ui/layout/AppPageSectionHeader";
 import { Button } from "../ui/primitives/Button";
-import { Card } from "../ui/primitives/Card";
 import { Input } from "../ui/primitives/Input";
 import { PanelModal } from "../ui/overlay/PanelModal";
 
@@ -220,7 +220,7 @@ export const SetupHub = () => {
   const g = R2_GUIDE;
 
   return (
-    <div className="w-full min-w-0 space-y-8 pb-12">
+    <div className="w-full min-w-0 space-y-8">
       <AppPageSectionHeader
         icon={LayoutGrid}
         title="Alle Integrationen"
@@ -240,11 +240,11 @@ export const SetupHub = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: i * 0.05 }}
             >
-              <Card
-                padding="md"
+              <div
                 className={cn(
-                  "flex h-full flex-col justify-between transition-shadow",
-                  selected && hubEnabled && "ring-2 ring-indigo-400/50",
+                  "flex h-full min-h-0 flex-col justify-between p-5",
+                  WORKSPACE_PANEL_SURFACE,
+                  selected && hubEnabled && "ring-2 ring-[color:var(--pf-accent)]/35",
                   !hubEnabled && "opacity-[0.72] saturate-[0.7]",
                 )}
                 aria-disabled={!hubEnabled}
@@ -253,29 +253,31 @@ export const SetupHub = () => {
                   <div className="mb-4 flex items-start justify-between gap-3">
                     <div
                       className={cn(
-                        "flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-700 ring-1 ring-inset ring-slate-900/5",
-                        !hubEnabled && "bg-slate-100 text-slate-400",
+                        "flex h-12 w-12 items-center justify-center rounded-[length:var(--pf-radius-lg)] ring-1",
+                        hubEnabled
+                          ? "bg-[color:var(--pf-accent-bg)] text-[color:var(--pf-accent)] ring-[color:var(--pf-accent-border)]"
+                          : "bg-[color:var(--pf-bg-muted)] text-[color:var(--pf-fg-muted)] ring-inset ring-[color:var(--pf-border-subtle)]",
                       )}
                     >
                       <Icon size={22} strokeWidth={1.5} />
                     </div>
                     {loadingStatus ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500 ring-1 ring-inset ring-slate-900/5">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--pf-bg-muted)] px-2.5 py-1 text-xs font-bold text-[color:var(--pf-fg-muted)] ring-1 ring-inset ring-[color:var(--pf-border-subtle)]">
                         <Loader2 size={12} className="animate-spin" aria-hidden />
                         …
                       </span>
                     ) : !hubEnabled ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800 ring-1 ring-inset ring-amber-500/25">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--pf-warning-bg)] px-2.5 py-1 text-xs font-bold text-[color:var(--pf-warning)] ring-1 ring-inset ring-[color:var(--pf-warning)]/25">
                         <Lock size={12} strokeWidth={2.5} aria-hidden />
                         In Vorbereitung
                       </span>
                     ) : ok ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 ring-1 ring-inset ring-emerald-500/20">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--pf-success-bg)] px-2.5 py-1 text-xs font-bold text-[color:var(--pf-success)] ring-1 ring-inset ring-[color:var(--pf-success)]/25">
                         <CheckCircle2 size={12} strokeWidth={2.5} aria-hidden />
                         Verbunden
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500 ring-1 ring-inset ring-slate-900/5">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--pf-bg-muted)] px-2.5 py-1 text-xs font-bold text-[color:var(--pf-fg-muted)] ring-1 ring-inset ring-[color:var(--pf-border-subtle)]">
                         <Link2 size={12} strokeWidth={2.5} aria-hidden />
                         Getrennt
                       </span>
@@ -283,18 +285,18 @@ export const SetupHub = () => {
                   </div>
                   <h3
                     className={cn(
-                      "text-lg font-bold tracking-tight text-slate-900",
-                      !hubEnabled && "text-slate-500",
+                      "text-lg font-bold tracking-tight text-[color:var(--pf-fg)]",
+                      !hubEnabled && "text-[color:var(--pf-fg-subtle)]",
                     )}
                   >
                     {item.title}
                   </h3>
-                  <p className="mt-1 text-sm font-medium leading-relaxed text-slate-500">
+                  <p className={cn("mt-1 text-sm font-medium leading-relaxed", WORKSPACE_ZINC_MUTED)}>
                     {item.desc}
                   </p>
                 </div>
 
-                <div className="mt-6 border-t border-slate-100 pt-4">
+                <div className="mt-6 border-t border-[color:var(--pf-border)] pt-4">
                   <Button
                     type="button"
                     variant={hubEnabled ? (ok ? "outline" : "secondary") : "outline"}
@@ -305,10 +307,7 @@ export const SetupHub = () => {
                         ? "Diese Integration ist derzeit noch nicht freigeschaltet."
                         : undefined
                     }
-                    className={cn(
-                      "w-full",
-                      hubEnabled && ok && "text-slate-600 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900",
-                    )}
+                    className={cn("w-full")}
                     onClick={() => handleOpenSettings(item.id)}
                   >
                     {!hubEnabled
@@ -318,7 +317,7 @@ export const SetupHub = () => {
                         : "Jetzt einrichten"}
                   </Button>
                 </div>
-              </Card>
+              </div>
             </motion.div>
           );
         })}
@@ -342,7 +341,7 @@ export const SetupHub = () => {
         ) : (
           <div>
             <header className="mb-6">
-              <p className="text-sm text-slate-600">
+              <p className={cn("text-sm font-medium", WORKSPACE_ZINC_MUTED)}>
                 {r2Configured
                   ? "Credentials sind gespeichert. Zum Ändern neue Werte eintragen und speichern oder Verbindung testen."
                   : g.tagline}
@@ -352,8 +351,8 @@ export const SetupHub = () => {
             {!r2Configured ? (
               <>
                 <div className="mb-6">
-                  <h3 className="mb-3 text-sm font-medium text-slate-800">Anleitung</h3>
-                  <ol className="list-decimal space-y-2 pl-5 text-sm text-slate-600">
+                  <h3 className="mb-3 text-sm font-semibold text-[color:var(--pf-fg)]">Anleitung</h3>
+                  <ol className={cn("list-decimal space-y-2 pl-5 text-sm font-medium", WORKSPACE_ZINC_MUTED)}>
                     <li>{g.steps[0]}</li>
                     <li>{g.steps[1]}</li>
                     <li>{g.steps[2]}</li>
@@ -365,7 +364,7 @@ export const SetupHub = () => {
                         href={l.href}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-sm font-medium text-indigo-600 underline-offset-2 hover:underline"
+                        className="text-sm font-semibold text-[color:var(--pf-accent)] underline-offset-2 hover:underline"
                       >
                         {l.label}
                       </a>
@@ -374,7 +373,10 @@ export const SetupHub = () => {
                 </div>
 
                 <div
-                  className="mb-6 flex aspect-video items-center justify-center rounded-md bg-slate-100 text-sm text-slate-500"
+                  className={cn(
+                    "mb-6 flex aspect-video items-center justify-center rounded-[length:var(--pf-radius)] bg-[color:var(--pf-bg-muted)] text-sm font-medium",
+                    WORKSPACE_ZINC_MUTED,
+                  )}
                   aria-hidden
                 >
                   Video Placeholder
@@ -419,7 +421,7 @@ export const SetupHub = () => {
               />
             </div>
 
-            <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-6">
+            <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-[color:var(--pf-border)] pt-6">
               <Button
                 type="button"
                 variant="primary"
@@ -441,18 +443,18 @@ export const SetupHub = () => {
               </Button>
             </div>
 
-            <div className="mt-4 min-h-[1.5rem] text-sm" aria-live="polite" role="status">
+            <div className="mt-4 min-h-[1.5rem] text-sm font-medium" aria-live="polite" role="status">
               {feedback ? (
                 <span
                   className={cn(
-                    fieldTone === "success" && "text-emerald-700",
-                    fieldTone === "error" && "text-red-700",
+                    fieldTone === "success" && "text-[color:var(--pf-success)]",
+                    fieldTone === "error" && "text-[color:var(--pf-danger)]",
                   )}
                 >
                   {feedback}
                 </span>
               ) : connected ? (
-                <span className="text-emerald-700">R2-Credentials gespeichert.</span>
+                <span className="text-[color:var(--pf-success)]">R2-Credentials gespeichert.</span>
               ) : null}
             </div>
           </div>

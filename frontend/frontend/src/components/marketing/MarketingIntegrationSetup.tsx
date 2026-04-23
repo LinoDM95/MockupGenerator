@@ -18,7 +18,7 @@ import { IntegrationMissingCallout } from "../ui/patterns/IntegrationMissingCall
  * Veröffentlichungs-UI: vorerst aus der Hauptnavigation — siehe Roadmap.
  */
 export const MarketingIntegrationSetup = () => {
-  const setActiveTab = useAppStore((s) => s.setActiveTab);
+  const goToRoadmap = useAppStore((s) => s.goToRoadmap);
   const { pinterest: pinterestOk, loading: flagsLoading } = useIntegrationFlags();
   const [connected, setConnected] = useState<boolean | null>(null);
 
@@ -119,11 +119,11 @@ export const MarketingIntegrationSetup = () => {
           <button
             type="button"
             className="text-indigo-600 hover:text-indigo-800 hover:underline"
-            onClick={() => setActiveTab("roadmap")}
+            onClick={() => goToRoadmap()}
           >
             Roadmap
           </button>{" "}
-          in der Hauptnavigation.
+          in der Roadmap (Seitenleiste → Produkt).
         </p>
       </div>
     </div>

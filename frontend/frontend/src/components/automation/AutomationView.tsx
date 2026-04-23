@@ -29,7 +29,6 @@ import { cn } from "../../lib/ui/cn";
 import { getErrorMessage } from "../../lib/common/error";
 import { toast } from "../../lib/ui/toast";
 import { useAppStore } from "../../store/appStore";
-import { AppPageSectionHeader } from "../ui/layout/AppPageSectionHeader";
 import { AppSubNavPageLayout } from "../ui/layout/AppSubNavPageLayout";
 import { Button } from "../ui/primitives/Button";
 import { Card } from "../ui/primitives/Card";
@@ -474,8 +473,7 @@ function RunDashboard({
 export const AutomationView = () => {
   const templateSets = useAppStore((s) => s.templateSets);
   const globalSetId = useAppStore((s) => s.globalSetId);
-  const setActiveTab = useAppStore((s) => s.setActiveTab);
-  const setWorkspaceTab = useAppStore((s) => s.setWorkspaceTab);
+  const goToWorkspace = useAppStore((s) => s.goToWorkspace);
   const setEditingSetId = useAppStore((s) => s.setEditingSetId);
   useLoadTemplateSets({ silent: true });
 
@@ -589,17 +587,9 @@ export const AutomationView = () => {
   }, [stopPoll]);
 
   return (
-    <AppSubNavPageLayout
-      title="Automatisieren"
-      description="Massen-Pipeline mit klaren Etappen — auch bei vielen Motiven siehst du, wo gerade gearbeitet wird."
-    >
-      <div className="w-full min-w-0 space-y-8 pb-12">
-        <AppPageSectionHeader
-          icon={Rocket}
-          title="Pipeline & Jobs"
-          description="Voreinstellungen wählen, Bilder hochladen — danach Verlauf und Motive im Detail unten."
-        />
-
+    <AppSubNavPageLayout hideTitle title="Automatisieren" description="">
+      <h1 className="sr-only">Automatisieren</h1>
+      <div className="w-full min-w-0 space-y-6 pb-8">
       <div
         role="status"
         className="rounded-xl bg-amber-50 px-4 py-3 text-center text-sm text-amber-950 ring-1 ring-inset ring-amber-500/20"
@@ -627,8 +617,7 @@ export const AutomationView = () => {
             type="button"
             className="mt-3 border-amber-300 bg-white text-amber-950 hover:bg-amber-100"
             onClick={() => {
-              setActiveTab("workspace");
-              setWorkspaceTab("templates");
+              goToWorkspace("templates");
               setEditingSetId(null);
             }}
           >
@@ -638,7 +627,7 @@ export const AutomationView = () => {
       ) : null}
 
       {!jobId ? (
-        <Card padding="lg">
+        <Card padding="lg" variant="bordered">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">

@@ -18,11 +18,16 @@ import {
 } from "../../lib/editor/frameShadowSides";
 import { toast } from "../../lib/ui/toast";
 import { cn } from "../../lib/ui/cn";
-import { workspaceEmbeddedPaddedClassName } from "../../lib/ui/workspaceSurfaces";
+import {
+  WORKSPACE_PANEL_HEADER,
+  WORKSPACE_PANEL_TITLE,
+  WORKSPACE_ZINC_MUTED,
+  workspacePanelCardClassName,
+} from "../../lib/ui/workspaceSurfaces";
 import type { ElementType, FrameStyle, TemplateElement } from "../../types/mockup";
 import { useAppStore } from "../../store/appStore";
-import { appPageSectionTitleClassName } from "../ui/layout/AppPageSectionHeader";
 import { Button } from "../ui/primitives/Button";
+import { WorkspacePanelCard } from "../ui/layout/WorkspacePanelCard";
 import { LinearLoadingBar } from "../ui/overlay/LinearLoadingBar";
 import { Select } from "../ui/primitives/Select";
 import { CanvasViewport } from "./CanvasViewport";
@@ -99,6 +104,8 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
   const [replacingBg, setReplacingBg] = useState(false);
   const [previewEndView, setPreviewEndView] = useState(false);
   const [previewMotifVariant, setPreviewMotifVariant] = useState(0);
+  /** Rechte Spalte: wie Generator (Listing / Vorlage / Export) — Mockup, Ebenen, Eigenschaften */
+  const [rightTab, setRightTab] = useState<0 | 1 | 2>(0);
   const previewMotifUrls = useMemo(
     () =>
       Array.from({ length: PREVIEW_MOTIF_VARIANT_COUNT }, (_, i) => createPreviewMotifDataUrl(i)),
@@ -113,6 +120,10 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
     setDrawPoints([]);
     setCursorPoint(null);
   }, [previewEndView, setSelectedElementId]);
+
+  useEffect(() => {
+    if (previewEndView) setRightTab(0);
+  }, [previewEndView]);
 
   if (!editingTemplate) return null;
 
@@ -363,11 +374,11 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
   };
 
   return (
-    <div className="w-full min-w-0 space-y-6">
+    <div className="flex min-h-0 w-full min-w-0 flex-col gap-4 select-none">
       {saving ? <LinearLoadingBar message="Vorlage wird gespeichert…" /> : null}
       {replacingBg ? <LinearLoadingBar message="Hintergrundbild wird gewechselt…" /> : null}
 
-      <div className="min-w-0">
+      <div className="min-w-0 shrink-0">
         <input
           type="text"
           value={editingTemplate.name}
@@ -375,76 +386,144 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
             updateEditingTemplate((prev) => (prev ? { ...prev, name: e.target.value } : prev))
           }
           className={cn(
-            "w-full min-w-0 cursor-text border-b border-dashed border-transparent bg-transparent pb-1 outline-none transition-colors hover:border-slate-300 focus:border-indigo-500",
-            appPageSectionTitleClassName,
+            "w-full min-w-0 cursor-text border-b border-dashed border-transparent bg-transparent pb-1 text-2xl font-bold tracking-tight text-[color:var(--pf-fg)] outline-none transition-colors hover:border-[color:var(--pf-border)] focus:border-[color:var(--pf-accent)]",
           )}
           title="Vorlage umbenennen"
           aria-label="Vorlage umbenennen"
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 select-none lg:grid-cols-[minmax(18rem,26rem)_minmax(0,1fr)] lg:items-stretch lg:gap-6 lg:min-h-[500px] lg:h-[min(780px,calc(100vh-10rem))]">
+      <div
+        className="grid min-h-0 w-full min-w-0 gap-4 max-lg:grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)_320px]"
+        style={{ minHeight: "min(820px, calc(100dvh - 100px))" }}
+      >
         <aside
-          aria-label="Editor-Einstellungen"
-          className="order-1 flex min-h-0 flex-col overflow-hidden lg:h-full lg:min-h-0"
+          aria-label="Editor-Werkzeuge und Aktionen"
+          className={cn(workspacePanelCardClassName, "order-1 min-h-[20rem] max-lg:min-h-0")}
         >
-          <div className="space-y-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overflow-x-hidden lg:pr-1">
-          <div className={workspaceEmbeddedPaddedClassName}>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Aktionen</p>
-            <Button
-              type="button"
-              variant="outline"
-              className="mt-3 w-full justify-start gap-2 font-medium tracking-normal"
-              onClick={onClose}
-            >
-              <ArrowLeft size={18} strokeWidth={1.75} aria-hidden />
-              Zurück zur Übersicht
-            </Button>
-            <label
-              className={cn(
-                "mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-white px-3 py-2.5 text-sm font-medium text-slate-700 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 transition-colors hover:bg-slate-50",
-                saving || replacingBg ? "pointer-events-none opacity-50" : "",
-              )}
-              title="Neues JPG/PNG/Webp als Vorlagen-Hintergrund"
-            >
-              <ImageUp size={18} strokeWidth={1.75} aria-hidden />
-              Hintergrund ersetzen
-              <input
-                type="file"
-                className="hidden"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={(ev) => void handleBackgroundReplace(ev)}
+          <div className={WORKSPACE_PANEL_HEADER}>
+            <div className="flex w-full items-center justify-between gap-2">
+              <div className="min-w-0">
+                <div className={WORKSPACE_PANEL_TITLE}>Editor</div>
+                <div className="text-xs text-[color:var(--pf-fg-subtle)]">
+                  Aktionen &amp; Werkzeuge
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 shrink-0 gap-1.5 px-2.5"
+                onClick={onClose}
+                aria-label="Zurück zur Übersicht"
+              >
+                <ArrowLeft size={14} strokeWidth={1.75} aria-hidden />
+                <span className="sr-only sm:not-sr-only sm:inline">Zurück</span>
+              </Button>
+            </div>
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="shrink-0 space-y-2 border-b border-[color:var(--pf-border-subtle)] p-3.5">
+              <label
+                className={cn(
+                  "flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[color:var(--pf-bg-elevated)] px-3 py-2.5 text-xs font-semibold text-[color:var(--pf-fg)] shadow-[var(--pf-shadow-sm)] ring-1 ring-[color:var(--pf-border)] transition-colors hover:bg-[color:var(--pf-bg-muted)]",
+                  saving || replacingBg ? "pointer-events-none opacity-50" : "",
+                )}
+                title="Neues JPG/PNG/Webp als Vorlagen-Hintergrund"
+              >
+                <ImageUp size={16} strokeWidth={1.75} aria-hidden />
+                Hintergrund ersetzen
+                <input
+                  type="file"
+                  className="hidden"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(ev) => void handleBackgroundReplace(ev)}
+                  disabled={saving || replacingBg}
+                />
+              </label>
+              <Button
+                type="button"
+                onClick={handleSave}
                 disabled={saving || replacingBg}
+                className="w-full gap-2"
+                size="sm"
+              >
+                <Save size={16} strokeWidth={1.75} /> {saving ? "Speichern…" : "Speichern"}
+              </Button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-2.5">
+              <Toolbar
+                layout="bar"
+                isDrawMode={isDrawMode}
+                onToggleDrawMode={handleToggleDraw}
+                onAddElement={addElement}
+                disabled={previewEndView}
               />
-            </label>
-            <Button
-              type="button"
-              onClick={handleSave}
-              disabled={saving || replacingBg}
-              className="mt-3 w-full gap-2"
-            >
-              <Save size={18} strokeWidth={1.75} /> {saving ? "Speichern…" : "Speichern"}
-            </Button>
+            </div>
           </div>
+        </aside>
 
-          <div className={workspaceEmbeddedPaddedClassName}>
-            <Toolbar
-              layout="panel"
-              isDrawMode={isDrawMode}
-              onToggleDrawMode={handleToggleDraw}
-              onAddElement={addElement}
-              disabled={previewEndView}
-            />
-          </div>
+        <WorkspacePanelCard
+          title="Vorlage"
+          className="order-2 min-h-[min(24rem,50vh)] min-w-0 lg:min-h-0 lg:h-full"
+          bodyClassName="flex min-h-0 flex-1 flex-col overflow-hidden p-0"
+        >
+          <CanvasViewport
+            editingTemplate={editingTemplate}
+            previewEndView={previewEndView}
+            previewMotifUrl={previewMotifUrl}
+            isSnapEnabled={isSnapEnabled}
+            setIsSnapEnabled={setIsSnapEnabled}
+            isGuideSnapEnabled={isGuideSnapEnabled}
+            setIsGuideSnapEnabled={setIsGuideSnapEnabled}
+            isDrawMode={isDrawMode}
+            setIsDrawMode={setIsDrawMode}
+            drawPoints={drawPoints}
+            setDrawPoints={setDrawPoints}
+            cursorPoint={cursorPoint}
+            setCursorPoint={setCursorPoint}
+          />
+        </WorkspacePanelCard>
 
-          <div className={workspaceEmbeddedPaddedClassName}>
-            <h3 className="text-sm font-semibold text-slate-900">
-              Mockup & Export
-            </h3>
-            <p className="mt-1 text-xs text-slate-500">
-              Gilt für Generator und Etsy. Reihenfolge: Rahmen → Schatten → Farbe → Vorschau.
+        <div
+          className={cn(workspacePanelCardClassName, "order-3 min-h-[20rem] lg:min-h-0")}
+          aria-label="Vorlagen-Einstellungen"
+        >
+          {previewEndView ? (
+            <p className="shrink-0 border-b border-[color:var(--pf-border-subtle)] bg-amber-50 px-3 py-2.5 text-center text-[11px] font-semibold leading-snug text-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+              Endansicht aktiv — Ebenen- und Eigenschaften-Tabs sind eingeschränkt.
             </p>
-            <div className="mt-4 space-y-4">
+          ) : null}
+          <div className="flex shrink-0 border-b border-[color:var(--pf-border)]">
+            {(
+              [
+                { id: 0 as const, label: "Mockup" },
+                { id: 1 as const, label: "Ebenen" },
+                { id: 2 as const, label: "Eigenschaften" },
+              ] as const
+            ).map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setRightTab(t.id)}
+                className={cn(
+                  "flex-1 px-3 py-2.5 text-center text-xs font-medium transition-colors",
+                  rightTab === t.id
+                    ? "border-b-2 border-[color:var(--pf-accent)] text-[color:var(--pf-fg)]"
+                    : "border-b-2 border-transparent text-[color:var(--pf-fg-muted)] hover:text-[color:var(--pf-fg)]",
+                )}
+              >
+                {t.id === 1 ? `${t.label} (${editingTemplate.elements.length})` : t.label}
+              </button>
+            ))}
+          </div>
+          <div className="min-h-0 flex-1 overflow-auto p-3.5">
+            {rightTab === 0 ? (
+              <>
+                <div className="space-y-4">
+                  <p className={cn("text-xs font-medium leading-relaxed", WORKSPACE_ZINC_MUTED)}>
+                    Gilt für Generator und Etsy. Reihenfolge: Rahmen → Schatten → Farbe → Vorschau.
+                  </p>
               <Select
                 label="Rahmen"
                 value={editingTemplate.defaultFrameStyle ?? "none"}
@@ -460,22 +539,22 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                 <option value="white">Weiß</option>
               </Select>
               <div className="space-y-3">
-                <span className="text-sm font-medium text-slate-700">Rahmen-Schatten</span>
+                <span className="text-sm font-semibold text-[color:var(--pf-fg)]">Rahmen-Schatten</span>
                 <div className="flex flex-wrap gap-x-4 gap-y-2">
-                  <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-800">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-[color:var(--pf-fg)]">
                     <input
                       type="checkbox"
-                      className="h-4 w-4 rounded border-slate-300 accent-indigo-600"
+                      className="h-4 w-4 rounded border-[color:var(--pf-border)] accent-indigo-600"
                       checked={frameShadowOuterOn}
                       onChange={handleToggleFrameShadowOuter}
                       aria-label="Außenschatten aktivieren"
                     />
                     Außen
                   </label>
-                  <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-800">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-[color:var(--pf-fg)]">
                     <input
                       type="checkbox"
-                      className="h-4 w-4 rounded border-slate-300 accent-indigo-600"
+                      className="h-4 w-4 rounded border-[color:var(--pf-border)] accent-indigo-600"
                       checked={frameShadowInnerOn}
                       onChange={handleToggleFrameShadowInner}
                       aria-label="Innenschatten aktivieren"
@@ -484,14 +563,14 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                   </label>
                 </div>
                 {frameShadowOuterOn ? (
-                  <fieldset className="space-y-2 rounded-xl bg-slate-50/50 p-3 ring-1 ring-inset ring-slate-900/5">
-                    <legend className="px-1 text-xs font-medium text-slate-600">
+                  <fieldset className="space-y-2 rounded-[length:var(--pf-radius)] bg-[color:var(--pf-bg-muted)]/80 p-3 ring-1 ring-inset ring-[color:var(--pf-border-subtle)]">
+                    <legend className="px-1 text-xs font-semibold text-[color:var(--pf-fg-muted)]">
                       Außen – Seiten
                     </legend>
-                    <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-800">
+                    <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-[color:var(--pf-fg)]">
                       <input
                         type="checkbox"
-                        className="h-4 w-4 rounded border-slate-300 accent-indigo-600"
+                        className="h-4 w-4 rounded border-[color:var(--pf-border)] accent-indigo-600"
                         checked={outerSidesMask === FRAME_SHADOW_ALL}
                         onChange={handleOuterSidesAll}
                         aria-label="Alle Außenseiten"
@@ -507,12 +586,12 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                           <label
                             key={side}
                             htmlFor={id}
-                            className="flex cursor-pointer items-center gap-2 text-sm text-slate-800"
+                            className="flex cursor-pointer items-center gap-2 text-sm font-medium text-[color:var(--pf-fg)]"
                           >
                             <input
                               id={id}
                               type="checkbox"
-                              className="h-4 w-4 rounded border-slate-300 accent-indigo-600"
+                              className="h-4 w-4 rounded border-[color:var(--pf-border)] accent-indigo-600"
                               checked={checked}
                               onChange={() => handleToggleOuterSide(side)}
                             />
@@ -524,14 +603,14 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                   </fieldset>
                 ) : null}
                 {frameShadowInnerOn ? (
-                  <fieldset className="space-y-2 rounded-xl bg-slate-50/50 p-3 ring-1 ring-inset ring-slate-900/5">
-                    <legend className="px-1 text-xs font-medium text-slate-600">
+                  <fieldset className="space-y-2 rounded-[length:var(--pf-radius)] bg-[color:var(--pf-bg-muted)]/80 p-3 ring-1 ring-inset ring-[color:var(--pf-border-subtle)]">
+                    <legend className="px-1 text-xs font-semibold text-[color:var(--pf-fg-muted)]">
                       Innen – Seiten
                     </legend>
-                    <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-800">
+                    <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-[color:var(--pf-fg)]">
                       <input
                         type="checkbox"
-                        className="h-4 w-4 rounded border-slate-300 accent-indigo-600"
+                        className="h-4 w-4 rounded border-[color:var(--pf-border)] accent-indigo-600"
                         checked={innerSidesMask === FRAME_SHADOW_ALL}
                         onChange={handleInnerSidesAll}
                         aria-label="Alle Innenseiten"
@@ -547,12 +626,12 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                           <label
                             key={side}
                             htmlFor={id}
-                            className="flex cursor-pointer items-center gap-2 text-sm text-slate-800"
+                            className="flex cursor-pointer items-center gap-2 text-sm font-medium text-[color:var(--pf-fg)]"
                           >
                             <input
                               id={id}
                               type="checkbox"
-                              className="h-4 w-4 rounded border-slate-300 accent-indigo-600"
+                              className="h-4 w-4 rounded border-[color:var(--pf-border)] accent-indigo-600"
                               checked={checked}
                               onChange={() => handleToggleInnerSide(side)}
                             />
@@ -566,7 +645,7 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
               </div>
               {anyFrameShadowOn ? (
                 <div>
-                  <label className="text-sm font-medium text-slate-700" htmlFor="frame-shadow-depth">
+                  <label className="text-sm font-semibold text-[color:var(--pf-fg)]" htmlFor="frame-shadow-depth">
                     Stärke / Tiefe ({Math.round((editingTemplate.frameShadowDepth ?? 0.82) * 100)}&nbsp;%)
                   </label>
                   <input
@@ -584,13 +663,13 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                     }}
                     className="mt-2 w-full accent-indigo-600"
                   />
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className={cn("mt-1 text-xs font-medium", WORKSPACE_ZINC_MUTED)}>
                     Ein Regler für Außen- und Innenschatten: weicher/größer bzw. kräftigere Motiv-Tiefe.
                   </p>
                 </div>
               ) : null}
               <div>
-                <label className="text-sm font-medium text-slate-700" htmlFor="artwork-saturation">
+                <label className="text-sm font-semibold text-[color:var(--pf-fg)]" htmlFor="artwork-saturation">
                   Motiv-Sättigung ({Math.round((editingTemplate.artworkSaturation ?? 1) * 100)}&nbsp;%)
                 </label>
                 <input
@@ -608,22 +687,22 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                   }}
                   className="mt-2 w-full accent-indigo-600"
                 />
-                <p className="mt-1 text-xs text-slate-500">
+                <p className={cn("mt-1 text-xs font-medium", WORKSPACE_ZINC_MUTED)}>
                   Niedrigere Werte wirken dezenter auf dem Hintergrund.
                 </p>
               </div>
             </div>
-            <div className="mt-4 border-t border-slate-100 pt-4">
-              <label className="flex cursor-pointer items-start gap-2.5 text-sm text-slate-800">
+            <div className="mt-4 border-t border-[color:var(--pf-border)] pt-4">
+              <label className="flex cursor-pointer items-start gap-2.5 text-sm font-medium text-[color:var(--pf-fg)]">
                 <input
                   type="checkbox"
                   checked={previewEndView}
                   onChange={(e) => setPreviewEndView(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-indigo-600 accent-indigo-600 focus:ring-indigo-500"
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-[color:var(--pf-border)] text-indigo-600 accent-indigo-600 focus:ring-indigo-500/30"
                 />
                 <span>
-                  <span className="font-medium">Endansicht-Vorschau</span>
-                  <span className="mt-0.5 block text-xs font-normal text-slate-500">
+                  <span className="font-semibold">Endansicht-Vorschau</span>
+                  <span className={cn("mt-0.5 block text-xs font-medium", WORKSPACE_ZINC_MUTED)}>
                     Wie das fertige Motiv im Export – ohne Hilfslinien und Rahmen-Markierung.
                   </span>
                 </span>
@@ -631,7 +710,7 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
               <div
                 className={`mt-3 transition-opacity ${previewEndView ? "opacity-100" : "pointer-events-none opacity-40"}`}
               >
-                <p className="mb-2 text-xs font-medium text-slate-600">Beispielmotiv</p>
+                <p className={cn("mb-2 text-xs font-semibold", WORKSPACE_ZINC_MUTED)}>Beispielmotiv</p>
                 <div className="grid grid-cols-5 gap-2" role="list">
                   {Array.from({ length: PREVIEW_MOTIF_VARIANT_COUNT }, (_, i) => (
                     <button
@@ -640,10 +719,10 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                       role="listitem"
                       disabled={!previewEndView}
                       onClick={() => setPreviewMotifVariant(i)}
-                      className={`relative aspect-square rounded-xl transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 ${
+                      className={`relative aspect-square rounded-[length:var(--pf-radius)] transition-all focus:outline-none focus-visible:ring-4 focus-visible:ring-indigo-500/20 ${
                         previewMotifVariant === i
-                          ? "shadow-md ring-2 ring-indigo-500 ring-offset-1 ring-offset-white"
-                          : "ring-1 ring-slate-900/10 hover:ring-slate-900/20"
+                          ? "shadow-[var(--pf-shadow-sm)] ring-2 ring-[color:var(--pf-accent)] ring-offset-2 ring-offset-[color:var(--pf-bg-elevated)]"
+                          : "ring-1 ring-[color:var(--pf-border)] hover:ring-[color:var(--pf-border-strong)]"
                       }`}
                       style={{ background: previewVariantSwatchStyle(i) }}
                       title={`Motiv ${i + 1}`}
@@ -656,51 +735,27 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                 </div>
               </div>
             </div>
+                </>
+            ) : null}
+            {rightTab === 1 ? (
+              <div className={cn(previewEndView && "pointer-events-none opacity-40")}>
+                <LayerManager
+                  editingTemplate={editingTemplate}
+                  selectedElementId={selectedElementId}
+                  onSelect={setSelectedElementId}
+                  onMove={moveElement}
+                  onDuplicate={duplicateElement}
+                  onDelete={deleteElement}
+                />
+              </div>
+            ) : null}
+            {rightTab === 2 ? (
+              <div className={cn(previewEndView && "pointer-events-none opacity-40")}>
+                <PropertiesPanel activeEl={activeEl} onUpdate={updateActiveElement} />
+              </div>
+            ) : null}
           </div>
-
-          {previewEndView ? (
-            <p className="shrink-0 rounded-xl bg-amber-50 px-4 py-3 text-center text-xs font-semibold text-amber-900 ring-1 ring-inset ring-amber-500/20">
-              Ebenen und Eigenschaften sind in der Vorschau pausiert – Endansicht ausschalten zum Bearbeiten.
-            </p>
-          ) : null}
-          <div
-            className={`flex min-h-0 flex-1 flex-col gap-4 ${previewEndView ? "pointer-events-none opacity-40" : ""}`}
-          >
-            <LayerManager
-              editingTemplate={editingTemplate}
-              selectedElementId={selectedElementId}
-              onSelect={setSelectedElementId}
-              onMove={moveElement}
-              onDuplicate={duplicateElement}
-              onDelete={deleteElement}
-            />
-            <PropertiesPanel activeEl={activeEl} onUpdate={updateActiveElement} />
-          </div>
-          </div>
-        </aside>
-
-        <section
-          className="order-2 flex min-h-[500px] min-w-0 flex-col lg:h-full lg:min-h-0"
-          aria-label="Vorlagen-Canvas"
-        >
-          <div className="flex min-h-0 flex-1 flex-col">
-          <CanvasViewport
-            editingTemplate={editingTemplate}
-            previewEndView={previewEndView}
-            previewMotifUrl={previewMotifUrl}
-            isSnapEnabled={isSnapEnabled}
-            setIsSnapEnabled={setIsSnapEnabled}
-            isGuideSnapEnabled={isGuideSnapEnabled}
-            setIsGuideSnapEnabled={setIsGuideSnapEnabled}
-            isDrawMode={isDrawMode}
-            setIsDrawMode={setIsDrawMode}
-            drawPoints={drawPoints}
-            setDrawPoints={setDrawPoints}
-            cursorPoint={cursorPoint}
-            setCursorPoint={setCursorPoint}
-          />
-          </div>
-        </section>
+        </div>
       </div>
     </div>
   );

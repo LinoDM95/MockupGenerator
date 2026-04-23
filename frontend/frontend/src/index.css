@@ -9,6 +9,93 @@
   --app-accent-from: #6366f1;
   --app-accent-via: #8b5cf6;
   --app-accent-to: #818cf8;
+  /* PrintFlow Redesign (Linear/Vercel-Nähe) — für Marketing/Auth-Utilities */
+  --app-bg-subtle: #fafafa;
+  --app-border: #e4e4e7;
+  --app-border-subtle: #ececef;
+  --app-fg: #09090b;
+  --app-fg-muted: #52525b;
+  --app-accent-solid: #4f46e5;
+}
+
+/* === PrintFlow UI-Prototyp (Mockupgenerator.zip / styles.css) — für 1:1 Shell & Panels === */
+:root {
+  --pf-bg: #ffffff;
+  --pf-bg-subtle: #fafafa;
+  --pf-bg-muted: #f4f4f5;
+  --pf-bg-elevated: #ffffff;
+  --pf-border: #e4e4e7;
+  --pf-border-strong: #d4d4d8;
+  --pf-border-subtle: #ececef;
+  --pf-fg: #09090b;
+  --pf-fg-muted: #52525b;
+  --pf-fg-subtle: #71717a;
+  --pf-fg-faint: #a1a1aa;
+  --pf-accent: #4f46e5;
+  --pf-accent-hover: #4338ca;
+  --pf-accent-fg: #ffffff;
+  --pf-accent-bg: #eef2ff;
+  --pf-accent-bg-strong: #e0e7ff;
+  --pf-accent-border: #c7d2fe;
+  --pf-success: #16a34a;
+  --pf-success-bg: #f0fdf4;
+  --pf-warning: #d97706;
+  --pf-warning-bg: #fffbeb;
+  --pf-danger: #dc2626;
+  --pf-danger-bg: #fef2f2;
+  --pf-radius: 8px;
+  --pf-radius-lg: 12px;
+  --pf-shadow-sm: 0 1px 2px 0 rgba(9, 9, 11, 0.04);
+}
+
+.dark {
+  --pf-bg: #09090b;
+  --pf-bg-subtle: #0a0a0c;
+  --pf-bg-muted: #131316;
+  --pf-bg-elevated: #17171a;
+  --pf-border: #27272a;
+  --pf-border-strong: #3f3f46;
+  --pf-border-subtle: #1f1f23;
+  --pf-fg: #fafafa;
+  --pf-fg-muted: #a1a1aa;
+  --pf-fg-subtle: #71717a;
+  --pf-fg-faint: #52525b;
+  --pf-accent: #818cf8;
+  --pf-accent-hover: #a5b4fc;
+  --pf-accent-fg: #0b0b10;
+  --pf-accent-bg: rgba(99, 102, 241, 0.12);
+  --pf-accent-bg-strong: rgba(99, 102, 241, 0.2);
+  --pf-accent-border: rgba(129, 140, 248, 0.3);
+  --pf-success: #4ade80;
+  --pf-success-bg: rgba(74, 222, 128, 0.1);
+  --pf-warning: #fbbf24;
+  --pf-warning-bg: rgba(251, 191, 36, 0.1);
+  --pf-danger: #f87171;
+  --pf-danger-bg: rgba(248, 113, 113, 0.1);
+}
+
+/*
+ * Raster-Hintergrund (Referenz: mockupgenerator styles.css .bg-grid)
+ * Nutzung: z. B. Landing/Auth mit bg-app-grid bg-app-grid-mask
+ */
+@layer utilities {
+  .bg-app-grid {
+    background-image:
+      linear-gradient(to right, var(--app-border-subtle) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--app-border-subtle) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  .bg-app-grid-mask {
+    mask-image: radial-gradient(ellipse at center, #000 40%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse at center, #000 40%, transparent 75%);
+  }
+}
+
+.dark .bg-app-grid {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
 }
 
 /*

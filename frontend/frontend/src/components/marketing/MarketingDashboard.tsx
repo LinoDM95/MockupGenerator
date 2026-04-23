@@ -36,7 +36,6 @@ import { toast } from "../../lib/ui/toast";
 import { useAppStore } from "../../store/appStore";
 import { Button } from "../ui/primitives/Button";
 import { Card } from "../ui/primitives/Card";
-import { AppPageSectionHeader } from "../ui/layout/AppPageSectionHeader";
 import { AppSubNavPageLayout } from "../ui/layout/AppSubNavPageLayout";
 import { Input } from "../ui/primitives/Input";
 import { Select } from "../ui/primitives/Select";
@@ -306,21 +305,11 @@ export const MarketingDashboard = () => {
   ).length;
 
   return (
-    <AppSubNavPageLayout
-      title="Verbreiten & Marketing"
-      description={
-        "Mockups nach R2 laden, optional per Webhook an Make.com anbinden, KI-Captions erzeugen und zu Pinterest posten. Pinterest zuerst unter Integrationen → Pinterest verknüpfen."
-      }
-    >
-      <div className="w-full min-w-0 space-y-8 pb-12">
-        <AppPageSectionHeader
-          icon={Megaphone}
-          title="Publikation & Pinterest"
-          description="Upload, Board, Warteschlange und Beiträge — Webhook und Make-Blueprint im linken Bereich."
-        />
-
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-5">
-          <div className="space-y-6 lg:col-span-3">
+    <AppSubNavPageLayout hideTitle title="Verbreiten & Marketing" description="">
+      <h1 className="sr-only">Verbreiten und Marketing</h1>
+      <div className="w-full min-w-0 space-y-6 pb-8">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
+          <div className="min-w-0 space-y-6">
           {!integrationFlagsLoading && !pinterestConnected ? (
             <IntegrationMissingCallout
               title="Pinterest ist nicht verbunden"
@@ -374,7 +363,7 @@ export const MarketingDashboard = () => {
             </div>
           </Card>
 
-          <Card padding="md">
+          <Card padding="md" variant="bordered">
             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
               Upload &amp; Board
             </p>
@@ -447,8 +436,8 @@ export const MarketingDashboard = () => {
           </Card>
         </div>
 
-        <div className="lg:col-span-2">
-          <Card padding="md" className="h-full">
+        <div className="min-w-0">
+          <Card padding="md" variant="bordered" className="h-full">
             <div className="mb-6 flex items-start justify-between gap-2">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
@@ -525,8 +514,8 @@ export const MarketingDashboard = () => {
       </div>
 
       {rows.length > 0 && (
-        <Card padding="none" className="overflow-hidden">
-          <div className="px-5 py-4 sm:px-6">
+        <Card padding="none" variant="bordered" className="overflow-hidden">
+          <div className="border-b border-zinc-200/80 px-5 py-4 dark:border-zinc-800/80 sm:px-6">
             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
               Tabelle
             </p>

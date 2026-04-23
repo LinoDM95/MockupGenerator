@@ -26,11 +26,7 @@ export const LayerManager = ({
   onDuplicate,
   onDelete,
 }: Props) => (
-  <div className="rounded-xl bg-slate-50/50 p-3 ring-1 ring-inset ring-slate-900/5">
-    <h3 className="mb-2 px-1 text-sm font-semibold text-slate-800">
-      Ebenen ({editingTemplate.elements.length})
-    </h3>
-    <div className="max-h-40 space-y-1 overflow-y-auto overflow-x-hidden">
+  <div className="max-h-48 space-y-1 overflow-y-auto overflow-x-hidden">
       <AnimatePresence initial={false} mode="popLayout">
         {[...editingTemplate.elements].reverse().map((el) => (
           <motion.div
@@ -50,10 +46,10 @@ export const LayerManager = ({
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") onSelect(el.id);
               }}
-              className={`group flex cursor-pointer items-center justify-between rounded-lg border p-2 text-xs transition-colors ${
+              className={`group flex cursor-pointer items-center justify-between rounded-[length:var(--pf-radius)] border p-2 text-xs font-medium transition-colors ${
                 selectedElementId === el.id
-                  ? "border-indigo-300 bg-indigo-50 font-semibold text-indigo-900"
-                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+                  ? "border-[color:var(--pf-accent-border)] bg-[color:var(--pf-accent-bg)] font-semibold text-[color:var(--pf-fg)]"
+                  : "border-[color:var(--pf-border)] bg-[color:var(--pf-bg-elevated)] text-[color:var(--pf-fg-muted)] hover:bg-[color:var(--pf-bg-muted)]"
               }`}
             >
               <div className="flex min-w-0 items-center gap-2 truncate">
@@ -68,7 +64,7 @@ export const LayerManager = ({
                     e.stopPropagation();
                     onMove(el.id, "up");
                   }}
-                  className="rounded p-0.5 transition-colors hover:text-indigo-600"
+                  className="rounded p-0.5 text-[color:var(--pf-fg-subtle)] transition-colors hover:text-[color:var(--pf-accent)]"
                 >
                   <ArrowUp size={14} strokeWidth={1.75} />
                 </button>
@@ -79,7 +75,7 @@ export const LayerManager = ({
                     e.stopPropagation();
                     onMove(el.id, "down");
                   }}
-                  className="rounded p-0.5 transition-colors hover:text-indigo-600"
+                  className="rounded p-0.5 text-[color:var(--pf-fg-subtle)] transition-colors hover:text-[color:var(--pf-accent)]"
                 >
                   <ArrowDown size={14} strokeWidth={1.75} />
                 </button>
@@ -90,7 +86,7 @@ export const LayerManager = ({
                     e.stopPropagation();
                     onDuplicate(el.id);
                   }}
-                  className="ml-1 rounded p-0.5 transition-colors hover:text-emerald-600"
+                  className="ml-1 rounded p-0.5 text-[color:var(--pf-fg-subtle)] transition-colors hover:text-emerald-600"
                 >
                   <Copy size={14} strokeWidth={1.75} />
                 </button>
@@ -101,7 +97,7 @@ export const LayerManager = ({
                     e.stopPropagation();
                     onDelete(el.id);
                   }}
-                  className="rounded p-0.5 transition-colors hover:text-red-500"
+                  className="rounded p-0.5 text-[color:var(--pf-fg-subtle)] transition-colors hover:text-[color:var(--pf-danger)]"
                 >
                   <Trash2 size={14} strokeWidth={1.75} />
                 </button>
@@ -110,6 +106,5 @@ export const LayerManager = ({
           </motion.div>
         ))}
       </AnimatePresence>
-    </div>
   </div>
 );

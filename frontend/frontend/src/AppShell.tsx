@@ -1,15 +1,25 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import { fetchCurrentUser } from "./api/auth";
 import { bootstrapCsrf } from "./api/client";
+import { PublishRouteOutlet } from "./components/shell/PublishRouteOutlet";
 import { prefetchAuthenticatedSession } from "./lib/sessionPrefetch";
 import { Toaster } from "./components/ui/overlay/Toaster.tsx";
 import { GlobalLegalFooter } from "./components/legal/GlobalLegalFooter.tsx";
 import { ColorSchemeProvider } from "./hooks/ColorSchemeProvider";
 import { useAppStore } from "./store/appStore";
 
-const App = lazy(() => import("./App.tsx"));
+const AuthenticatedApp = lazy(() => import("./components/shell/AuthenticatedApp.tsx"));
+const WorkspaceView = lazy(() =>
+  import("./components/views/WorkspaceView").then((m) => ({ default: m.WorkspaceView })),
+);
+const RoadmapView = lazy(() =>
+  import("./components/views/RoadmapView").then((m) => ({ default: m.RoadmapView })),
+);
+const IntegrationsView = lazy(() =>
+  import("./components/views/IntegrationsView").then((m) => ({ default: m.IntegrationsView })),
+);
 const AuthScreen = lazy(() =>
   import("./components/auth/AuthScreen.tsx").then((m) => ({ default: m.AuthScreen })),
 );
@@ -29,9 +39,15 @@ const PinterestCallbackPage = lazy(() =>
 const LandingPage = lazy(() =>
   import("./pages/LandingPage.tsx").then((m) => ({ default: m.LandingPage })),
 );
+const AccountPage = lazy(() =>
+  import("./pages/AccountPage.tsx").then((m) => ({ default: m.AccountPage })),
+);
+const FeedbackPage = lazy(() =>
+  import("./pages/FeedbackPage.tsx").then((m) => ({ default: m.FeedbackPage })),
+);
 
 const ShellRouteFallback = () => (
-  <div className="flex min-h-[50vh] items-center justify-center text-sm font-medium text-slate-500">
+  <div className="flex min-h-[50vh] items-center justify-center text-sm font-medium text-zinc-500">
     Laden…
   </div>
 );
@@ -63,9 +79,9 @@ export const AppShell = () => {
   return (
     <ColorSchemeProvider>
       <BrowserRouter>
-        <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
+        <div className="flex min-h-screen flex-col bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
           {!ready ? (
-            <div className="flex min-h-0 flex-1 items-center justify-center text-sm font-medium text-slate-500">
+            <div className="flex min-h-0 flex-1 items-center justify-center text-sm font-medium text-zinc-500">
               Laden…
             </div>
           ) : (
@@ -79,7 +95,28 @@ export const AppShell = () => {
                   <Route path="/login" element={<AuthScreen />} />
                   <Route path="/etsy/callback" element={<EtsyCallbackPage />} />
                   <Route path="/pinterest/callback" element={<PinterestCallbackPage />} />
-                  <Route path="/*" element={<App />} />
+                  <Route path="/app" element={<AuthenticatedApp />}>
+                    <Route index element={<Navigate to="erstellen/generator" replace />} />
+                    <Route path="erstellen/:tab" element={<WorkspaceView />} />
+                    <Route path="roadmap" element={<RoadmapView />} />
+                    <Route
+                      path="publizieren"
+                      element={<Navigate to="/app/publizieren/etsy" replace />}
+                    />
+                    <Route path="publizieren/:publishTab" element={<PublishRouteOutlet />} />
+                    <Route
+                      path="integrationen"
+                      element={<Navigate to="/app/integrationen/assistent" replace />}
+                    />
+                    <Route path="integrationen/:mode" element={<IntegrationsView />} />
+                    <Route path="konto" element={<AccountPage />} />
+                    <Route path="feedback" element={<FeedbackPage />} />
+                    <Route
+                      path="*"
+                      element={<Navigate to="/app/erstellen/generator" replace />}
+                    />
+                  </Route>
+                  <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </Suspense>
             </div>

@@ -468,12 +468,12 @@ const CanvasViewportInner = ({
       ref={viewportRootRef}
       onPointerMove={handleViewportPointerMove}
       onPointerLeave={handleViewportPointerLeave}
-      className={`relative flex h-full min-h-[500px] flex-col rounded-xl bg-slate-100 ring-1 ring-slate-900/10 ${
+      className={`relative flex h-full min-h-[500px] flex-1 flex-col bg-[color:var(--pf-bg-subtle)] ${
         allowFrameOuterShadowBleed ? "overflow-visible" : "overflow-hidden"
       }`}
     >
       {previewEndView && (
-        <div className="absolute top-3 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-medium text-slate-600 shadow-md ring-1 ring-slate-900/10">
+        <div className="absolute top-3 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full bg-[color:var(--pf-bg-elevated)] px-4 py-2 text-xs font-semibold text-[color:var(--pf-fg-muted)] shadow-[var(--pf-shadow-sm)] ring-1 ring-[color:var(--pf-border)]">
           <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" aria-hidden />
           Endansicht – wie exportiertes Foto (Ziehen zum Verschieben)
         </div>
@@ -490,41 +490,45 @@ const CanvasViewportInner = ({
         </div>
       )}
 
-      <div className="pointer-events-none absolute bottom-4 left-4 z-30 flex items-center justify-between rounded-lg bg-white p-1.5 shadow-md ring-1 ring-slate-900/10">
+      <div className="pointer-events-none absolute bottom-4 left-4 z-30 flex items-center justify-between rounded-[length:var(--pf-radius)] bg-[color:var(--pf-bg-elevated)] p-1.5 shadow-[var(--pf-shadow-sm)] ring-1 ring-[color:var(--pf-border)]">
         <div className="pointer-events-auto flex items-center gap-1">
           <button
             type="button"
             onClick={() => zoomByFactor(-1)}
-            className="rounded p-1.5 text-slate-600 hover:bg-slate-100"
+            className="rounded-md p-1.5 text-[color:var(--pf-fg-muted)] hover:bg-[color:var(--pf-bg-muted)]"
             title="Verkleinern"
           >
             −
           </button>
-          <div className="w-10 text-center text-xs font-medium text-slate-500">{Math.round(zoom * 100)}%</div>
+          <div className="w-10 text-center text-xs font-semibold text-[color:var(--pf-fg-subtle)]">
+            {Math.round(zoom * 100)}%
+          </div>
           <button
             type="button"
             onClick={() => zoomByFactor(1)}
-            className="rounded p-1.5 text-slate-600 hover:bg-slate-100"
+            className="rounded-md p-1.5 text-[color:var(--pf-fg-muted)] hover:bg-[color:var(--pf-bg-muted)]"
             title="Vergrößern"
           >
             +
           </button>
-          <div className="mx-1 h-4 w-px bg-slate-300" />
+          <div className="mx-1 h-4 w-px bg-[color:var(--pf-border)]" />
           <button
             type="button"
             onClick={centerCanvas}
-            className="rounded p-1.5 text-slate-600 hover:bg-slate-100"
+            className="rounded-md p-1.5 text-[color:var(--pf-fg-muted)] hover:bg-[color:var(--pf-bg-muted)]"
             title="Einpassen"
           >
             ⧉
           </button>
-          <div className="mx-1 h-4 w-px bg-slate-300" />
+          <div className="mx-1 h-4 w-px bg-[color:var(--pf-border)]" />
           <button
             type="button"
             onClick={() => setIsSnapEnabled((v) => !v)}
             disabled={previewEndView}
-            className={`rounded p-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-              isSnapEnabled ? "bg-indigo-100 text-indigo-700" : "text-slate-500 hover:bg-slate-100"
+            className={`rounded-md p-1.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+              isSnapEnabled
+                ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300"
+                : "text-[color:var(--pf-fg-muted)] hover:bg-[color:var(--pf-bg-muted)]"
             }`}
             title={
               previewEndView
@@ -540,8 +544,10 @@ const CanvasViewportInner = ({
             type="button"
             onClick={() => setIsGuideSnapEnabled((v) => !v)}
             disabled={previewEndView}
-            className={`rounded p-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-              isGuideSnapEnabled ? "bg-indigo-100 text-indigo-700" : "text-slate-500 hover:bg-slate-100"
+            className={`rounded-md p-1.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+              isGuideSnapEnabled
+                ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300"
+                : "text-[color:var(--pf-fg-muted)] hover:bg-[color:var(--pf-bg-muted)]"
             }`}
             title={
               previewEndView

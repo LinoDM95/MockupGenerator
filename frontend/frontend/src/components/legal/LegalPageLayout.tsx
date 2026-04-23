@@ -12,11 +12,11 @@ type Props = {
 };
 
 const readingProseClass = cn(
-  "text-sm font-medium leading-relaxed text-slate-700",
-  "[&_h2]:mt-0 [&_h2]:text-lg [&_h2]:font-bold [&_h2]:tracking-tight [&_h2]:text-slate-900",
+  "text-sm font-medium leading-relaxed text-zinc-700",
+  "[&_h2]:mt-0 [&_h2]:text-lg [&_h2]:font-bold [&_h2]:tracking-tight [&_h2]:text-zinc-900",
   "[&_a]:font-semibold [&_a]:text-indigo-600 [&_a]:underline [&_a]:decoration-indigo-600/30 [&_a]:underline-offset-2 hover:[&_a]:text-indigo-700 dark:[&_a]:text-indigo-400",
-  "[&_strong]:text-slate-900",
-  "[&_code]:rounded-md [&_code]:bg-slate-100/80 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-xs [&_code]:text-slate-800",
+  "[&_strong]:text-zinc-900",
+  "[&_code]:rounded-md [&_code]:bg-zinc-100/90 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-xs [&_code]:text-zinc-800",
 );
 
 export const LegalPageLayout = ({ title, children }: Props) => {
@@ -24,8 +24,8 @@ export const LegalPageLayout = ({ title, children }: Props) => {
   const showDevHint = import.meta.env.DEV && legalConfigLooksIncomplete(cfg);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-slate-50/50 font-sans text-slate-900">
-      <header className="sticky top-0 z-20 bg-white/80 shadow-sm ring-1 ring-slate-900/5 backdrop-blur-xl dark:bg-slate-100/78 dark:ring-white/10">
+    <div className="flex min-h-0 flex-1 flex-col bg-zinc-50 font-sans text-zinc-900">
+      <header className="sticky top-0 z-20 border-b border-zinc-200/80 bg-white/85 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-950/90">
         <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-3 px-4 sm:px-6">
           <Link
             to="/"
@@ -37,7 +37,7 @@ export const LegalPageLayout = ({ title, children }: Props) => {
           <div className="flex items-center gap-2">
             <Link
               to="/login"
-              className="hidden text-sm font-semibold text-slate-600 hover:text-indigo-600 dark:hover:text-indigo-400 sm:inline"
+              className="hidden text-sm font-semibold text-zinc-600 hover:text-indigo-600 dark:hover:text-indigo-400 sm:inline"
             >
               Anmelden
             </Link>
@@ -47,10 +47,10 @@ export const LegalPageLayout = ({ title, children }: Props) => {
       </header>
 
       <main className="mx-auto flex w-full min-w-0 max-w-3xl flex-1 flex-col px-4 py-12 sm:px-6 sm:py-16">
-        <p className="text-center text-[10px] font-bold uppercase tracking-widest text-slate-500">
+        <p className="text-center text-[10px] font-bold uppercase tracking-widest text-zinc-500">
           Rechtliches · {cfg.appName}
         </p>
-        <h1 className="mt-3 text-center text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+        <h1 className="mt-3 text-center text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">
           {title}
         </h1>
 
@@ -73,7 +73,7 @@ export const LegalPageLayout = ({ title, children }: Props) => {
 
         <div
           className={cn(
-            "mx-auto mt-10 w-full max-w-3xl rounded-2xl bg-white/80 p-6 shadow-sm ring-1 ring-slate-900/5 backdrop-blur-xl dark:bg-slate-100/82 dark:ring-white/10 sm:p-10",
+            "mx-auto mt-10 w-full max-w-3xl rounded-2xl border border-zinc-200/80 bg-white p-6 shadow-[0_1px_2px_0_rgb(9,9,11,0.04)] dark:border-zinc-800 dark:bg-zinc-950 sm:p-10",
           )}
         >
           <div

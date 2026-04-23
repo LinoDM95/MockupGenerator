@@ -1,9 +1,10 @@
 import { Compass, Info, Layers, Megaphone, Rocket, Sparkles, Store } from "lucide-react";
 
+import { cn } from "../../lib/ui/cn";
+import { WORKSPACE_PANEL_SURFACE, WORKSPACE_ZINC_MUTED } from "../../lib/ui/workspaceSurfaces";
 import { AppPage } from "../ui/layout/AppPage";
 import { AppPageSectionHeader } from "../ui/layout/AppPageSectionHeader";
 import { AppSubNavPageLayout } from "../ui/layout/AppSubNavPageLayout";
-import { Card } from "../ui/primitives/Card";
 
 type RoadmapItem = {
   title: string;
@@ -73,19 +74,33 @@ export const RoadmapView = () => (
             const ItemIcon = item.icon;
             return (
             <li key={item.title}>
-              <Card padding="md" className="h-full">
+              <div
+                className={cn(
+                  "flex h-full min-h-0 flex-col p-5",
+                  WORKSPACE_PANEL_SURFACE,
+                )}
+              >
                 <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 ring-1 ring-inset ring-indigo-500/15">
+                  <div
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[length:var(--pf-radius)] bg-[color:var(--pf-accent-bg)] text-[color:var(--pf-accent)] ring-1 ring-[color:var(--pf-accent-border)]"
+                  >
                     <ItemIcon size={20} strokeWidth={1.75} aria-hidden />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-base font-bold tracking-tight text-slate-900">{item.title}</h3>
-                    <p className="mt-2 text-sm font-medium leading-relaxed text-slate-600">
+                    <h3 className="text-base font-bold tracking-tight text-[color:var(--pf-fg)]">
+                      {item.title}
+                    </h3>
+                    <p
+                      className={cn(
+                        "mt-2 text-sm font-medium leading-relaxed",
+                        WORKSPACE_ZINC_MUTED,
+                      )}
+                    >
                       {item.description}
                     </p>
                   </div>
                 </div>
-              </Card>
+              </div>
             </li>
             );
           })}
@@ -106,19 +121,33 @@ export const RoadmapView = () => (
             const ItemIcon = item.icon;
             return (
             <li key={item.title}>
-              <Card padding="md" className="h-full">
+              <div
+                className={cn(
+                  "flex h-full min-h-0 flex-col p-5",
+                  WORKSPACE_PANEL_SURFACE,
+                )}
+              >
                 <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-900/5">
+                  <div
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[length:var(--pf-radius)] bg-[color:var(--pf-bg-muted)] text-[color:var(--pf-fg-muted)] ring-1 ring-inset ring-[color:var(--pf-border-subtle)]"
+                  >
                     <ItemIcon size={20} strokeWidth={1.75} aria-hidden />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-base font-bold tracking-tight text-slate-900">{item.title}</h3>
-                    <p className="mt-2 text-sm font-medium leading-relaxed text-slate-600">
+                    <h3 className="text-base font-bold tracking-tight text-[color:var(--pf-fg)]">
+                      {item.title}
+                    </h3>
+                    <p
+                      className={cn(
+                        "mt-2 text-sm font-medium leading-relaxed",
+                        WORKSPACE_ZINC_MUTED,
+                      )}
+                    >
                       {item.description}
                     </p>
                   </div>
                 </div>
-              </Card>
+              </div>
             </li>
             );
           })}

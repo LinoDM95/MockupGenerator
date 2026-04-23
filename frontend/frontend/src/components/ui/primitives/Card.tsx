@@ -28,8 +28,9 @@ type Props = DivProps & {
    * `default` / `accent`: helle Kachel auf dem Seitengrund.
    * `embedded`: sekundäre Fläche (z. B. linke Sidebar) — leicht getönt, Inset-Ring,
    * damit sie sich von den weißen Inhaltskarten (Motive, Dropzone) abhebt.
+   * `bordered`: 1px-Rahmen (PrintFlow-Redesign / dichtere Oberflächen).
    */
-  variant?: "default" | "accent" | "embedded";
+  variant?: "default" | "accent" | "embedded" | "bordered";
   interactive?: boolean;
 };
 
@@ -44,6 +45,9 @@ const variantClass: Record<NonNullable<Props["variant"]>, string> = {
   default: cn("relative rounded-2xl border border-transparent", cardSurfaceElevationDefault),
   accent: cn("relative rounded-[2rem] border border-transparent", cardSurfaceElevationAccent),
   embedded: workspaceEmbeddedCardClassName,
+  bordered: cn(
+    "relative rounded-xl border border-zinc-200 bg-white shadow-[0_1px_2px_0_rgb(9,9,11,0.04)] dark:border-zinc-800 dark:bg-zinc-950",
+  ),
 };
 
 export const Card = ({
@@ -64,7 +68,9 @@ export const Card = ({
       ? cardHoverShadowAccent
       : variant === "embedded"
         ? "0 4px 14px rgb(0,0,0,0.05)"
-        : cardHoverShadowDefault;
+        : variant === "bordered"
+          ? "0 4px 6px -1px rgb(9,9,11,0.05)"
+          : cardHoverShadowDefault;
 
   if (isInteractive) {
     return (
@@ -82,7 +88,9 @@ export const Card = ({
         className={cn(
           surface,
           pad[padding],
-          "cursor-pointer transition-colors hover:border-indigo-200",
+          variant === "bordered"
+            ? "cursor-pointer transition-colors hover:border-zinc-300 dark:hover:border-zinc-600"
+            : "cursor-pointer transition-colors hover:border-indigo-200",
           className,
         )}
         {...rest}

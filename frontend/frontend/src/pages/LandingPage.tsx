@@ -108,9 +108,13 @@ const secondaryCtaClass =
 const Hero = () => {
   const reduceMotion = useReducedMotion();
   return (
-  <section className="relative overflow-hidden bg-slate-50 pb-16 pt-24 sm:pb-20 sm:pt-28 md:pb-24 md:pt-32">
+  <section className="relative overflow-hidden bg-[color:var(--pf-bg-subtle)] pb-16 pt-24 sm:pb-20 sm:pt-28 md:pb-24 md:pt-32">
     {/* Neues animiertes Grid mit weicher Kante (radial-gradient) */}
     <AnimatedGridBackground width={40} height={40} numSquares={40} className={animatedGridHeroSurfaceClassName} />
+    <div
+      className="pointer-events-none absolute inset-0 z-[1] bg-app-grid bg-app-grid-mask opacity-[0.35]"
+      aria-hidden
+    />
     <div className="pointer-events-none absolute left-1/2 top-0 -z-10 h-[800px] w-[800px] -translate-x-1/2 -translate-y-[30%] rounded-full bg-indigo-500/15 blur-[120px] mix-blend-multiply" />
 
     <div className="relative z-10 mx-auto max-w-5xl px-3 text-center sm:px-6 lg:px-8">
@@ -119,7 +123,7 @@ const Hero = () => {
           initial={{ opacity: 0, y: reduceMotion ? 0 : 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: reduceMotion ? 0.2 : 0.7, delay: reduceMotion ? 0 : 0.1 }}
-          className="text-[2rem] font-bold leading-[1.08] tracking-tighter text-slate-900 sm:text-4xl sm:leading-[1.06] md:text-5xl md:leading-[1.05] lg:text-6xl xl:text-7xl 2xl:text-[5.5rem]"
+          className="text-[2rem] font-bold leading-[1.08] tracking-tighter text-[color:var(--pf-fg)] sm:text-4xl sm:leading-[1.06] md:text-5xl md:leading-[1.05] lg:text-6xl xl:text-7xl 2xl:text-[5.5rem]"
         >
           Die komplette Print-Pipeline.
           <br />
@@ -132,7 +136,7 @@ const Hero = () => {
           initial={{ opacity: 0, y: reduceMotion ? 0 : 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: reduceMotion ? 0.2 : 0.6, delay: reduceMotion ? 0 : 0.25 }}
-          className="mx-auto mt-6 max-w-2xl text-base font-medium leading-relaxed text-slate-500 sm:mt-8 sm:text-lg md:text-xl"
+          className="mx-auto mt-6 max-w-2xl text-base font-medium leading-relaxed text-[color:var(--pf-fg-muted)] sm:mt-8 sm:text-lg md:text-xl"
         >
           Vorlagen anlegen, Mockups rendern, KI-Texte generieren und direkt als Etsy-Entwurf
           veröffentlichen. Ein nahtloser Ablauf mit PrintFlow.
@@ -142,7 +146,7 @@ const Hero = () => {
           initial={{ opacity: 0, y: reduceMotion ? 0 : 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: reduceMotion ? 0.2 : 0.55, delay: reduceMotion ? 0 : 0.35 }}
-          className="relative mx-auto mt-6 max-w-2xl rounded-2xl border border-slate-200/60 bg-white/70 px-3 py-3.5 text-left shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 backdrop-blur-md sm:mt-8 sm:px-6 sm:py-5"
+          className="relative mx-auto mt-6 max-w-2xl rounded-[length:var(--pf-radius-lg)] border border-[color:var(--pf-border)] bg-[color:var(--pf-bg-elevated)]/95 px-3 py-3.5 text-left shadow-[var(--pf-shadow-sm)] ring-1 ring-[color:var(--pf-border-subtle)] backdrop-blur-sm sm:mt-8 sm:px-6 sm:py-5"
         >
           <div
             className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-slate-900/5"

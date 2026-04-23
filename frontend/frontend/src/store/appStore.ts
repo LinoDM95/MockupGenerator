@@ -1,11 +1,19 @@
 import { create } from "zustand";
 
 import { isIntegrationHubUiEnabled, type HubTabId } from "../lib/common/integrationAvailability";
+import {
+  appNavigateTo,
+  integrationsUrlSegmentFromMode,
+  workspaceUrlSegmentFromTab,
+} from "../lib/appNavigation";
 import { toast } from "../lib/ui/toast";
 import type { ArtworkItem, Template, TemplateSet } from "../types/mockup";
 
-/** Hauptnavigation (Header): weniger Einträge, mehr Struktur. */
-export type AppTab = "workspace" | "roadmap" | "integrations";
+/** Hauptnavigation (Sidebar): Erstellen, Publizieren, Roadmap, Integrationen. */
+export type AppTab = "workspace" | "roadmap" | "integrations" | "publish";
+
+/** Unterbereich „Publizieren“ (Sidebar). */
+export type PublishTab = "etsy" | "marketing" | "automation";
 
 /** Unter-Tabs im Bereich „Erstellen“. */
 export type WorkspaceTab = "generator" | "templates" | "upscaler";
@@ -41,6 +49,9 @@ interface AppState {
   workspaceTab: WorkspaceTab;
   setWorkspaceTab: (t: WorkspaceTab) => void;
 
+  publishTab: PublishTab | null;
+  setPublishTab: (t: PublishTab | null) => void;
+
   /** Einmaliges Ziel im Setup Hub (wird nach Anzeige zurückgesetzt). */
   integrationHubSection: IntegrationHubSection | null;
   setIntegrationHubSection: (s: IntegrationHubSection | null) => void;
@@ -61,6 +72,8 @@ interface AppState {
 
   /** Erstellen-Bereich inkl. Unter-Tab (z. B. von Etsy-Integration zu Listings). */
   goToWorkspace: (tab: WorkspaceTab) => void;
+
+  goToRoadmap: () => void;
 
   templateSets: TemplateSet[];
   setTemplateSets: (sets: TemplateSet[]) => void;
@@ -126,10 +139,29 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   activeTab: "workspace",
-  setActiveTab: (t) => set({ activeTab: t }),
+  setActiveTab: (t) => {
+    const s = get();
+    if (t === "workspace") {
+      appNavigateTo(`/app/erstellen/${workspaceUrlSegmentFromTab(s.workspaceTab)}`);
+      set({ activeTab: "workspace", publishTab: null });
+    } else if (t === "roadmap") {
+      appNavigateTo("/app/roadmap");
+      set({ activeTab: "roadmap", publishTab: null });
+    } else if (t === "integrations") {
+      appNavigateTo(`/app/integrationen/${integrationsUrlSegmentFromMode(s.integrationsPanelMode)}`);
+      set({ activeTab: "integrations", publishTab: null });
+    } else if (t === "publish") {
+      const pt = s.publishTab ?? "etsy";
+      appNavigateTo(`/app/publizieren/${pt}`);
+      set({ activeTab: "publish", publishTab: pt });
+    }
+  },
 
   workspaceTab: "generator",
   setWorkspaceTab: (t) => set({ workspaceTab: t }),
+
+  publishTab: null,
+  setPublishTab: (t) => set({ publishTab: t }),
 
   integrationHubSection: null,
   setIntegrationHubSection: (s) => set({ integrationHubSection: s }),
@@ -143,30 +175,44 @@ export const useAppStore = create<AppState>((set, get) => ({
   goToIntegration: (section) => {
     if (!isIntegrationHubUiEnabled(section)) {
       toast.info("Diese Integration ist derzeit noch nicht freigeschaltet.");
+      appNavigateTo("/app/integrationen/alle");
       set({
         activeTab: "integrations",
         integrationsPanelMode: "all",
         integrationHubSection: null,
+        publishTab: null,
       });
       return;
     }
+    appNavigateTo("/app/integrationen/alle");
     set({
       activeTab: "integrations",
       integrationsPanelMode: "all",
       integrationHubSection: section,
+      publishTab: null,
     });
   },
 
-  goToIntegrationWizardStep: (step) =>
+  goToIntegrationWizardStep: (step) => {
+    appNavigateTo("/app/integrationen/assistent");
     set({
       activeTab: "integrations",
       integrationsPanelMode: "wizard",
       integrationWizardInitialStep: step,
       integrationHubSection: null,
-    }),
+      publishTab: null,
+    });
+  },
 
-  goToWorkspace: (tab) =>
-    set({ activeTab: "workspace", workspaceTab: tab }),
+  goToWorkspace: (tab) => {
+    appNavigateTo(`/app/erstellen/${workspaceUrlSegmentFromTab(tab)}`);
+    set({ activeTab: "workspace", workspaceTab: tab, publishTab: null });
+  },
+
+  goToRoadmap: () => {
+    appNavigateTo("/app/roadmap");
+    set({ activeTab: "roadmap", publishTab: null });
+  },
 
   templateSets: [],
   setTemplateSets: (sets) => set({ templateSets: sets }),

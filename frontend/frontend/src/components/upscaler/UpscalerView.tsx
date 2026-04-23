@@ -6,8 +6,9 @@ import {
   Copy,
   Download,
   Loader2,
-  Maximize,
+  Plus,
   Settings,
+  Sparkles,
   Trash2,
 } from "lucide-react";
 import {
@@ -53,10 +54,9 @@ import {
   PRINTFLOW_ENGINE_EXE_FILENAME,
 } from "../../lib/companion/localEngine";
 import {
-  workspaceEmbeddedPaddedClassName,
+  WORKSPACE_PANEL_TITLE,
   workspaceEmbeddedPanelClassName,
 } from "../../lib/ui/workspaceSurfaces";
-import { UPSCALE_MAX_OUTPUT_PIXELS } from "../../lib/upscaler/upscaleMaxOutputPixels";
 import {
   formatReplicateSessionEta,
   maxReplicateParallelWorkers,
@@ -65,35 +65,25 @@ import { formatUpscaleUserMessage } from "../../lib/upscaler/upscaleUserMessage"
 import { toast } from "../../lib/ui/toast";
 import { useAppStore } from "../../store/appStore";
 import { AppPage } from "../ui/layout/AppPage";
-import { AppPageSectionHeader } from "../ui/layout/AppPageSectionHeader";
 import { Button } from "../ui/primitives/Button";
-import { Card } from "../ui/primitives/Card";
 import { Select } from "../ui/primitives/Select";
 import { IntegrationMissingCallout } from "../ui/patterns/IntegrationMissingCallout";
 import { LoadingOverlay } from "../ui/LoadingOverlay";
-import {
-  UploadQueueCard,
-  UploadQueueCardFooter,
-  UploadQueueCardIndexBadge,
-  UploadQueueCardMedia,
-  UploadQueueCardRemoveButton,
-  UploadQueueGrid,
-  UploadQueueMotionItem,
-} from "../ui/patterns/UploadQueueGrid";
-import { WorkspaceEngineSplitLayout } from "../ui/layout/WorkspaceEngineSplitLayout";
+import { UploadQueueInitialDropzone } from "../ui/patterns/UploadQueueGrid";
+import { WorkspacePanelCard } from "../ui/layout/WorkspacePanelCard";
 import { WorkSessionShell } from "../ui/workSession/WorkSessionShell";
+import { UpscalerQueueTable } from "./UpscalerQueueTable";
+
+/**
+ * Replicate im Upscaler: Karte bleibt sichtbar, ist aber nicht wählbar.
+ * Auf `true` setzen, wenn Replicate wieder angeboten werden soll.
+ */
+const UPSCALER_REPLICATE_SELECTABLE = false;
 
 /** Cloud (Replicate): konservativ wegen API-Kosten/Quota. */
 const MAX_BATCH_FILES_CLOUD = 15;
 /** PrintFlow Engine (lokal): mehr Motive pro Durchgang. */
 const MAX_BATCH_FILES_LOCAL = 50;
-
-const UPSCALER_HERO_CHOICE_DESCRIPTION =
-  "Wähle zuerst, wo skaliert wird — im nächsten Schritt legst du deine Motive in der Dropzone ab und stellst die Optionen dazu ein.";
-
-const UPSCALER_STEP_CONFIG_DESCRIPTION = PRINTFLOW_LOCAL_STACK_ENABLED
-  ? "Motive per Dropzone hinzufügen; links die passenden Einstellungen (Vertex, Replicate oder PrintFlow Engine)."
-  : "Motive per Dropzone hinzufügen; links die passenden Einstellungen (Vertex oder Replicate).";
 
 type UpscalerEngineMode = "vertex" | "replicate" | "local";
 
@@ -120,17 +110,8 @@ type BatchItem = {
   errorMessage?: string;
 };
 
-/** Faktor-Buttons in der UI (2× und Zielauflösung vorübergehend ausgeblendet). */
-const UPSCALE_FACTOR_UI_OPTIONS: readonly UpscaleTotalFactor[] = [4, 8, 16];
-
-const computeNeedsTiling = (it: BatchItem, factor: UpscaleTotalFactor): boolean => {
-  const ow = it.originalWidth;
-  const oh = it.originalHeight;
-  if (!ow || !oh) return false;
-  const tw = ow * factor;
-  const th = oh * factor;
-  return tw * th > UPSCALE_MAX_OUTPUT_PIXELS;
-};
+/** Faktor-Segmentkontrolle (Mockup: 2× / 4× / 8×). */
+const UPSCALE_FACTOR_UI_OPTIONS: readonly UpscaleTotalFactor[] = [2, 4, 8];
 
 const nextId = (): string =>
   typeof crypto !== "undefined" && crypto.randomUUID
@@ -174,6 +155,7 @@ export const UpscalerView = () => {
   const [sessionEtaLabel, setSessionEtaLabel] = useState<string | null>(null);
   const cancelRequestedRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const newJobFileInputRef = useRef<HTMLInputElement>(null);
 
   const [items, setItems] = useState<BatchItem[]>([]);
   const [factor, setFactor] = useState<UpscaleTotalFactor>(4);
@@ -203,6 +185,12 @@ export const UpscalerView = () => {
     }
   }, []);
 
+  useEffect(() => {
+    if (!UPSCALER_REPLICATE_SELECTABLE) {
+      setEngineMode((m) => (m === "replicate" ? "vertex" : m));
+    }
+  }, []);
+
   const isCloudEngine =
     engineMode === "vertex" || engineMode === "replicate";
   const selectedCloudReady =
@@ -211,10 +199,6 @@ export const UpscalerView = () => {
       : engineMode === "replicate"
         ? replicateUpscaleReady
         : null;
-
-  useEffect(() => {
-    if (factor === 2) setFactor(4);
-  }, [factor]);
 
   /** Einstellungen für PrintFlow Engine (lokal) — Standard eingeklappt. */
   const [localCompanionOpen, setLocalCompanionOpen] = useState(false);
@@ -914,19 +898,25 @@ export const UpscalerView = () => {
     [items],
   );
 
+  const queueSubtitle = useMemo(() => {
+    const jobCountLabel = `${items.length} Job${items.length === 1 ? "" : "s"}`;
+    if (engineMode === "vertex") {
+      return `Vertex AI — dein BYOK-Key · ${jobCountLabel}`;
+    }
+    if (engineMode === "replicate") {
+      return `Replicate (Cloud) · ${jobCountLabel}`;
+    }
+    return `PrintFlow Engine (lokal) · ${jobCountLabel}`;
+  }, [items.length, engineMode]);
+
   // ── Leer, noch keine Engine: nur große Auswahl (keine Dropzone) ──
   if (items.length === 0 && !engineChoiceConfirmed) {
     return (
       <AppPage>
-        <div className="space-y-6">
-          <AppPageSectionHeader
-            align="centerSm"
-            icon={Maximize}
-            title="KI Upscaler"
-            description={UPSCALER_HERO_CHOICE_DESCRIPTION}
-          />
+        <div className="space-y-4">
+          <h1 className="sr-only">KI Upscaler</h1>
           <div className="w-full min-w-0">
-            <div className="mx-auto w-full max-w-5xl rounded-2xl bg-slate-50/80 p-5 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 sm:p-8 lg:min-h-[min(32rem,70dvh)] lg:px-10 lg:py-12">
+            <div className="mx-auto w-full max-w-5xl rounded-[length:var(--pf-radius-lg)] border border-[color:var(--pf-border)] bg-[color:var(--pf-bg-elevated)] p-5 shadow-[var(--pf-shadow-sm)] sm:p-8 lg:min-h-[min(32rem,70dvh)] lg:px-10 lg:py-12">
               <p className="text-center text-[10px] font-bold uppercase tracking-widest text-slate-500">
                 Schritt 1
               </p>
@@ -963,18 +953,50 @@ export const UpscalerView = () => {
                   </button>
                   <button
                     type="button"
+                    disabled={!UPSCALER_REPLICATE_SELECTABLE}
+                    title={
+                      UPSCALER_REPLICATE_SELECTABLE
+                        ? undefined
+                        : "Replicate ist im Upscaler vorübergehend deaktiviert."
+                    }
+                    aria-disabled={!UPSCALER_REPLICATE_SELECTABLE}
                     onClick={() => {
+                      if (!UPSCALER_REPLICATE_SELECTABLE) return;
                       setEngineMode("replicate");
                       setEngineChoiceConfirmed(true);
                     }}
-                    className="flex min-h-[9.5rem] flex-col justify-between rounded-2xl bg-white p-6 text-left shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 transition-all hover:ring-indigo-500/20 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] sm:p-7"
+                    className={cn(
+                      "flex min-h-[9.5rem] flex-col justify-between rounded-2xl p-6 text-left sm:p-7",
+                      UPSCALER_REPLICATE_SELECTABLE
+                        ? "bg-white shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 transition-all hover:ring-indigo-500/20 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)]"
+                        : "cursor-not-allowed bg-slate-100/90 opacity-70 shadow-none ring-1 ring-slate-900/10 saturate-50",
+                    )}
                   >
-                    <p className="text-base font-bold tracking-tight text-slate-900 sm:text-lg">
+                    <p
+                      className={cn(
+                        "text-base font-bold tracking-tight sm:text-lg",
+                        UPSCALER_REPLICATE_SELECTABLE
+                          ? "text-slate-900"
+                          : "text-slate-500",
+                      )}
+                    >
                       Replicate (Cloud)
                     </p>
-                    <p className="mt-3 text-sm font-medium leading-relaxed text-slate-600">
+                    <p
+                      className={cn(
+                        "mt-3 text-sm font-medium leading-relaxed",
+                        UPSCALER_REPLICATE_SELECTABLE
+                          ? "text-slate-600"
+                          : "text-slate-500",
+                      )}
+                    >
                       Real-ESRGAN, Token auf dem Server
                     </p>
+                    {!UPSCALER_REPLICATE_SELECTABLE ? (
+                      <p className="mt-3 text-xs font-semibold text-slate-500">
+                        Vorübergehend nicht verfügbar
+                      </p>
+                    ) : null}
                   </button>
                   {PRINTFLOW_LOCAL_STACK_ENABLED ? (
                     <button
@@ -996,7 +1018,8 @@ export const UpscalerView = () => {
                 </div>
               </fieldset>
             </div>
-            {(vertexUpscaleReady === null || replicateUpscaleReady === null) ? (
+            {(vertexUpscaleReady === null ||
+              (UPSCALER_REPLICATE_SELECTABLE && replicateUpscaleReady === null)) ? (
               <div
                 role="status"
                 className="mx-auto mt-4 flex max-w-5xl items-start gap-3 rounded-xl bg-slate-50 px-4 py-4 text-sm font-medium text-slate-600 ring-1 ring-inset ring-slate-900/5"
@@ -1012,291 +1035,6 @@ export const UpscalerView = () => {
             ) : null}
           </div>
         </div>
-      </AppPage>
-    );
-  }
-
-  // ── Leer, Engine bestätigt: Einstellungen links, Dropzone rechts (wie Generator) ──
-  if (items.length === 0) {
-    return (
-      <AppPage>
-      <div className="space-y-6">
-        <AppPageSectionHeader
-          align="centerSm"
-          icon={Maximize}
-          title="KI Upscaler"
-          description={UPSCALER_STEP_CONFIG_DESCRIPTION}
-        />
-
-        <WorkspaceEngineSplitLayout
-          variant="queue"
-          narrowPrimary
-          primaryAriaLabel="Upscaling-Einstellungen"
-          secondaryAriaLabel="Motive hochladen"
-          primary={
-            <div className="relative">
-              <Button
-                type="button"
-                variant="ghost"
-                className="mb-1 w-full justify-start gap-1.5 px-0 text-slate-600 hover:bg-transparent hover:text-slate-900"
-                onClick={() => setEngineChoiceConfirmed(false)}
-                aria-label="Zurueck zur Engine-Auswahl"
-              >
-                <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
-                Andere Engine
-              </Button>
-              <LoadingOverlay
-                show={
-                  engineMode === "local" &&
-                  isOnline &&
-                  (installingModelId !== null || uninstallingModelId !== null)
-                }
-                fullScreen={false}
-                message={
-                  uninstallingModelId
-                    ? "Modell wird entfernt …"
-                    : installingModelId
-                      ? "Modell wird installiert …"
-                      : undefined
-                }
-              />
-            <div className={workspaceEmbeddedPaddedClassName}>
-              <div className="border-b border-slate-100 pb-4" aria-label="Aktive Engine (ohne Umschaltung)">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                  Aktive Engine
-                </p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">
-                  {labelForEngineMode(engineMode)}
-                </p>
-              </div>
-              {engineMode === "local" && isOnline ? (
-                <div className="mt-4 border-t border-slate-100 pt-4">
-                  {canRunLocalUpscale ? (
-                    <p className="mb-4 text-xs font-medium text-emerald-800">
-                      Aktives Modell bereit — du kannst hochskalieren.
-                    </p>
-                  ) : null}
-                  <button
-                    type="button"
-                    id="upscaler-local-companion-toggle-empty"
-                    aria-expanded={localCompanionOpen}
-                    aria-controls="upscaler-local-companion-panel-empty"
-                    onClick={() => setLocalCompanionOpen((o) => !o)}
-                    className="flex w-full items-center justify-between gap-2 rounded-lg py-1 text-left text-sm font-semibold text-slate-900 transition-colors hover:text-indigo-700"
-                  >
-                    <span>Lokale KI — PrintFlow Engine</span>
-                    <ChevronDown
-                      className={cn(
-                        "h-4 w-4 shrink-0 text-slate-500 transition-transform duration-200",
-                        localCompanionOpen && "rotate-180",
-                      )}
-                      aria-hidden
-                    />
-                  </button>
-                  {localCompanionOpen ? (
-                    <div
-                      id="upscaler-local-companion-panel-empty"
-                      className="mt-4 space-y-4"
-                      role="region"
-                      aria-labelledby="upscaler-local-companion-toggle-empty"
-                    >
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                          PrintFlow Engine
-                        </span>
-                        {isChecking ? (
-                          <span className="text-xs font-medium text-slate-500">
-                            Pruefe …
-                          </span>
-                        ) : isOnline ? (
-                          <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-emerald-700 ring-1 ring-emerald-500/20">
-                            Online
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-slate-600 ring-1 ring-slate-900/10">
-                            Offline
-                          </span>
-                        )}
-                      </div>
-                      {!isOutdated ? (
-                        <CompanionLocalModelsPanel
-                          catalog={catalog}
-                          installedModelIds={installedModelIds}
-                          activeModelId={activeModelId}
-                          vulkanRuntimeInstalled={vulkanRuntimeInstalled}
-                          installingModelId={installingModelId}
-                          uninstallingModelId={uninstallingModelId}
-                          onInstall={(id) => void handleInstallCompanionModel(id)}
-                          onUninstall={(id) => void handleUninstallCompanionModel(id)}
-                          onSelectActive={(id) =>
-                            void handleSelectCompanionActiveModel(id)
-                          }
-                          onUninstallVulkan={() => void handleUninstallVulkanRuntime()}
-                        />
-                      ) : null}
-                      {isOutdated ? (
-                        <CompanionEngineOutdatedCallout
-                          engineVersion={engineVersion}
-                        />
-                      ) : null}
-                      {!isOutdated && !isChecking ? (
-                        <div className="space-y-2">
-                          <Select
-                            label="Parallele Kacheln (lokal)"
-                            name="companion-parallel-tiles-empty"
-                            value={parallelTiles}
-                            onChange={(e) =>
-                              setParallelTiles(
-                                e.target.value as ParallelTilesOption,
-                              )
-                            }
-                            aria-label="Parallele Kacheln fuer lokales Upscaling"
-                          >
-                            <option value="1">1 (sequenziell)</option>
-                            <option value="2">2</option>
-                            <option value="auto">Auto (konservativ)</option>
-                          </Select>
-                          <p className="text-xs font-medium leading-relaxed text-slate-500">
-                            Lokale KI-Nutzung: Automatisch parallelisiert
-                            (Standard „Auto“).
-                          </p>
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-
-              <div className="mt-4 border-t border-slate-100 pt-4">
-                <p className="mb-2 text-xs font-medium text-slate-500">
-                  Skalierung (fuer alle Dateien)
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {UPSCALE_FACTOR_UI_OPTIONS.map((f) => (
-                    <button
-                      key={f}
-                      type="button"
-                      onClick={() => setFactor(f)}
-                      className={cn(
-                        "rounded-xl px-4 py-2.5 text-sm font-semibold shadow-[0_2px_8px_rgb(0,0,0,0.04)] transition-all duration-200 ring-1",
-                        factor === f
-                          ? "bg-indigo-50 text-indigo-700 ring-indigo-500/25"
-                          : "bg-white text-slate-600 ring-slate-900/5 hover:bg-slate-50",
-                      )}
-                    >
-                      {f}×
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-4 border-t border-slate-100 pt-4">
-                <Button
-                  onClick={() => void handleBatchUpscale()}
-                  className="w-full"
-                  disabled={
-                    isProcessing ||
-                    upscaleQueueCount === 0 ||
-                    (isCloudEngine && selectedCloudReady !== true) ||
-                    (engineMode === "local" &&
-                      (!canRunLocalUpscale ||
-                        isChecking ||
-                        installingModelId !== null ||
-                        uninstallingModelId !== null))
-                  }
-                >
-                  <Maximize size={16} aria-hidden />
-                  Upscale starten
-                </Button>
-                <p className="mt-2 text-xs font-medium text-slate-500">
-                  Fuege zuerst Motive in der Dropzone ein — der Start-Button
-                  aktiviert sich danach.
-                </p>
-              </div>
-            </div>
-
-            {engineMode === "local" && !isOnline && !isChecking ? (
-              <div className="space-y-3">
-                <IntegrationMissingCallout
-                  variant="slate"
-                  title="PrintFlow Engine nicht gefunden"
-                  description="Um deine eigene Grafikkarte kostenlos zu nutzen, lade PrintFlow Engine (Windows) herunter. Führe PrintFlowEngine.exe nach dem Download einmalig aus."
-                  actionLabel="PrintFlow Engine herunterladen (ca. 25 MB)"
-                  href={PRINTFLOW_ENGINE_DOWNLOAD_HREF}
-                  download={PRINTFLOW_ENGINE_EXE_FILENAME}
-                />
-                <CompanionOfflineCopyUvicornCommand />
-              </div>
-            ) : null}
-
-            {(vertexUpscaleReady === null || replicateUpscaleReady === null) &&
-            isCloudEngine ? (
-              <div
-                role="status"
-                className="flex items-start gap-3 rounded-xl bg-slate-50 px-4 py-4 text-sm font-medium text-slate-600 ring-1 ring-inset ring-slate-900/5"
-                aria-live="polite"
-              >
-                <Loader2
-                  className="mt-0.5 shrink-0 animate-spin text-indigo-600"
-                  size={18}
-                  aria-hidden
-                />
-                <p>Cloud-Engines (Vertex, Replicate) werden geprüft …</p>
-              </div>
-            ) : null}
-
-            {engineMode === "vertex" && vertexUpscaleReady === false ? (
-              <div
-                role="status"
-                className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-950"
-              >
-                <p className="font-medium">Vertex nicht bereit</p>
-                <p className="mt-1 text-xs text-amber-900/90">
-                  Hinterlege in der KI-Integration dein Vertex-Service-Account-.json
-                  (BYOK).
-                </p>
-                <Button
-                  variant="outline"
-                  className="mt-3 border-amber-300 bg-white text-amber-950 hover:bg-amber-100"
-                  onClick={() => {
-                    goToIntegrationWizardStep(3);
-                    setEditingSetId(null);
-                  }}
-                >
-                  <Settings size={16} /> KI-Integration
-                </Button>
-              </div>
-            ) : null}
-
-            {engineMode === "replicate" && replicateUpscaleReady === false ? (
-              <div
-                role="status"
-                className="rounded-xl bg-slate-50 px-4 py-4 text-sm font-medium text-slate-600 ring-1 ring-inset ring-slate-900/5"
-              >
-                <p>Replicate nicht bereit</p>
-                <p className="mt-1 text-xs font-medium text-slate-500">
-                  Der Betreiber muss REPLICATE_API_TOKEN in der Server-.env setzen.
-                </p>
-              </div>
-            ) : null}
-            </div>
-          }
-          secondary={
-            <>
-              <UploadQueueGrid
-                label="Motive"
-                dropzoneTitle="Motive hinzufügen"
-                dropzoneDescription={`PNG, JPG oder WebP — je max. 10 MB, bis ${engineMode === "local" ? MAX_BATCH_FILES_LOCAL : MAX_BATCH_FILES_CLOUD} Dateien`}
-                accept={RASTER_IMAGE_ACCEPT_HTML}
-                onPickFiles={handlePickFiles}
-              >
-                {null}
-              </UploadQueueGrid>
-              {genericError ? <ErrorBanner message={genericError} /> : null}
-            </>
-          }
-        />
-      </div>
       </AppPage>
     );
   }
@@ -1336,10 +1074,18 @@ export const UpscalerView = () => {
                 </p>
               </div>
               <div
-                className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]"
+                className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] p-3"
                 aria-label="Liste der Bilder in der Verarbeitung"
               >
-                <UpscalerQueueList items={items} factor={factor} variant="dark" />
+                <UpscalerQueueTable
+                  items={items}
+                  factor={factor}
+                  isProcessing
+                  onRemove={handleRemoveQueueItem}
+                  variant="workSession"
+                  sessionEtaLabel={sessionEtaLabel}
+                  showActions={false}
+                />
               </div>
             </div>
           </div>
@@ -1357,283 +1103,203 @@ export const UpscalerView = () => {
         <VertexApiNotEnabledBox activationUrl={vertexApiGate} />
       ) : null}
 
-      <div className="space-y-6">
-      <AppPageSectionHeader
-        icon={Maximize}
-        title="KI Upscaler"
-        description={`${items.length} Datei(en)${doneCount > 0 ? ` · ${doneCount} fertig` : ""} — Bilder hochskalieren (Cloud oder lokale Engine).`}
-      />
-
+      <div className="space-y-4">
+      <h1 className="sr-only">KI Upscaler</h1>
       {genericError ? <ErrorBanner message={genericError} /> : null}
 
-      {!showResults && !isProcessing ? (
-        <WorkspaceEngineSplitLayout
-          variant="queue"
-          narrowPrimary
-          primaryAriaLabel="Upscaling-Einstellungen"
-          secondaryAriaLabel="Ausgewaehlte Motive"
-          secondary={
-            <div className="relative min-h-0">
-              <LoadingOverlay
-                show={
-                  engineMode === "local" &&
-                  isOnline &&
-                  (installingModelId !== null || uninstallingModelId !== null)
-                }
-                fullScreen={false}
-                message={
-                  uninstallingModelId
-                    ? "Modell wird entfernt …"
-                    : installingModelId
-                      ? "Modell wird installiert …"
-                      : undefined
-                }
-              />
-            <UploadQueueGrid
-              label="Motive"
-              dropzoneTitle="Mehr Motive"
-              dropzoneDescription="PNG, JPG oder WebP — mehrere Dateien möglich."
-              accept={RASTER_IMAGE_ACCEPT_HTML}
-              onPickFiles={handlePickFiles}
-            >
-              {items.map((it, index) => {
-                const needsTiling = computeNeedsTiling(it, factor);
-                return (
-                  <UploadQueueMotionItem key={it.id}>
-                    <UploadQueueCard>
-                      <UploadQueueCardMedia>
-                        <img
-                          src={it.previewUrl}
-                          alt=""
-                          className="absolute inset-0 h-full w-full object-cover"
-                        />
-                        <UploadQueueCardRemoveButton
-                          onClick={() => handleRemoveQueueItem(it.id)}
-                          ariaLabel={`${it.file.name} entfernen`}
-                        />
-                        <UploadQueueCardIndexBadge index={index} />
-                        {it.status === "running" ? (
-                          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-900/25">
-                            <Loader2
-                              className="h-10 w-10 animate-spin text-white drop-shadow"
-                              aria-hidden
-                            />
-                          </div>
-                        ) : null}
-                      </UploadQueueCardMedia>
-                      <UploadQueueCardFooter>
-                        <p className="truncate text-sm font-bold text-slate-900">
-                          {it.file.name}
-                        </p>
-                        <p className="mt-1 text-xs font-medium text-slate-500">
-                          {(it.file.size / (1024 * 1024)).toFixed(2)} MB
-                          {it.status === "done" &&
-                          it.upscaledWidth &&
-                          it.upscaledHeight
-                            ? ` → ${it.upscaledWidth}×${it.upscaledHeight}`
-                            : null}
-                        </p>
-                        {needsTiling ? (
-                          <p className="mt-2 text-xs font-medium text-amber-600">
-                            Kachelverarbeitung (über 17 MP) – kann länger
-                            dauern.
-                          </p>
-                        ) : null}
-                        {it.status === "error" && it.errorMessage ? (
-                          <p className="mt-2 text-xs font-medium text-red-600">
-                            {it.errorMessage}
-                          </p>
-                        ) : null}
-                        {it.status === "cancelled" && it.errorMessage ? (
-                          <p className="mt-2 text-xs font-medium text-slate-500">
-                            {it.errorMessage}
-                          </p>
-                        ) : null}
-                        <div className="mt-3 flex items-center gap-2">
-                          {it.status === "pending" ? (
-                            <>
-                              <span
-                                className="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400"
-                                aria-hidden
-                              />
-                              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                                Wartet
-                              </span>
-                            </>
-                          ) : null}
-                          {it.status === "running" ? (
-                            <>
-                              <Loader2
-                                className="h-3.5 w-3.5 shrink-0 animate-spin text-indigo-500"
-                                aria-hidden
-                              />
-                              <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-600">
-                                Läuft …
-                              </span>
-                            </>
-                          ) : null}
-                          {it.status === "done" ? (
-                            <>
-                              <span
-                                className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500"
-                                aria-hidden
-                              />
-                              <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600">
-                                Fertig
-                              </span>
-                            </>
-                          ) : null}
-                          {it.status === "error" ? (
-                            <>
-                              <AlertCircle
-                                className="h-3.5 w-3.5 shrink-0 text-red-500"
-                                aria-hidden
-                              />
-                              <span className="text-[10px] font-bold uppercase tracking-widest text-red-600">
-                                Fehler
-                              </span>
-                            </>
-                          ) : null}
-                          {it.status === "cancelled" ? (
-                            <>
-                              <span
-                                className="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300"
-                                aria-hidden
-                              />
-                              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                                Abgebrochen
-                              </span>
-                            </>
-                          ) : null}
-                        </div>
-                      </UploadQueueCardFooter>
-                    </UploadQueueCard>
-                  </UploadQueueMotionItem>
-                );
-              })}
-            </UploadQueueGrid>
-
-            {(vertexUpscaleReady === null || replicateUpscaleReady === null) &&
-            isCloudEngine ? (
-              <div
-                className="flex items-start gap-3 rounded-xl bg-slate-50/80 px-5 py-3 text-xs font-medium text-slate-600 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-inset ring-slate-900/5"
-                role="status"
-                aria-live="polite"
-              >
-                <Loader2
-                  className="mt-0.5 shrink-0 animate-spin text-indigo-600"
-                  size={16}
-                  aria-hidden
-                />
-                <p>Cloud-Engines werden geprüft …</p>
-              </div>
-            ) : null}
-
-            {engineMode === "vertex" && vertexUpscaleReady === false ? (
-              <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-5 py-3 text-xs text-amber-950 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-amber-200/60">
-                <p className="font-medium">Vertex nicht bereit</p>
-                <p className="mt-1 text-amber-900/90">
-                  Service-Account-.json in der KI-Integration hinterlegen.
-                </p>
-                <Button
-                  variant="outline"
-                  className="mt-2 border-amber-300 bg-white text-xs text-amber-950"
-                  onClick={() => {
-                    goToIntegrationWizardStep(3);
-                    setEditingSetId(null);
-                  }}
-                >
-                  <Settings size={14} /> KI-Integration
-                </Button>
-              </div>
-            ) : null}
-
-            {engineMode === "replicate" && replicateUpscaleReady === false ? (
-              <div className="rounded-xl bg-slate-50/80 px-5 py-3 text-xs font-medium text-slate-600 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-inset ring-slate-900/5">
-                <p>Replicate nicht bereit</p>
-                <p className="mt-1 text-slate-500">
-                  REPLICATE_API_TOKEN muss auf dem Server gesetzt sein.
-                </p>
-              </div>
-            ) : null}
-            </div>
-          }
-          primary={
-            <div className="relative">
-              <LoadingOverlay
-                show={
-                  engineMode === "local" &&
-                  isOnline &&
-                  (installingModelId !== null || uninstallingModelId !== null)
-                }
-                fullScreen={false}
-                message={
-                  uninstallingModelId
-                    ? "Modell wird entfernt …"
-                    : installingModelId
-                      ? "Modell wird installiert …"
-                      : undefined
-                }
-              />
-            <>
-            <Card padding="md" variant="embedded">
-              <h3 className="mb-4 text-sm font-bold tracking-tight text-slate-900">
-                Aktionen
-              </h3>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full justify-center"
-                onClick={handleClearSelection}
-                disabled={isProcessing || items.length === 0}
-              >
-                Liste leeren
-              </Button>
-            </Card>
-            <div className={workspaceEmbeddedPanelClassName}>
-              <div
-                className="border-b border-slate-100 px-5 py-4"
-                aria-label="Aktive Engine (ohne Umschaltung)"
-              >
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                  Aktive Engine
-                </p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">
-                  {labelForEngineMode(engineMode)}
-                </p>
-                <p className="mt-1 text-xs font-medium text-slate-500">
-                  Andere Engine: zuerst &quot;Liste leeren&quot;, danach links oben
-                  &quot;Andere Engine&quot;.
-                </p>
-              </div>
-
-              <div className="border-b border-slate-100 px-5 py-4">
-                <p className="mb-2 text-xs font-medium text-slate-500">
-                  Skalierung (fuer alle Dateien)
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {UPSCALE_FACTOR_UI_OPTIONS.map((f) => (
-                    <button
-                      key={f}
-                      type="button"
-                      onClick={() => setFactor(f)}
-                      className={cn(
-                        "rounded-xl px-4 py-2.5 text-sm font-semibold shadow-[0_2px_8px_rgb(0,0,0,0.04)] transition-all duration-200 ring-1",
-                        factor === f
-                          ? "bg-indigo-50 text-indigo-700 ring-indigo-500/25"
-                          : "bg-white text-slate-600 ring-slate-900/5 hover:bg-slate-50",
-                      )}
-                    >
-                      {f}×
-                    </button>
-                  ))}
+      {!showResults && !isProcessing && engineChoiceConfirmed ? (
+        <div
+          className="relative w-full min-w-0"
+          role="group"
+          aria-label="Upscaler-Warteschlange und Einstellungen"
+        >
+          <input
+            ref={newJobFileInputRef}
+            type="file"
+            accept={RASTER_IMAGE_ACCEPT_HTML}
+            multiple
+            className="sr-only"
+            tabIndex={-1}
+            aria-hidden
+            onChange={(e) => {
+              handlePickFiles(e.target.files);
+              e.target.value = "";
+            }}
+          />
+          <LoadingOverlay
+            show={
+              engineMode === "local" &&
+              isOnline &&
+              (installingModelId !== null || uninstallingModelId !== null)
+            }
+            fullScreen={false}
+            message={
+              uninstallingModelId
+                ? "Modell wird entfernt …"
+                : installingModelId
+                  ? "Modell wird installiert …"
+                  : undefined
+            }
+          />
+          <div className="grid w-full min-w-0 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
+            <WorkspacePanelCard
+              title={
+                <div className="flex w-full min-w-0 flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className={WORKSPACE_PANEL_TITLE}>Upscaler-Queue</h3>
+                    <p className="mt-0.5 text-xs font-medium text-[color:var(--pf-fg-muted)]">
+                      {queueSubtitle}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    className="shrink-0 gap-1.5"
+                    onClick={() => newJobFileInputRef.current?.click()}
+                    aria-label="Neue Motive zur Warteschlange hinzufügen"
+                  >
+                    <Plus className="h-4 w-4" aria-hidden />
+                    Neuer Job
+                  </Button>
                 </div>
-              </div>
+              }
+              bodyClassName="p-3"
+            >
+              <UpscalerQueueTable
+                items={items}
+                factor={factor}
+                isProcessing={isProcessing}
+                onRemove={handleRemoveQueueItem}
+              />
+            </WorkspacePanelCard>
 
-              <div className="border-b border-slate-100 px-5 py-4">
+            <WorkspacePanelCard title="Neuer Upscale-Job" bodyClassName="p-3">
+              <div className="flex min-h-0 flex-col gap-4">
+                {items.length === 0 ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full justify-start gap-1.5 px-0 text-[color:var(--pf-fg-muted)] hover:bg-transparent hover:text-[color:var(--pf-fg)]"
+                    onClick={() => setEngineChoiceConfirmed(false)}
+                    aria-label="Zurueck zur Engine-Auswahl"
+                  >
+                    <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
+                    Andere Engine
+                  </Button>
+                ) : null}
+
+                <UploadQueueInitialDropzone
+                  title="Motive auswählen"
+                  description="Drag & Drop oder Datei auswählen — PNG, JPG, WebP."
+                  accept={RASTER_IMAGE_ACCEPT_HTML}
+                  onPickFiles={handlePickFiles}
+                  className="min-h-[11rem] sm:min-h-[12rem]"
+                />
+
+                {(vertexUpscaleReady === null ||
+                  (UPSCALER_REPLICATE_SELECTABLE && replicateUpscaleReady === null)) &&
+                isCloudEngine ? (
+                  <div
+                    className="flex items-start gap-3 rounded-[length:var(--pf-radius-lg)] bg-[color:var(--pf-bg-muted)] px-4 py-3 text-xs font-medium text-[color:var(--pf-fg-muted)] ring-1 ring-inset ring-[color:var(--pf-border-subtle)]"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <Loader2
+                      className="mt-0.5 shrink-0 animate-spin text-[color:var(--pf-accent)]"
+                      size={16}
+                      aria-hidden
+                    />
+                    <p>Cloud-Engines werden geprüft …</p>
+                  </div>
+                ) : null}
+
+                {engineMode === "vertex" && vertexUpscaleReady === false ? (
+                  <div className="rounded-[length:var(--pf-radius-lg)] border border-[color:var(--pf-warning)]/30 bg-[color:var(--pf-warning-bg)] px-4 py-3 text-xs text-[color:var(--pf-warning)] ring-1 ring-inset ring-[color:var(--pf-warning)]/20">
+                    <p className="font-semibold text-[color:var(--pf-fg)]">
+                      Vertex nicht bereit
+                    </p>
+                    <p className="mt-1 font-medium opacity-90">
+                      Service-Account-.json in der KI-Integration hinterlegen.
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-2"
+                      onClick={() => {
+                        goToIntegrationWizardStep(3);
+                        setEditingSetId(null);
+                      }}
+                    >
+                      <Settings size={14} /> KI-Integration
+                    </Button>
+                  </div>
+                ) : null}
+
+                {engineMode === "replicate" && replicateUpscaleReady === false ? (
+                  <div className="rounded-[length:var(--pf-radius-lg)] bg-[color:var(--pf-bg-muted)] px-4 py-3 text-xs font-medium text-[color:var(--pf-fg-muted)] ring-1 ring-inset ring-[color:var(--pf-border-subtle)]">
+                    <p className="font-semibold text-[color:var(--pf-fg)]">
+                      Replicate nicht bereit
+                    </p>
+                    <p className="mt-1">
+                      REPLICATE_API_TOKEN muss auf dem Server gesetzt sein.
+                    </p>
+                  </div>
+                ) : null}
+
+                <div>
+                  <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[color:var(--pf-fg-muted)]">
+                    Zielauflösung
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {UPSCALE_FACTOR_UI_OPTIONS.map((f) => (
+                      <button
+                        key={f}
+                        type="button"
+                        onClick={() => setFactor(f)}
+                        className={cn(
+                          "min-w-[3.25rem] rounded-[length:var(--pf-radius)] px-3.5 py-2 text-sm font-semibold transition-colors",
+                          factor === f
+                            ? "bg-[color:var(--pf-fg)] text-[color:var(--pf-bg)] shadow-[var(--pf-shadow-sm)]"
+                            : "border border-[color:var(--pf-border)] bg-[color:var(--pf-bg-elevated)] text-[color:var(--pf-fg-muted)] hover:bg-[color:var(--pf-bg-muted)] hover:text-[color:var(--pf-fg)]",
+                        )}
+                      >
+                        {f}×
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-1.5 text-xs font-semibold text-[color:var(--pf-fg)]">
+                    Modell
+                  </p>
+                  {engineMode === "vertex" ? (
+                    <div className="rounded-[length:var(--pf-radius)] border border-[color:var(--pf-border)] bg-[color:var(--pf-bg-subtle)] px-3 py-2.5 text-sm font-medium text-[color:var(--pf-fg)]">
+                      Vertex — imagegeneration@006
+                    </div>
+                  ) : null}
+                  {engineMode === "replicate" ? (
+                    <div className="rounded-[length:var(--pf-radius)] border border-[color:var(--pf-border)] bg-[color:var(--pf-bg-subtle)] px-3 py-2.5 text-sm font-medium text-[color:var(--pf-fg)]">
+                      Replicate — Real-ESRGAN
+                    </div>
+                  ) : null}
+                  {engineMode === "local" && activeModelId ? (
+                    <div className="rounded-[length:var(--pf-radius)] border border-[color:var(--pf-border)] bg-[color:var(--pf-bg-subtle)] px-3 py-2.5 text-sm font-medium text-[color:var(--pf-fg)]">
+                      {catalog?.models?.find((m) => m.id === activeModelId)
+                        ?.label ?? activeModelId}
+                    </div>
+                  ) : null}
+                  {engineMode === "local" && !activeModelId ? (
+                    <div className="rounded-[length:var(--pf-radius)] border border-dashed border-[color:var(--pf-border)] bg-[color:var(--pf-bg-muted)] px-3 py-2.5 text-sm font-medium text-[color:var(--pf-fg-muted)]">
+                      Kein aktives Modell — unten ein Modell wählen.
+                    </div>
+                  ) : null}
+                </div>
+
                 <Button
                   onClick={() => void handleBatchUpscale()}
-                  className="w-full"
+                  className="w-full gap-2"
                   disabled={
                     isProcessing ||
                     upscaleQueueCount === 0 ||
@@ -1645,133 +1311,173 @@ export const UpscalerView = () => {
                         uninstallingModelId !== null))
                   }
                 >
-                  <Maximize size={16} aria-hidden />
-                  {items.length === 1
+                  <Sparkles size={16} aria-hidden />
+                  {items.length <= 1
                     ? "Upscale starten"
-                    : `Alle hochskalieren (${upscaleQueueCount})`}
+                    : `Upscale starten (${upscaleQueueCount})`}
                 </Button>
-              </div>
 
-              {engineMode === "local" && !isOnline && !isChecking ? (
-                <div className="space-y-3 border-b border-slate-100 px-5 py-4">
-                  <IntegrationMissingCallout
-                    variant="slate"
-                    title="PrintFlow Engine nicht gefunden"
-                    description="Um deine eigene Grafikkarte kostenlos zu nutzen, lade PrintFlow Engine (Windows) herunter. Führe PrintFlowEngine.exe nach dem Download einmalig aus."
-                    actionLabel="PrintFlow Engine herunterladen (ca. 25 MB)"
-                    href={PRINTFLOW_ENGINE_DOWNLOAD_HREF}
-                    download={PRINTFLOW_ENGINE_EXE_FILENAME}
-                  />
-                  <CompanionOfflineCopyUvicornCommand />
-                </div>
-              ) : null}
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleClearSelection}
+                  disabled={isProcessing || items.length === 0}
+                >
+                  Liste leeren
+                </Button>
 
-              {engineMode === "local" && isOnline ? (
-                <div className="border-b border-slate-100 px-5 py-4">
-                  {canRunLocalUpscale ? (
-                    <p className="mb-4 text-xs font-medium text-emerald-800">
-                      Aktives Modell bereit — du kannst hochskalieren.
-                    </p>
-                  ) : null}
-                  <button
-                    type="button"
-                    id="upscaler-local-companion-toggle-queue"
-                    aria-expanded={localCompanionOpen}
-                    aria-controls="upscaler-local-companion-panel-queue"
-                    onClick={() => setLocalCompanionOpen((o) => !o)}
-                    className="flex w-full items-center justify-between gap-2 rounded-lg py-1 text-left text-sm font-semibold text-slate-900 transition-colors hover:text-indigo-700"
+                <div className={workspaceEmbeddedPanelClassName}>
+                  <div
+                    className="border-b border-[color:var(--pf-border)] px-4 py-3"
+                    aria-label="Aktive Engine (ohne Umschaltung)"
                   >
-                    <span>Lokale KI — PrintFlow Engine</span>
-                    <ChevronDown
-                      className={cn(
-                        "h-4 w-4 shrink-0 text-slate-500 transition-transform duration-200",
-                        localCompanionOpen && "rotate-180",
-                      )}
-                      aria-hidden
-                    />
-                  </button>
-                  {localCompanionOpen ? (
-                    <div
-                      id="upscaler-local-companion-panel-queue"
-                      className="mt-4 space-y-4"
-                      role="region"
-                      aria-labelledby="upscaler-local-companion-toggle-queue"
-                    >
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                          PrintFlow Engine
-                        </span>
-                        {isChecking ? (
-                          <span className="text-xs font-medium text-slate-500">
-                            Pruefe …
-                          </span>
-                        ) : isOnline ? (
-                          <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-emerald-700 ring-1 ring-emerald-500/20">
-                            Online
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-slate-600 ring-1 ring-slate-900/10">
-                            Offline
-                          </span>
-                        )}
-                      </div>
-                      {!isOutdated ? (
-                        <CompanionLocalModelsPanel
-                          catalog={catalog}
-                          installedModelIds={installedModelIds}
-                          activeModelId={activeModelId}
-                          vulkanRuntimeInstalled={vulkanRuntimeInstalled}
-                          installingModelId={installingModelId}
-                          uninstallingModelId={uninstallingModelId}
-                          onInstall={(id) => void handleInstallCompanionModel(id)}
-                          onUninstall={(id) =>
-                            void handleUninstallCompanionModel(id)
-                          }
-                          onSelectActive={(id) =>
-                            void handleSelectCompanionActiveModel(id)
-                          }
-                          onUninstallVulkan={() =>
-                            void handleUninstallVulkanRuntime()
-                          }
-                        />
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[color:var(--pf-fg-muted)]">
+                      Aktive Engine
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-[color:var(--pf-fg)]">
+                      {labelForEngineMode(engineMode)}
+                    </p>
+                    <p className="mt-1 text-xs font-medium text-[color:var(--pf-fg-muted)]">
+                      {items.length === 0
+                        ? "Zum Wechsel der Engine oben „Andere Engine“ wählen."
+                        : "Andere Engine: zuerst „Liste leeren“, danach „Andere Engine“."}
+                    </p>
+                  </div>
+
+                  {engineMode === "local" && !isOnline && !isChecking ? (
+                    <div className="space-y-3 border-b border-[color:var(--pf-border)] px-4 py-3">
+                      <IntegrationMissingCallout
+                        variant="slate"
+                        title="PrintFlow Engine nicht gefunden"
+                        description="Um deine eigene Grafikkarte kostenlos zu nutzen, lade PrintFlow Engine (Windows) herunter. Führe PrintFlowEngine.exe nach dem Download einmalig aus."
+                        actionLabel="PrintFlow Engine herunterladen (ca. 25 MB)"
+                        href={PRINTFLOW_ENGINE_DOWNLOAD_HREF}
+                        download={PRINTFLOW_ENGINE_EXE_FILENAME}
+                      />
+                      <CompanionOfflineCopyUvicornCommand />
+                    </div>
+                  ) : null}
+
+                  {engineMode === "local" && isOnline ? (
+                    <div className="border-b border-[color:var(--pf-border)] px-4 py-3">
+                      {canRunLocalUpscale ? (
+                        <p className="mb-3 text-xs font-medium text-[color:var(--pf-success)]">
+                          Aktives Modell bereit — du kannst hochskalieren.
+                        </p>
                       ) : null}
-                      {isOutdated ? (
-                        <CompanionEngineOutdatedCallout
-                          engineVersion={engineVersion}
+                      <button
+                        type="button"
+                        id="upscaler-local-companion-toggle-queue"
+                        aria-expanded={localCompanionOpen}
+                        aria-controls="upscaler-local-companion-panel-queue"
+                        onClick={() => setLocalCompanionOpen((o) => !o)}
+                        className="flex w-full items-center justify-between gap-2 rounded-lg py-1 text-left text-sm font-semibold text-[color:var(--pf-fg)] transition-colors hover:text-[color:var(--pf-accent)]"
+                      >
+                        <span>Lokale KI — PrintFlow Engine</span>
+                        <ChevronDown
+                          className={cn(
+                            "h-4 w-4 shrink-0 text-[color:var(--pf-fg-muted)] transition-transform duration-200",
+                            localCompanionOpen && "rotate-180",
+                          )}
+                          aria-hidden
                         />
-                      ) : null}
-                      {!isOutdated && !isChecking ? (
-                        <div className="space-y-2">
-                          <Select
-                            label="Parallele Kacheln (lokal)"
-                            name="companion-parallel-tiles-queue"
-                            value={parallelTiles}
-                            onChange={(e) =>
-                              setParallelTiles(
-                                e.target.value as ParallelTilesOption,
-                              )
-                            }
-                            aria-label="Parallele Kacheln fuer lokales Upscaling"
-                          >
-                            <option value="1">1 (sequenziell)</option>
-                            <option value="2">2</option>
-                            <option value="auto">Auto (konservativ)</option>
-                          </Select>
-                          <p className="text-xs font-medium leading-relaxed text-slate-500">
-                            Lokale KI-Nutzung: Automatisch parallelisiert
-                            (Standard „Auto“).
-                          </p>
+                      </button>
+                      {localCompanionOpen ? (
+                        <div
+                          id="upscaler-local-companion-panel-queue"
+                          className="mt-4 space-y-4"
+                          role="region"
+                          aria-labelledby="upscaler-local-companion-toggle-queue"
+                        >
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-[color:var(--pf-fg-muted)]">
+                              PrintFlow Engine
+                            </span>
+                            {isChecking ? (
+                              <span className="text-xs font-medium text-[color:var(--pf-fg-muted)]">
+                                Pruefe …
+                              </span>
+                            ) : isOnline ? (
+                              <span className="inline-flex items-center rounded-full bg-[color:var(--pf-success-bg)] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-[color:var(--pf-success)] ring-1 ring-inset ring-[color:var(--pf-success)]/25">
+                                Online
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center rounded-full bg-[color:var(--pf-bg-muted)] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-[color:var(--pf-fg-muted)] ring-1 ring-inset ring-[color:var(--pf-border-subtle)]">
+                                Offline
+                              </span>
+                            )}
+                          </div>
+                          {!isOutdated ? (
+                            <CompanionLocalModelsPanel
+                              catalog={catalog}
+                              installedModelIds={installedModelIds}
+                              activeModelId={activeModelId}
+                              vulkanRuntimeInstalled={vulkanRuntimeInstalled}
+                              installingModelId={installingModelId}
+                              uninstallingModelId={uninstallingModelId}
+                              onInstall={(id) => void handleInstallCompanionModel(id)}
+                              onUninstall={(id) =>
+                                void handleUninstallCompanionModel(id)
+                              }
+                              onSelectActive={(id) =>
+                                void handleSelectCompanionActiveModel(id)
+                              }
+                              onUninstallVulkan={() =>
+                                void handleUninstallVulkanRuntime()
+                              }
+                            />
+                          ) : null}
+                          {isOutdated ? (
+                            <CompanionEngineOutdatedCallout
+                              engineVersion={engineVersion}
+                            />
+                          ) : null}
+                          {!isOutdated && !isChecking ? (
+                            <div className="space-y-2">
+                              <Select
+                                label="Parallele Kacheln (lokal)"
+                                name="companion-parallel-tiles-queue"
+                                value={parallelTiles}
+                                onChange={(e) =>
+                                  setParallelTiles(
+                                    e.target.value as ParallelTilesOption,
+                                  )
+                                }
+                                aria-label="Parallele Kacheln fuer lokales Upscaling"
+                              >
+                                <option value="1">1 (sequenziell)</option>
+                                <option value="2">2</option>
+                                <option value="auto">Auto (konservativ)</option>
+                              </Select>
+                              <p className="text-xs font-medium leading-relaxed text-[color:var(--pf-fg-muted)]">
+                                Lokale KI-Nutzung: Automatisch parallelisiert
+                                (Standard „Auto“).
+                              </p>
+                            </div>
+                          ) : null}
                         </div>
                       ) : null}
                     </div>
                   ) : null}
                 </div>
-              ) : null}
-            </div>
-            </>
-            </div>
-          }
-        />
+
+                {engineMode === "vertex" && selectedCloudReady === true ? (
+                  <p className="rounded-[length:var(--pf-radius)] bg-[color:var(--pf-bg-muted)] px-3 py-2.5 text-xs font-medium leading-relaxed text-[color:var(--pf-fg-muted)] ring-1 ring-inset ring-[color:var(--pf-border-subtle)]">
+                    Geschätzte Kosten: abhängig von Imagen/Vertex — wird deinem
+                    Google-Cloud-Konto (BYOK) belastet.
+                  </p>
+                ) : null}
+                {engineMode === "replicate" && selectedCloudReady === true ? (
+                  <p className="rounded-[length:var(--pf-radius)] bg-[color:var(--pf-bg-muted)] px-3 py-2.5 text-xs font-medium leading-relaxed text-[color:var(--pf-fg-muted)] ring-1 ring-inset ring-[color:var(--pf-border-subtle)]">
+                    Replicate berechnet pro API-Aufruf — Kosten siehst du im
+                    Replicate-Dashboard.
+                  </p>
+                ) : null}
+              </div>
+            </WorkspacePanelCard>
+          </div>
+        </div>
       ) : null}
 
       {showResults && doneCount > 0 && singlePreviewItem ? (
@@ -1899,132 +1605,6 @@ export const UpscalerView = () => {
       ) : null}
       </div>
     </AppPage>
-  );
-};
-
-const UpscalerQueueList = ({
-  items,
-  factor,
-  variant = "light",
-}: {
-  items: BatchItem[];
-  factor: UpscaleTotalFactor;
-  variant?: "light" | "dark";
-}) => {
-  const dark = variant === "dark";
-  return (
-    <ul
-      className={cn(
-        "divide-y",
-        dark
-          ? "divide-[rgb(255_255_255/0.1)]"
-          : "divide-slate-100 overflow-hidden rounded-xl bg-white shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5",
-      )}
-    >
-      {items.map((it) => {
-        const needsTiling = computeNeedsTiling(it, factor);
-
-        return (
-          <li key={it.id} className="flex gap-4 px-4 py-4 sm:px-5">
-            <div
-              className={cn(
-                "h-16 w-16 shrink-0 overflow-hidden rounded-lg border",
-                dark
-                  ? "border-[rgb(255_255_255/0.15)] bg-[rgb(15_23_42/0.6)]"
-                  : "border-slate-200 bg-slate-50",
-              )}
-            >
-              <img
-                src={it.previewUrl}
-                alt=""
-                className="h-full w-full object-cover"
-              />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p
-                className={cn(
-                  "truncate text-sm font-medium",
-                  dark ? "text-work-session-title" : "text-slate-900",
-                )}
-              >
-                {it.file.name}
-              </p>
-              <p
-                className={cn(
-                  "mt-0.5 text-xs",
-                  dark ? "text-work-session-lead-muted" : "text-slate-500",
-                )}
-              >
-                {(it.file.size / (1024 * 1024)).toFixed(2)} MB
-                {it.status === "done" && it.upscaledWidth && it.upscaledHeight
-                  ? ` → ${it.upscaledWidth}×${it.upscaledHeight}`
-                  : null}
-              </p>
-              {needsTiling ? (
-                <p
-                  className={cn(
-                    "mt-1 text-xs",
-                    dark ? "text-amber-200/90" : "text-amber-600",
-                  )}
-                >
-                  Kachelverarbeitung (über 17 MP) – kann länger dauern.
-                </p>
-              ) : null}
-              {it.status === "error" && it.errorMessage ? (
-                <p
-                  className={cn(
-                    "mt-1 text-xs",
-                    dark ? "text-red-300" : "text-red-600",
-                  )}
-                >
-                  {it.errorMessage}
-                </p>
-              ) : null}
-              {it.status === "cancelled" && it.errorMessage ? (
-                <p
-                  className={cn(
-                    "mt-1 text-xs",
-                    dark ? "text-work-session-subtitle" : "text-slate-500",
-                  )}
-                >
-                  {it.errorMessage}
-                </p>
-              ) : null}
-            </div>
-            <div className="shrink-0 self-center text-xs">
-              {it.status === "pending" ? (
-                <span
-                  className={dark ? "text-work-session-caption" : "text-slate-400"}
-                >
-                  Wartet
-                </span>
-              ) : null}
-              {it.status === "running" ? (
-                <Loader2
-                  className={cn(
-                    "h-5 w-5 animate-spin",
-                    dark ? "text-violet-300" : "text-indigo-500",
-                  )}
-                />
-              ) : null}
-              {it.status === "done" ? (
-                <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-              ) : null}
-              {it.status === "error" ? (
-                <AlertCircle className="h-5 w-5 text-red-400" />
-              ) : null}
-              {it.status === "cancelled" ? (
-                <span
-                  className={dark ? "text-work-session-caption" : "text-slate-400"}
-                >
-                  —
-                </span>
-              ) : null}
-            </div>
-          </li>
-        );
-      })}
-    </ul>
   );
 };
 

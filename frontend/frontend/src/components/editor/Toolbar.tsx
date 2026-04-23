@@ -27,15 +27,17 @@ export const Toolbar = ({
       className={cn(
         isPanel
           ? "flex flex-col gap-2"
-          : "mb-4 flex flex-wrap items-center gap-2 overflow-x-auto rounded-xl bg-white p-2 shadow-sm ring-1 ring-slate-900/5",
+          : "flex flex-wrap items-center gap-2 overflow-x-auto rounded-[length:var(--pf-radius-lg)] bg-[color:var(--pf-bg-elevated)] p-2 shadow-[var(--pf-shadow-sm)] ring-1 ring-[color:var(--pf-border)]",
         disabled && "pointer-events-none opacity-45",
       )}
       aria-disabled={disabled || undefined}
     >
       {isPanel ? (
-        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Hinzufügen</p>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-[color:var(--pf-fg-subtle)]">
+          Hinzufügen
+        </p>
       ) : (
-        <span className="mr-1 flex items-center border-r border-slate-300 px-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+        <span className="mr-1 flex items-center border-r border-[color:var(--pf-border)] px-2 text-xs font-semibold uppercase tracking-wide text-[color:var(--pf-fg-faint)]">
           Hinzufügen
         </span>
       )}
@@ -53,7 +55,11 @@ export const Toolbar = ({
       >
         <Crosshair size={15} strokeWidth={1.75} /> {isDrawMode ? "Zeichnen abbrechen" : "Motiv zeichnen (4-Klick)"}
       </Button>
-      <div className={cn(isPanel ? "my-1 border-t border-slate-200/90" : "mx-1 h-5 w-px bg-slate-200")} />
+      <div
+        className={cn(
+          isPanel ? "my-1 border-t border-[color:var(--pf-border-subtle)]" : "mx-1 h-5 w-px bg-[color:var(--pf-border)]",
+        )}
+      />
       <Button variant="outline" className={btnClass} type="button" onClick={() => onAddElement("text")}>
         <Type size={15} strokeWidth={1.75} /> Text
       </Button>

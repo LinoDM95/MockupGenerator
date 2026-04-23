@@ -52,10 +52,10 @@ export const EtsyCallbackPage = () => {
 
   return (
     <div className="flex min-h-0 flex-1 items-center justify-center bg-slate-50 p-6">
-      <Card padding="lg" className="max-w-md text-center">
+      <Card padding="lg" variant="bordered" className="max-w-md text-center">
         <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-indigo-600" strokeWidth={1.75} />
-        <h1 className="mb-2 text-lg font-semibold text-slate-900">Etsy OAuth</h1>
-        <p className="text-sm text-slate-600">{message}</p>
+        <h1 className="mb-2 text-lg font-semibold text-zinc-900 dark:text-zinc-100">Etsy OAuth</h1>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">{message}</p>
       </Card>
     </div>
   );

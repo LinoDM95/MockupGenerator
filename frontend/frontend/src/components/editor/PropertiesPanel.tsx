@@ -1,4 +1,4 @@
-import { AlignCenter, AlignLeft, AlignRight, Bold, Italic, Settings } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, Bold, Italic } from "lucide-react";
 
 import { FONT_FAMILIES } from "../../lib/editor/constants";
 import type { TemplateElement } from "../../types/mockup";
@@ -14,18 +14,14 @@ type Props = {
 export const PropertiesPanel = ({ activeEl, onUpdate }: Props) => {
   if (!activeEl) {
     return (
-      <div className="mt-6 rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-400 ring-1 ring-inset ring-dashed ring-slate-900/15">
+      <div className="rounded-[length:var(--pf-radius)] bg-[color:var(--pf-bg-muted)]/50 px-4 py-8 text-center text-sm font-medium text-[color:var(--pf-fg-muted)] ring-1 ring-inset ring-dashed ring-[color:var(--pf-border)]">
         Wähle ein Element im Bild oder in den Ebenen.
       </div>
     );
   }
 
   return (
-    <div className="flex-1 rounded-xl bg-white p-4 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5">
-      <h4 className="mb-4 flex items-center gap-2 border-b border-slate-200 pb-2 text-sm font-semibold text-slate-800">
-        <Settings size={16} className="text-slate-400" strokeWidth={1.75} /> Eigenschaften
-      </h4>
-      <div className="space-y-5">
+    <div className="flex-1 space-y-5">
         <Input
           label="Name"
           value={activeEl.name ?? ""}
@@ -35,12 +31,12 @@ export const PropertiesPanel = ({ activeEl, onUpdate }: Props) => {
         {activeEl.type === "text" && (
           <>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">Text</label>
+              <label className="mb-1.5 block text-sm font-semibold text-[color:var(--pf-fg)]">Text</label>
               <textarea
                 value={activeEl.text ?? ""}
                 onChange={(e) => onUpdate("text", e.target.value)}
                 rows={2}
-                className="w-full resize-none rounded-lg border border-slate-300 bg-white p-2.5 text-sm text-slate-900 outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                className="w-full resize-none rounded-[length:var(--pf-radius)] border border-[color:var(--pf-border)] bg-[color:var(--pf-bg-elevated)] p-2.5 text-sm text-[color:var(--pf-fg)] outline-none transition-all duration-200 placeholder:text-[color:var(--pf-fg-faint)] focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
               />
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -56,12 +52,12 @@ export const PropertiesPanel = ({ activeEl, onUpdate }: Props) => {
                 ))}
               </Select>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">Farbe</label>
+                <label className="mb-1.5 block text-sm font-semibold text-[color:var(--pf-fg)]">Farbe</label>
                 <input
                   type="color"
                   value={activeEl.color?.slice(0, 7) ?? "#000000"}
                   onChange={(e) => onUpdate("color", e.target.value)}
-                  className="h-9 w-full cursor-pointer rounded-lg border border-slate-300 p-0.5"
+                  className="h-9 w-full cursor-pointer rounded-[length:var(--pf-radius)] border border-[color:var(--pf-border)] p-0.5"
                 />
               </div>
             </div>
@@ -82,12 +78,16 @@ export const PropertiesPanel = ({ activeEl, onUpdate }: Props) => {
               onChange={(e) => onUpdate("textCurve", Number(e.target.value))}
             />
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">Stil & Ausrichtung</label>
-              <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+              <label className="mb-1.5 block text-sm font-semibold text-[color:var(--pf-fg)]">
+                Stil &amp; Ausrichtung
+              </label>
+              <div className="flex gap-1 rounded-[length:var(--pf-radius)] bg-[color:var(--pf-bg-muted)] p-1 ring-1 ring-inset ring-[color:var(--pf-border-subtle)]">
                 <button
                   type="button"
                   className={`flex flex-1 justify-center rounded-md p-1.5 transition-all ${
-                    activeEl.fontWeight === "bold" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:bg-slate-200"
+                    activeEl.fontWeight === "bold"
+                      ? "bg-[color:var(--pf-bg-elevated)] text-indigo-600 shadow-[var(--pf-shadow-sm)]"
+                      : "text-[color:var(--pf-fg-muted)] hover:bg-[color:var(--pf-bg-elevated)]"
                   }`}
                   onClick={() => onUpdate("fontWeight", activeEl.fontWeight === "bold" ? "normal" : "bold")}
                 >
@@ -96,19 +96,23 @@ export const PropertiesPanel = ({ activeEl, onUpdate }: Props) => {
                 <button
                   type="button"
                   className={`flex flex-1 justify-center rounded-md p-1.5 transition-all ${
-                    activeEl.fontStyle === "italic" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:bg-slate-200"
+                    activeEl.fontStyle === "italic"
+                      ? "bg-[color:var(--pf-bg-elevated)] text-indigo-600 shadow-[var(--pf-shadow-sm)]"
+                      : "text-[color:var(--pf-fg-muted)] hover:bg-[color:var(--pf-bg-elevated)]"
                   }`}
                   onClick={() => onUpdate("fontStyle", activeEl.fontStyle === "italic" ? "normal" : "italic")}
                 >
                   <Italic size={15} strokeWidth={1.75} />
                 </button>
-                <div className="mx-1 my-1 w-px bg-slate-300" />
+                <div className="mx-1 my-1 w-px bg-[color:var(--pf-border)]" />
                 {(["left", "center", "right"] as const).map((al) => (
                   <button
                     key={al}
                     type="button"
                     className={`flex flex-1 justify-center rounded-md p-1.5 transition-all ${
-                      activeEl.textAlign === al ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:bg-slate-200"
+                      activeEl.textAlign === al
+                        ? "bg-[color:var(--pf-bg-elevated)] text-indigo-600 shadow-[var(--pf-shadow-sm)]"
+                        : "text-[color:var(--pf-fg-muted)] hover:bg-[color:var(--pf-bg-elevated)]"
                     }`}
                     onClick={() => onUpdate("textAlign", al)}
                   >
@@ -122,17 +126,17 @@ export const PropertiesPanel = ({ activeEl, onUpdate }: Props) => {
 
         {["rect", "circle", "triangle", "star", "hexagon"].includes(activeEl.type) && (
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">Füllfarbe</label>
+            <label className="mb-1.5 block text-sm font-semibold text-[color:var(--pf-fg)]">Füllfarbe</label>
             <input
               type="color"
               value={activeEl.color?.slice(0, 7) ?? "#e5e7eb"}
               onChange={(e) => onUpdate("color", e.target.value)}
-              className="h-10 w-full cursor-pointer rounded-lg border border-slate-300 p-0.5"
+              className="h-10 w-full cursor-pointer rounded-[length:var(--pf-radius)] border border-[color:var(--pf-border)] p-0.5"
             />
           </div>
         )}
 
-        <div className="border-t border-slate-200 pt-3">
+        <div className="border-t border-[color:var(--pf-border-subtle)] pt-3">
           <Slider
             label="Rotation"
             hintRight={`${activeEl.rotation ?? 0}°`}
@@ -143,30 +147,30 @@ export const PropertiesPanel = ({ activeEl, onUpdate }: Props) => {
           />
         </div>
 
-        <div className="border-t border-slate-200 pt-3">
+        <div className="border-t border-[color:var(--pf-border-subtle)] pt-3">
           <label className="mb-3 flex cursor-pointer items-center gap-2">
             <input
               type="checkbox"
               checked={activeEl.shadowEnabled ?? false}
               onChange={(e) => onUpdate("shadowEnabled", e.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 text-indigo-600 accent-indigo-600 focus:ring-indigo-500"
+              className="h-4 w-4 rounded border-[color:var(--pf-border)] text-indigo-600 accent-indigo-600 focus:ring-indigo-500/30"
             />
-            <span className="text-sm font-medium text-slate-700">Schatten aktivieren</span>
+            <span className="text-sm font-semibold text-[color:var(--pf-fg)]">Schatten aktivieren</span>
           </label>
           {activeEl.shadowEnabled && (
-            <div className="grid grid-cols-2 gap-3 rounded-xl bg-slate-50/50 p-3 ring-1 ring-inset ring-slate-900/5">
+            <div className="grid grid-cols-2 gap-3 rounded-[length:var(--pf-radius)] bg-[color:var(--pf-bg-muted)]/80 p-3 ring-1 ring-inset ring-[color:var(--pf-border-subtle)]">
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">Farbe</label>
+                <label className="mb-1 block text-xs font-semibold text-[color:var(--pf-fg-muted)]">Farbe</label>
                 <input
                   type="color"
                   value={(activeEl.shadowColor ?? "#000000").slice(0, 7)}
                   onChange={(e) => onUpdate("shadowColor", `${e.target.value}80`)}
-                  className="h-7 w-full cursor-pointer rounded-md border border-slate-300 p-0.5"
+                  className="h-7 w-full cursor-pointer rounded-md border border-[color:var(--pf-border)] p-0.5"
                   title="Schattenfarbe"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">Blur</label>
+                <label className="mb-1 block text-xs font-semibold text-[color:var(--pf-fg-muted)]">Blur</label>
                 <Input
                   type="number"
                   value={activeEl.shadowBlur ?? 0}
@@ -174,7 +178,7 @@ export const PropertiesPanel = ({ activeEl, onUpdate }: Props) => {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">X</label>
+                <label className="mb-1 block text-xs font-semibold text-[color:var(--pf-fg-muted)]">X</label>
                 <Input
                   type="number"
                   value={activeEl.shadowOffsetX ?? 0}
@@ -182,7 +186,7 @@ export const PropertiesPanel = ({ activeEl, onUpdate }: Props) => {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">Y</label>
+                <label className="mb-1 block text-xs font-semibold text-[color:var(--pf-fg-muted)]">Y</label>
                 <Input
                   type="number"
                   value={activeEl.shadowOffsetY ?? 0}
@@ -193,26 +197,29 @@ export const PropertiesPanel = ({ activeEl, onUpdate }: Props) => {
           )}
         </div>
 
-        <div className="border-t border-slate-200 pt-3">
-          <label className="mb-2 block text-sm font-medium text-slate-700">Position & Dimensionen (px)</label>
+        <div className="border-t border-[color:var(--pf-border-subtle)] pt-3">
+          <label className="mb-2 block text-sm font-semibold text-[color:var(--pf-fg)]">
+            Position &amp; Dimensionen (px)
+          </label>
           <div className="grid grid-cols-2 gap-2 text-xs">
             {(["x", "y", "w", "h"] as const).map((axis) => (
               <div
                 key={axis}
-                className="flex items-center justify-between rounded-xl bg-white px-3 py-2 shadow-sm ring-1 ring-inset ring-slate-200 focus-within:ring-2 focus-within:ring-indigo-500"
+                className="flex items-center justify-between rounded-[length:var(--pf-radius)] bg-[color:var(--pf-bg-elevated)] px-3 py-2 shadow-[var(--pf-shadow-sm)] ring-1 ring-inset ring-[color:var(--pf-border)] focus-within:ring-2 focus-within:ring-indigo-500/25"
               >
-                <span className="ml-1 text-xs font-semibold uppercase text-slate-500">{axis}</span>
+                <span className="ml-1 text-xs font-bold uppercase tracking-widest text-[color:var(--pf-fg-subtle)]">
+                  {axis}
+                </span>
                 <input
                   type="number"
                   value={activeEl[axis]}
                   onChange={(e) => onUpdate(axis, Number(e.target.value))}
-                  className="w-16 bg-transparent text-right text-sm font-medium text-slate-800 outline-none"
+                  className="w-16 bg-transparent text-right text-sm font-semibold text-[color:var(--pf-fg)] outline-none"
                 />
               </div>
             ))}
           </div>
         </div>
-      </div>
     </div>
   );
 };

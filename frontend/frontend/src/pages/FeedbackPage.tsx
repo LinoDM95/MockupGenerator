@@ -39,7 +39,7 @@ const formatDe = (iso: string | null): string => {
 };
 
 const glassCard = cn(
-  "rounded-2xl bg-white/80 shadow-sm ring-1 ring-slate-900/5 backdrop-blur-xl dark:bg-slate-100/78 dark:ring-white/10",
+  "rounded-2xl border border-zinc-200/80 bg-white shadow-[0_1px_2px_0_rgb(9,9,11,0.04)] dark:border-zinc-800 dark:bg-zinc-950",
 );
 
 const statusBadgeClass = (status: FeedbackThreadStatus) =>

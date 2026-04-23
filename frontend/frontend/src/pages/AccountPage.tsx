@@ -1,13 +1,5 @@
-import {
-  AlertTriangle,
-  ArrowLeft,
-  CreditCard,
-  Download,
-  KeyRound,
-  Trash2,
-  UserCircle,
-} from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { ArrowLeft, Download, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -17,8 +9,6 @@ import {
   fetchCurrentUser,
   patchCurrentUser,
 } from "../api/auth";
-import { AppPage } from "../components/ui/layout/AppPage";
-import { AppPageSectionHeader } from "../components/ui/layout/AppPageSectionHeader";
 import { AppSubNavPageLayout } from "../components/ui/layout/AppSubNavPageLayout";
 import { Button } from "../components/ui/primitives/Button";
 import { Input } from "../components/ui/primitives/Input";
@@ -40,12 +30,38 @@ const formatDeDateTime = (iso: string | null): string => {
   }
 };
 
-const sectionCard = cn(
-  "rounded-2xl bg-white/80 p-6 shadow-sm ring-1 ring-slate-900/5 backdrop-blur-xl dark:bg-slate-100/78 dark:ring-white/10 sm:p-8",
-);
-
-const dangerSectionCard = cn(
-  "rounded-2xl bg-red-50/30 p-6 shadow-sm ring-1 ring-red-500/10 backdrop-blur-xl dark:ring-red-500/20 sm:p-8",
+const AccountPanel = ({
+  title,
+  description,
+  children,
+  danger = false,
+}: {
+  title: string;
+  description: string;
+  children: ReactNode;
+  danger?: boolean;
+}) => (
+  <div
+    className={cn(
+      "overflow-hidden rounded-xl shadow-[var(--pf-shadow-sm)] ring-1",
+      danger
+        ? "bg-[color:var(--pf-danger-bg)]/25 ring-[color:var(--pf-danger)]/20"
+        : "bg-[color:var(--pf-bg-elevated)] ring-[color:var(--pf-border)]",
+    )}
+  >
+    <div
+      className={cn(
+        "border-b px-4 py-3 sm:px-5",
+        danger
+          ? "border-[color:var(--pf-danger)]/15 bg-[color:var(--pf-danger-bg)]/35"
+          : "border-[color:var(--pf-border)] bg-[color:var(--pf-bg-muted)]/60",
+      )}
+    >
+      <h2 className="text-[15px] font-semibold tracking-tight text-[color:var(--pf-fg)]">{title}</h2>
+      <p className="mt-0.5 text-xs font-medium text-[color:var(--pf-fg-muted)]">{description}</p>
+    </div>
+    <div className="p-4 sm:p-6">{children}</div>
+  </div>
 );
 
 export const AccountPage = () => {
@@ -176,226 +192,200 @@ export const AccountPage = () => {
   };
 
   return (
-    <AppSubNavPageLayout
-      title="Konto"
-      description="Profil, Sicherheit und deine Daten — alles, was dein Nutzerkonto betrifft."
-      contentClassName="pt-6"
-      className="[&_header_h1]:text-3xl [&_header_h1]:tracking-tight sm:[&_header_h1]:text-4xl"
-    >
-      <div className="min-w-0 rounded-2xl bg-slate-50/50 px-4 py-6 sm:px-6 sm:py-8">
-        <AppPage className="space-y-12 !pt-0">
-          <div className="flex flex-wrap justify-end gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              onClick={() => navigate("/app")}
-            >
-              <ArrowLeft size={16} strokeWidth={2} aria-hidden />
-              Zurück zur App
-            </Button>
-          </div>
+    <AppSubNavPageLayout hideTitle title="Konto" description="">
+      <h1 className="sr-only">Konto</h1>
+      <div className="w-full min-w-0 space-y-6 pb-8">
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => navigate("/app")}
+          >
+            <ArrowLeft size={16} strokeWidth={2} aria-hidden />
+            Zurück zur App
+          </Button>
+        </div>
 
-          <div className="mx-auto w-full min-w-0 max-w-3xl space-y-12">
-            <div className="flex flex-col gap-6">
-              <AppPageSectionHeader
-                icon={UserCircle}
-                title="Profil & Kontaktdaten"
-                description="Benutzername und E-Mail-Adresse für Login und Benachrichtigungen."
-              />
-              <div className={sectionCard}>
-                {profileLoading ? (
-                  <p className="text-sm font-medium text-slate-600">
-                    Profil wird geladen …
+        <div className="mx-auto w-full min-w-0 space-y-6 lg:max-w-6xl">
+          <AccountPanel
+            title="Profil & Kontaktdaten"
+            description="Benutzername und E-Mail-Adresse für Login und Benachrichtigungen."
+          >
+            {profileLoading ? (
+              <p className="text-sm font-medium text-[color:var(--pf-fg-muted)]">
+                Profil wird geladen …
+              </p>
+            ) : (
+              <form onSubmit={handleProfileSubmit} className="space-y-5">
+                <div className="rounded-xl bg-[color:var(--pf-bg-muted)] px-4 py-3 ring-1 ring-inset ring-[color:var(--pf-border-subtle)]">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[color:var(--pf-fg-muted)]">
+                    Konto
                   </p>
-                ) : (
-                  <form onSubmit={handleProfileSubmit} className="space-y-5">
-                    <div className="rounded-xl bg-slate-50/80 px-4 py-3 ring-1 ring-inset ring-slate-900/5 dark:ring-white/10">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                        Konto
-                      </p>
-                      <dl className="mt-2 space-y-1 text-sm font-medium text-slate-700">
-                        <div className="flex flex-wrap justify-between gap-2">
-                          <dt className="text-slate-500">Registriert am</dt>
-                          <dd>{formatDeDateTime(dateJoined)}</dd>
-                        </div>
-                        <div className="flex flex-wrap justify-between gap-2">
-                          <dt className="text-slate-500">Zuletzt angemeldet</dt>
-                          <dd>{formatDeDateTime(lastLogin)}</dd>
-                        </div>
-                      </dl>
+                  <dl className="mt-2 space-y-1 text-sm font-medium text-[color:var(--pf-fg)]">
+                    <div className="flex flex-wrap justify-between gap-2">
+                      <dt className="text-[color:var(--pf-fg-muted)]">Registriert am</dt>
+                      <dd>{formatDeDateTime(dateJoined)}</dd>
                     </div>
-                    <Input
-                      label="Benutzername"
-                      name="username"
-                      autoComplete="username"
-                      value={username}
-                      onChange={(ev) => setUsername(ev.target.value)}
-                      required
-                    />
-                    <Input
-                      label="E-Mail"
-                      name="email"
-                      type="email"
-                      autoComplete="email"
-                      value={email}
-                      onChange={(ev) => setEmail(ev.target.value)}
-                      placeholder="optional"
-                    />
-                    <p className="text-xs font-medium text-slate-500">
-                      Die E-Mail darf leer bleiben. Sie muss serverseitig eindeutig sein, wenn du sie
-                      setzt.
-                    </p>
-                    <div className="flex flex-wrap gap-3">
-                      <Button
-                        type="submit"
-                        variant="premium"
-                        size="sm"
-                        disabled={profileSaving}
-                      >
-                        {profileSaving ? "Speichern …" : "Profil speichern"}
-                      </Button>
+                    <div className="flex flex-wrap justify-between gap-2">
+                      <dt className="text-[color:var(--pf-fg-muted)]">Zuletzt angemeldet</dt>
+                      <dd>{formatDeDateTime(lastLogin)}</dd>
                     </div>
-                  </form>
-                )}
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-6">
-              <AppPageSectionHeader
-                icon={KeyRound}
-                title="Sicherheit & Passwort"
-                description="Aktuelles Passwort und neues Passwort (mindestens 8 Zeichen)."
-              />
-              <div className={sectionCard}>
-                <form onSubmit={handlePasswordSubmit} className="space-y-5">
-                  <Input
-                    label="Aktuelles Passwort"
-                    name="current_password"
-                    type="password"
-                    autoComplete="current-password"
-                    value={currentPassword}
-                    onChange={(ev) => setCurrentPassword(ev.target.value)}
-                    required
-                  />
-                  <Input
-                    label="Neues Passwort"
-                    name="new_password"
-                    type="password"
-                    autoComplete="new-password"
-                    value={newPassword}
-                    onChange={(ev) => setNewPassword(ev.target.value)}
-                    required
-                    minLength={8}
-                  />
-                  <Input
-                    label="Neues Passwort wiederholen"
-                    name="confirm_password"
-                    type="password"
-                    autoComplete="new-password"
-                    value={confirmPassword}
-                    onChange={(ev) => setConfirmPassword(ev.target.value)}
-                    required
-                    minLength={8}
-                  />
-                  <div className="flex flex-wrap gap-3">
-                    <Button
-                      type="submit"
-                      variant="premium"
-                      size="sm"
-                      disabled={passwordSaving}
-                    >
-                      {passwordSaving ? "Wird geändert …" : "Passwort ändern"}
-                    </Button>
-                  </div>
-                </form>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-6">
-              <AppPageSectionHeader
-                icon={Download}
-                title="Deine Daten"
-                description="JSON-Export mit Stammdaten und Metadaten zu deinen Vorlagen (ohne Bilddateien)."
-              />
-              <div className={sectionCard}>
-                <p className="text-sm font-medium leading-relaxed text-slate-600">
-                  Du kannst eine maschinenlesbare Übersicht herunterladen — sinnvoll für Backups oder
-                  Anfragen nach Art. 15 DSGVO. Enthalten sind keine API-Schlüssel und keine
-                  Binärdaten.
+                  </dl>
+                </div>
+                <Input
+                  label="Benutzername"
+                  name="username"
+                  autoComplete="username"
+                  value={username}
+                  onChange={(ev) => setUsername(ev.target.value)}
+                  required
+                />
+                <Input
+                  label="E-Mail"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(ev) => setEmail(ev.target.value)}
+                  placeholder="optional"
+                />
+                <p className="text-xs font-medium text-[color:var(--pf-fg-muted)]">
+                  Die E-Mail darf leer bleiben. Sie muss serverseitig eindeutig sein, wenn du sie
+                  setzt.
                 </p>
-                <div className="mt-5 flex flex-wrap gap-3">
+                <div className="flex flex-wrap gap-3">
                   <Button
-                    type="button"
+                    type="submit"
                     variant="premium"
                     size="sm"
-                    className="gap-2"
-                    disabled={profileLoading || exportBusy}
-                    onClick={() => void handleExport()}
+                    disabled={profileSaving}
                   >
-                    <Download size={16} strokeWidth={2} aria-hidden />
-                    {exportBusy ? "Export …" : "Daten exportieren (JSON)"}
+                    {profileSaving ? "Speichern …" : "Profil speichern"}
                   </Button>
                 </div>
-              </div>
-            </div>
+              </form>
+            )}
+          </AccountPanel>
 
-            <div className="flex flex-col gap-6">
-              <AppPageSectionHeader
-                icon={CreditCard}
-                title="Abrechnung & Zahlungen"
-                description="Stripe: Zahlungsmethoden, Rechnungen, Abos und Steuerdaten."
+          <AccountPanel
+            title="Sicherheit & Passwort"
+            description="Aktuelles Passwort und neues Passwort (mindestens 8 Zeichen)."
+          >
+            <form onSubmit={handlePasswordSubmit} className="space-y-5">
+              <Input
+                label="Aktuelles Passwort"
+                name="current_password"
+                type="password"
+                autoComplete="current-password"
+                value={currentPassword}
+                onChange={(ev) => setCurrentPassword(ev.target.value)}
+                required
               />
-              <div className={sectionCard}>
-                <p className="text-sm font-medium leading-relaxed text-slate-600">
-                  Die Integration mit <span className="font-semibold text-slate-800">Stripe</span>{" "}
-                  (Checkout, Kundenportal, Rechnungs-PDF) ist vorgesehen. Du wirst hier Zahlungsmittel
-                  verwalten, Verlauf einsehen und Abos verwalten können — ohne die App zu verlassen.
-                </p>
-                <div className="mt-5 flex flex-wrap gap-3">
-                  <Button type="button" variant="outline" size="sm" disabled>
-                    Stripe verbinden
-                  </Button>
-                  <Button type="button" variant="outline" size="sm" disabled>
-                    Rechnungen
-                  </Button>
-                </div>
-                <p className="mt-4 text-xs font-medium text-slate-500">
-                  Hinweis: Keine Zahlungsdaten werden aktuell erfasst; diese Schaltflächen sind
-                  Platzhalter.
-                </p>
+              <Input
+                label="Neues Passwort"
+                name="new_password"
+                type="password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(ev) => setNewPassword(ev.target.value)}
+                required
+                minLength={8}
+              />
+              <Input
+                label="Neues Passwort wiederholen"
+                name="confirm_password"
+                type="password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(ev) => setConfirmPassword(ev.target.value)}
+                required
+                minLength={8}
+              />
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  type="submit"
+                  variant="premium"
+                  size="sm"
+                  disabled={passwordSaving}
+                >
+                  {passwordSaving ? "Wird geändert …" : "Passwort ändern"}
+                </Button>
               </div>
-            </div>
+            </form>
+          </AccountPanel>
 
-            <div className="flex flex-col gap-6">
-              <AppPageSectionHeader
-                icon={AlertTriangle}
-                title="Gefahrenzone"
-                description="Konto dauerhaft löschen: Alle Vorlagen, Integrationen und persönlichen Daten zu diesem Konto."
-              />
-              <div className={dangerSectionCard}>
-                <p className="text-sm font-medium leading-relaxed text-slate-600">
-                  Diese Aktion kann nicht rückgängig gemacht werden. Du musst danach ein neues Konto
-                  registrieren, falls du die App wieder nutzen möchtest.
-                </p>
-                <div className="mt-5 flex flex-wrap gap-3">
-                  <Button
-                    type="button"
-                    variant="danger"
-                    size="sm"
-                    className="gap-2"
-                    disabled={profileLoading}
-                    onClick={() => setDeleteOpen(true)}
-                  >
-                    <Trash2 size={16} strokeWidth={2} aria-hidden />
-                    Konto endgültig löschen
-                  </Button>
-                </div>
-              </div>
+          <AccountPanel
+            title="Deine Daten"
+            description="JSON-Export mit Stammdaten und Metadaten zu deinen Vorlagen (ohne Bilddateien)."
+          >
+            <p className="text-sm font-medium leading-relaxed text-[color:var(--pf-fg-muted)]">
+              Du kannst eine maschinenlesbare Übersicht herunterladen — sinnvoll für Backups oder
+              Anfragen nach Art. 15 DSGVO. Enthalten sind keine API-Schlüssel und keine Binärdaten.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Button
+                type="button"
+                variant="premium"
+                size="sm"
+                className="gap-2"
+                disabled={profileLoading || exportBusy}
+                onClick={() => void handleExport()}
+              >
+                <Download size={16} strokeWidth={2} aria-hidden />
+                {exportBusy ? "Export …" : "Daten exportieren (JSON)"}
+              </Button>
             </div>
-          </div>
-        </AppPage>
+          </AccountPanel>
+
+          <AccountPanel
+            title="Abrechnung & Zahlungen"
+            description="Stripe: Zahlungsmethoden, Rechnungen, Abos und Steuerdaten."
+          >
+            <p className="text-sm font-medium leading-relaxed text-[color:var(--pf-fg-muted)]">
+              Die Integration mit <span className="font-semibold text-[color:var(--pf-fg)]">Stripe</span>{" "}
+              (Checkout, Kundenportal, Rechnungs-PDF) ist vorgesehen. Du wirst hier Zahlungsmittel
+              verwalten, Verlauf einsehen und Abos verwalten können — ohne die App zu verlassen.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Button type="button" variant="outline" size="sm" disabled>
+                Stripe verbinden
+              </Button>
+              <Button type="button" variant="outline" size="sm" disabled>
+                Rechnungen
+              </Button>
+            </div>
+            <p className="mt-4 text-xs font-medium text-[color:var(--pf-fg-muted)]">
+              Hinweis: Keine Zahlungsdaten werden aktuell erfasst; diese Schaltflächen sind
+              Platzhalter.
+            </p>
+          </AccountPanel>
+
+          <AccountPanel
+            title="Gefahrenzone"
+            description="Konto dauerhaft löschen: Alle Vorlagen, Integrationen und persönlichen Daten zu diesem Konto."
+            danger
+          >
+            <p className="text-sm font-medium leading-relaxed text-[color:var(--pf-fg-muted)]">
+              Diese Aktion kann nicht rückgängig gemacht werden. Du musst danach ein neues Konto
+              registrieren, falls du die App wieder nutzen möchtest.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Button
+                type="button"
+                variant="danger"
+                size="sm"
+                className="gap-2"
+                disabled={profileLoading}
+                onClick={() => setDeleteOpen(true)}
+              >
+                <Trash2 size={16} strokeWidth={2} aria-hidden />
+                Konto endgültig löschen
+              </Button>
+            </div>
+          </AccountPanel>
+        </div>
       </div>
 
       <Modal

@@ -15,11 +15,11 @@ type EtsyIntegrationSetupProps = {
 
 /**
  * Etsy OAuth im zentralen Integrations-Setup.
- * Listings-Editor: vorübergehend nicht in der Hauptnavigation (siehe Roadmap).
+ * Listings-Editor: unter Publizieren → Etsy-Listings; OAuth hier im Integrations-Hub.
  */
 export const EtsyIntegrationSetup = ({ isConnected = false }: EtsyIntegrationSetupProps) => {
   const goToWorkspace = useAppStore((s) => s.goToWorkspace);
-  const setActiveTab = useAppStore((s) => s.setActiveTab);
+  const goToRoadmap = useAppStore((s) => s.goToRoadmap);
 
   const handleConnect = useCallback(async () => {
     try {
@@ -92,11 +92,11 @@ export const EtsyIntegrationSetup = ({ isConnected = false }: EtsyIntegrationSet
           >
             Erstellen → Generator
           </button>
-          . Der Etsy-Listings-Editor ist vorübergehend nicht in der Navigation — siehe{" "}
+          .           Details und geplante Erweiterungen in der{" "}
           <button
             type="button"
             className="text-indigo-600 hover:text-indigo-800 hover:underline"
-            onClick={() => setActiveTab("roadmap")}
+            onClick={() => goToRoadmap()}
           >
             Roadmap
           </button>

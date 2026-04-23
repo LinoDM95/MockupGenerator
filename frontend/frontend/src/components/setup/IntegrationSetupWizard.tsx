@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 
 import type { IntegrationStatusResponse } from "../../api/settings";
 import { fetchIntegrationStatus } from "../../api/settings";
+import { cn } from "../../lib/ui/cn";
+import { WORKSPACE_PANEL_SURFACE, WORKSPACE_ZINC_MUTED } from "../../lib/ui/workspaceSurfaces";
 import { useAppStore } from "../../store/appStore";
 import { AISetup } from "../ai/AISetup";
 import { GelatoSetup } from "../gelato/GelatoSetup";
@@ -19,7 +21,7 @@ const STEP_COUNT = 3;
 const plain = (s: string) => s.replace(/\*\*/g, "");
 
 const WizardStepContent = ({ copy }: { copy: WizardStepCopy }) => (
-  <div className="space-y-6 text-sm text-slate-600">
+  <div className={cn("space-y-6 text-sm font-medium", WORKSPACE_ZINC_MUTED)}>
     <div className="space-y-2">
       {copy.intro.map((p) => (
         <p key={p.slice(0, 48)} className="leading-relaxed">
@@ -29,7 +31,7 @@ const WizardStepContent = ({ copy }: { copy: WizardStepCopy }) => (
     </div>
 
     <div>
-      <h3 className="mb-2 text-sm font-semibold text-slate-900">{copy.why.heading}</h3>
+      <h3 className="mb-2 text-sm font-semibold text-[color:var(--pf-fg)]">{copy.why.heading}</h3>
       <div className="space-y-2">
         {copy.why.paragraphs.map((p) => (
           <p key={p.slice(0, 40)} className="leading-relaxed">
@@ -40,7 +42,9 @@ const WizardStepContent = ({ copy }: { copy: WizardStepCopy }) => (
     </div>
 
     <div>
-      <h3 className="mb-2 text-sm font-semibold text-slate-900">{copy.prerequisites.heading}</h3>
+      <h3 className="mb-2 text-sm font-semibold text-[color:var(--pf-fg)]">
+        {copy.prerequisites.heading}
+      </h3>
       <ul className="list-disc space-y-1.5 pl-5">
         {copy.prerequisites.items.map((item) => (
           <li key={item}>{plain(item)}</li>
@@ -48,25 +52,25 @@ const WizardStepContent = ({ copy }: { copy: WizardStepCopy }) => (
       </ul>
     </div>
 
-    <details className="group rounded-xl bg-slate-50/50 ring-1 ring-inset ring-slate-900/5">
-      <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-slate-800 [&::-webkit-details-marker]:hidden">
+    <details className="group rounded-[length:var(--pf-radius-lg)] bg-[color:var(--pf-bg-muted)] ring-1 ring-inset ring-[color:var(--pf-border-subtle)]">
+      <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[color:var(--pf-fg)] [&::-webkit-details-marker]:hidden">
         <span className="flex items-center justify-between gap-2">
           {copy.walkthrough.heading}
-          <span className="text-slate-400 group-open:rotate-0">▼</span>
+          <span className="text-[color:var(--pf-fg-faint)] group-open:rotate-0">▼</span>
         </span>
       </summary>
-      <ol className="space-y-3 border-t border-slate-100 px-4 py-2 pb-4 pl-8 text-sm">
+      <ol className="space-y-3 border-t border-[color:var(--pf-border)] px-4 py-2 pb-4 pl-8 text-sm">
         {copy.walkthrough.steps.map((s) => (
           <li key={s.title} className="list-decimal">
-            <span className="font-medium text-slate-800">{plain(s.title)}</span>
-            <p className="mt-1 text-slate-600">{plain(s.detail)}</p>
+            <span className="font-semibold text-[color:var(--pf-fg)]">{plain(s.title)}</span>
+            <p className={cn("mt-1 font-medium", WORKSPACE_ZINC_MUTED)}>{plain(s.detail)}</p>
           </li>
         ))}
       </ol>
     </details>
 
     <div>
-      <h3 className="mb-2 text-sm font-semibold text-slate-900">{copy.security.heading}</h3>
+      <h3 className="mb-2 text-sm font-semibold text-[color:var(--pf-fg)]">{copy.security.heading}</h3>
       <div className="space-y-2">
         {copy.security.paragraphs.map((p) => (
           <p key={p.slice(0, 40)} className="leading-relaxed">
@@ -83,7 +87,7 @@ const WizardStepContent = ({ copy }: { copy: WizardStepCopy }) => (
           href={l.href}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-sm font-medium text-indigo-600 underline-offset-2 hover:underline"
+          className="text-sm font-semibold text-[color:var(--pf-accent)] underline-offset-2 hover:underline"
         >
           {l.label}
         </a>
@@ -91,7 +95,7 @@ const WizardStepContent = ({ copy }: { copy: WizardStepCopy }) => (
     </div>
 
     <div>
-      <h3 className="mb-2 text-sm font-semibold text-slate-900">{copy.afterSetup.heading}</h3>
+      <h3 className="mb-2 text-sm font-semibold text-[color:var(--pf-fg)]">{copy.afterSetup.heading}</h3>
       <div className="space-y-2">
         {copy.afterSetup.paragraphs.map((p) => (
           <p key={p.slice(0, 40)} className="leading-relaxed">
@@ -102,7 +106,10 @@ const WizardStepContent = ({ copy }: { copy: WizardStepCopy }) => (
     </div>
 
     <div
-      className="flex aspect-video items-center justify-center rounded-lg bg-slate-100 text-sm text-slate-500"
+      className={cn(
+        "flex aspect-video items-center justify-center rounded-[length:var(--pf-radius)] bg-[color:var(--pf-bg-muted)] text-sm font-medium",
+        WORKSPACE_ZINC_MUTED,
+      )}
       aria-hidden
     >
       Video Placeholder
@@ -178,7 +185,10 @@ export const IntegrationSetupWizard = () => {
                     {n}. {WIZARD_STEPS[n - 1].stepLabel}
                   </AppTabStepButton>
                   {n < STEP_COUNT ? (
-                    <ChevronRight className="hidden h-4 w-4 shrink-0 text-slate-300 sm:block" aria-hidden />
+                    <ChevronRight
+                      className="hidden h-4 w-4 shrink-0 text-[color:var(--pf-border-strong)] sm:block"
+                      aria-hidden
+                    />
                   ) : null}
                 </li>
               );
@@ -186,16 +196,20 @@ export const IntegrationSetupWizard = () => {
           </ol>
         </LayoutGroup>
         {loading ? (
-          <p className="text-xs text-slate-500">Status wird aktualisiert…</p>
+          <p className={cn("text-xs font-semibold", WORKSPACE_ZINC_MUTED)}>Status wird aktualisiert…</p>
         ) : null}
       </div>
 
-      <div className="rounded-2xl bg-white p-4 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 sm:p-6">
-        <h3 className="text-base font-semibold text-slate-900">{plain(copy.title)}</h3>
-        <WizardStepContent copy={copy} />
+      <div className={cn("p-4 sm:p-6", WORKSPACE_PANEL_SURFACE)}>
+        <h3 className="text-base font-bold tracking-tight text-[color:var(--pf-fg)]">
+          {plain(copy.title)}
+        </h3>
+        <div className="mt-4">
+          <WizardStepContent copy={copy} />
+        </div>
 
-        <div className="mt-8 border-t border-slate-100 pt-6">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+        <div className="mt-8 border-t border-[color:var(--pf-border)] pt-6">
+          <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-[color:var(--pf-fg-faint)]">
             In dieser App
           </p>
           {step === 1 ? (
@@ -207,7 +221,7 @@ export const IntegrationSetupWizard = () => {
           )}
         </div>
 
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-6">
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--pf-border)] pt-6">
           <Button
             type="button"
             variant="outline"
@@ -230,7 +244,7 @@ export const IntegrationSetupWizard = () => {
               <ChevronRight className="h-4 w-4" aria-hidden />
             </Button>
           ) : (
-            <p className="text-sm text-slate-500">
+            <p className={cn("text-sm font-medium", WORKSPACE_ZINC_MUTED)}>
               Letzter Schritt. Feintuning jederzeit unter „Alle Integrationen“.
             </p>
           )}

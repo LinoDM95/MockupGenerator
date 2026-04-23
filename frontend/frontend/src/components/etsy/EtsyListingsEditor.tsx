@@ -16,7 +16,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { AnimatePresence, motion } from "framer-motion";
-import { GripVertical, Loader2, RefreshCw, Send, Store } from "lucide-react";
+import { GripVertical, Loader2, RefreshCw, Search, Send, Store } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useIntegrationFlags } from "../../hooks/useIntegrationFlags";
@@ -34,7 +34,6 @@ import { cn } from "../../lib/ui/cn";
 import { toast } from "../../lib/ui/toast";
 import { useAppStore } from "../../store/appStore";
 import type { Template } from "../../types/mockup";
-import { AppPageSectionHeader } from "../ui/layout/AppPageSectionHeader";
 import { Button } from "../ui/primitives/Button";
 import { Card } from "../ui/primitives/Card";
 import { EmptyState } from "../ui/layout/EmptyState";
@@ -115,6 +114,7 @@ export const EtsyListingsEditor = () => {
   const [listings, setListings] = useState<EtsyListing[]>([]);
   const [listingsLoading, setListingsLoading] = useState(false);
   const [selectedListingId, setSelectedListingId] = useState<number | null>(null);
+  const [filterQuery, setFilterQuery] = useState("");
   const [templateId, setTemplateId] = useState<string>("");
   const [artworkId, setArtworkId] = useState<string>("");
   const [deleteIds, setDeleteIds] = useState<Set<number>>(new Set());
@@ -289,30 +289,27 @@ export const EtsyListingsEditor = () => {
     return first?.url_570xN || first?.url_fullxfull || first?.url_75x75 || null;
   }, [etsyImages]);
 
+  const filteredListings = useMemo(() => {
+    const q = filterQuery.trim().toLowerCase();
+    if (!q) return listings;
+    return listings.filter((l) => {
+      const id = listingId(l);
+      const title = (l.title || `Listing ${id}`).toLowerCase();
+      return title.includes(q) || String(id).includes(q);
+    });
+  }, [listings, filterQuery]);
+
+  const listingsForSelect = useMemo(() => {
+    if (selectedListingId == null) return filteredListings;
+    const inFiltered = filteredListings.some((l) => listingId(l) === selectedListingId);
+    if (inFiltered) return filteredListings;
+    const selected = listings.find((l) => listingId(l) === selectedListingId);
+    return selected ? [selected, ...filteredListings] : filteredListings;
+  }, [filteredListings, listings, selectedListingId]);
+
   return (
-    <div className="space-y-8">
-      <AppPageSectionHeader
-        icon={Store}
-        title="Etsy Listings"
-        description="Vorschau, Bilder verwalten und Mockups per Bulk-Job senden."
-      />
-
-      <div className="flex flex-wrap items-center justify-end gap-3">
-        <Button
-          variant="outline"
-          type="button"
-          onClick={() => void loadListings()}
-          disabled={listingsLoading}
-        >
-          {listingsLoading ? (
-            <Loader2 className="animate-spin" size={16} aria-hidden />
-          ) : (
-            <RefreshCw size={16} strokeWidth={1.75} aria-hidden />
-          )}
-          Aktualisieren
-        </Button>
-      </div>
-
+    <div className="space-y-6">
+      <h1 className="sr-only">Etsy-Listings</h1>
       {!integrationFlagsLoading && !etsyConnected ? (
         <IntegrationMissingCallout
           title="Etsy ist nicht verbunden"
@@ -323,14 +320,14 @@ export const EtsyListingsEditor = () => {
       ) : null}
 
       {jobId ? (
-        <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm font-medium text-slate-800 shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-inset ring-slate-900/5">
-          <span className="font-bold text-slate-900">Letzter Job:</span> {jobId.slice(0, 8)}… —{" "}
-          <span className="text-indigo-700">{jobStatus}</span>
+        <div className="rounded-[length:var(--pf-radius-lg)] bg-[color:var(--pf-bg-muted)] px-4 py-3 text-sm font-medium text-[color:var(--pf-fg)] shadow-[var(--pf-shadow-sm)] ring-1 ring-inset ring-[color:var(--pf-border-subtle)]">
+          <span className="font-bold text-[color:var(--pf-fg)]">Letzter Job:</span> {jobId.slice(0, 8)}… —{" "}
+          <span className="text-[color:var(--pf-accent)]">{jobStatus}</span>
         </div>
       ) : null}
 
       {listingsLoading && !listings.length ? (
-        <div className="flex items-center justify-center gap-2 py-16 text-sm font-medium text-slate-500">
+        <div className="flex items-center justify-center gap-2 py-16 text-sm font-medium text-[color:var(--pf-fg-muted)]">
           <Loader2 className="animate-spin" size={18} aria-hidden />
           Listings werden geladen…
         </div>
@@ -346,10 +343,46 @@ export const EtsyListingsEditor = () => {
           }
         />
       ) : (
+        <Card variant="bordered" padding="none" className="overflow-hidden">
+          <div className="flex flex-wrap items-center gap-3 border-b border-[color:var(--pf-border)] px-4 py-3">
+            <div className="text-[15px] font-semibold text-[color:var(--pf-fg)]">Etsy-Listings</div>
+            <span
+              className="inline-flex items-center rounded-md border border-[color:var(--pf-border)] bg-[color:var(--pf-bg-muted)] px-2 py-0.5 text-[10px] font-medium text-[color:var(--pf-fg-muted)]"
+              aria-live="polite"
+            >
+              {listings.length} gesamt
+            </span>
+            <div className="min-w-[80px] flex-1" />
+            <div className="flex min-w-0 max-w-full items-center gap-1.5 rounded-md border border-[color:var(--pf-border-subtle)] bg-[color:var(--pf-bg-muted)] px-2 py-1 sm:max-w-[220px]">
+              <Search className="shrink-0 text-[color:var(--pf-fg-subtle)]" size={12} strokeWidth={2} aria-hidden />
+              <input
+                type="search"
+                value={filterQuery}
+                onChange={(e) => setFilterQuery(e.target.value)}
+                placeholder="Titel, Tag…"
+                className="min-w-0 flex-1 border-0 bg-transparent text-xs text-[color:var(--pf-fg)] outline-none placeholder:text-[color:var(--pf-fg-faint)]"
+                aria-label="Listings filtern"
+              />
+            </div>
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => void loadListings()}
+              disabled={listingsLoading}
+            >
+              {listingsLoading ? (
+                <Loader2 className="animate-spin" size={16} aria-hidden />
+              ) : (
+                <RefreshCw size={16} strokeWidth={1.75} aria-hidden />
+              )}
+              Aktualisieren
+            </Button>
+          </div>
+          <div className="p-4 lg:p-6">
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
           <div className="lg:col-span-5">
             <div className="space-y-4 lg:sticky lg:top-24">
-              <Card padding="sm">
+              <Card padding="sm" variant="bordered">
                 <div className="aspect-[4/3] overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-900/5">
                   {primaryListingImageUrl ? (
                     <img
@@ -394,7 +427,7 @@ export const EtsyListingsEditor = () => {
           </div>
 
           <div className="space-y-6 lg:col-span-7">
-            <Card padding="lg">
+            <Card padding="lg" variant="bordered">
               <div className="space-y-6">
                 <Select
                   label="Listing"
@@ -405,7 +438,7 @@ export const EtsyListingsEditor = () => {
                   }}
                 >
                   <option value="">— wählen —</option>
-                  {listings.map((l) => {
+                  {listingsForSelect.map((l) => {
                     const id = listingId(l);
                     return (
                       <option key={id} value={id}>
@@ -549,6 +582,8 @@ export const EtsyListingsEditor = () => {
             </Card>
           </div>
         </div>
+          </div>
+        </Card>
       )}
     </div>
   );
