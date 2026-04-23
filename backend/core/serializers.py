@@ -2,6 +2,7 @@ import uuid
 from typing import Any
 
 from django.contrib.auth.models import User
+from django.urls import reverse
 from rest_framework import serializers
 
 from .models import Template, TemplateElement, TemplateSet
@@ -81,11 +82,20 @@ class TemplateSerializer(serializers.ModelSerializer):
         if not obj.background_image:
             return None
         request = self.context.get("request")
+        # Export: öffentliche Storage-URL, damit Import (serverseitiger httpx) ohne Session funktioniert.
+        if self.context.get("export_background_urls"):
+            url = obj.background_image.url
+            if url.startswith(("http://", "https://")):
+                return url
+            if request is not None:
+                return request.build_absolute_uri(url)
+            return url
+        # App / Canvas: same-origin-Proxy — vermeidet R2-CORS bei crossOrigin="anonymous".
+        if request is not None:
+            return reverse("template-background", kwargs={"pk": obj.pk})
         url = obj.background_image.url
         if url.startswith(("http://", "https://")):
             return url
-        if request is not None:
-            return request.build_absolute_uri(url)
         return url
 
     def get_elements(self, obj: Template) -> list[dict[str, Any]]:

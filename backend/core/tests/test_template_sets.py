@@ -188,3 +188,45 @@ class ExportSetTests(TestCase):
         self.assertEqual(r.status_code, 200)
         data = json.loads(r.content)
         self.assertEqual(data["name"], "E")
+
+
+class TemplateBackgroundDownloadTests(TestCase):
+    def setUp(self) -> None:
+        self.user = create_user(username="bgdl", password="pw")
+        self.client = api_client_bearer(self.user)
+        self.ts = TemplateSet.objects.create(user=self.user, name="S")
+        png = minimal_png_bytes()
+        self.tpl = Template.objects.create(
+            template_set=self.ts,
+            name="T1",
+            width=1,
+            height=1,
+            background_image=SimpleUploadedFile("bg.png", png, content_type="image/png"),
+            order=0,
+        )
+
+    def test_background_get_streams_file(self) -> None:
+        r = self.client.get(f"/api/templates/{self.tpl.pk}/background/")
+        self.assertEqual(r.status_code, 200)
+        body = b"".join(r.streaming_content)
+        self.assertGreaterEqual(len(body), len(minimal_png_bytes()) - 20)
+
+    def test_background_other_user_404(self) -> None:
+        c2 = api_client_bearer(create_user(username="bgother", password="pw"))
+        r = c2.get(f"/api/templates/{self.tpl.pk}/background/")
+        self.assertEqual(r.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_set_detail_bg_image_is_same_origin_proxy_path(self) -> None:
+        r = self.client.get(f"/api/sets/{self.ts.pk}/")
+        self.assertEqual(r.status_code, 200)
+        data = json.loads(r.content)
+        bg = data["templates"][0]["bgImage"]
+        self.assertEqual(bg, f"/api/templates/{self.tpl.pk}/background/")
+
+    def test_export_bg_image_is_absolute_for_import(self) -> None:
+        r = self.client.get(f"/api/sets/{self.ts.pk}/export/")
+        self.assertEqual(r.status_code, 200)
+        data = json.loads(r.content)
+        bg = data["templates"][0]["bgImage"]
+        self.assertTrue(bg.startswith("http://") or bg.startswith("https://"), bg)
+        self.assertFalse(bg.endswith("/background/"), bg)

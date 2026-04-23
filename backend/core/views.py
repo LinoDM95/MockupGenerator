@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import mimetypes
 import uuid
 from typing import Any
 from urllib.parse import urlparse
@@ -8,6 +9,7 @@ from urllib.parse import urlparse
 import httpx
 from django.conf import settings
 from django.core.files.base import ContentFile
+from django.http import FileResponse, Http404
 from django.db import transaction
 from django.db.models import Max, Prefetch
 from django.utils import timezone
@@ -276,7 +278,12 @@ class TemplateSetViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["get"], url_path="export")
     def export_set(self, request, pk=None):
         obj = self.get_object()
-        return Response(TemplateSetSerializer(obj, context={"request": request}).data)
+        return Response(
+            TemplateSetSerializer(
+                obj,
+                context={"request": request, "export_background_urls": True},
+            ).data
+        )
 
     @action(detail=False, methods=["post"], url_path="import")
     @transaction.atomic
@@ -409,3 +416,23 @@ class TemplateViewSet(viewsets.ModelViewSet):
         replace_template_elements(tpl, request.data, regenerate_element_ids=False)
         tpl.refresh_from_db()
         return Response(TemplateSerializer(tpl, context={"request": request}).data)
+
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="background",
+        url_name="background",
+    )
+    def serve_background(self, request, pk=None):
+        """Liefert das Hintergrundbild same-origin (JWT-Cookie), damit Canvas CORS nicht braucht."""
+        tpl = self.get_object()
+        if not tpl.background_image:
+            raise Http404()
+        fh = tpl.background_image.open("rb")
+        name = getattr(tpl.background_image, "name", "") or ""
+        content_type, _ = mimetypes.guess_type(name)
+        if not content_type:
+            content_type = "application/octet-stream"
+        resp = FileResponse(fh, content_type=content_type)
+        resp["Cache-Control"] = "private, max-age=3600"
+        return resp
