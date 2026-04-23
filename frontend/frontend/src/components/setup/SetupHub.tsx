@@ -13,7 +13,6 @@ import { useCallback, useEffect, useState } from "react";
 
 import type { IntegrationStatusResponse } from "../../api/settings";
 import { fetchIntegrationStatus } from "../../api/settings";
-import { getErrorMessage } from "../../lib/common/error";
 import {
   getDefaultHubTab,
   isIntegrationHubUiEnabled,

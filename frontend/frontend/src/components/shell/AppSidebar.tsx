@@ -92,20 +92,25 @@ const SidebarGroup = ({ eyebrow, collapsed, children }: GroupProps) => (
   </div>
 );
 
-type AppSidebarProps = {
-  variant: "desktop" | "drawer";
-  onNavigate?: () => void;
-  /** Desktop: eingeklappt (schmale Leiste + Lasche). */
-  desktopCollapsed: boolean;
-  onDesktopCollapsedChange: (collapsed: boolean) => void;
-};
+type AppSidebarProps =
+  | {
+      variant: "desktop";
+      onNavigate?: () => void;
+      desktopCollapsed: boolean;
+      onDesktopCollapsedChange: (collapsed: boolean) => void;
+    }
+  | {
+      variant: "drawer";
+      onNavigate?: () => void;
+    };
 
-export const AppSidebar = ({
-  variant,
-  onNavigate,
-  desktopCollapsed: collapsed,
-  onDesktopCollapsedChange: setCollapsed,
-}: AppSidebarProps) => {
+export const AppSidebar = (props: AppSidebarProps) => {
+  const variant = props.variant;
+  const isDrawer = variant === "drawer";
+  const onNavigate = props.onNavigate;
+  const collapsed = variant === "desktop" ? props.desktopCollapsed : false;
+  const setCollapsed =
+    variant === "desktop" ? props.onDesktopCollapsedChange : () => {};
   const navigationLocked = useAppStore((s) => s.navigationLocked);
   const templateSets = useAppStore((s) => s.templateSets);
   const artworks = useAppStore((s) => s.artworks);
@@ -113,7 +118,6 @@ export const AppSidebar = ({
   const reduceMotion = useReducedMotion();
 
   const widthClass = collapsed ? "w-14" : "w-[232px]";
-  const isDrawer = variant === "drawer";
 
   const shellWrapperClass = cn(
     "relative z-10 h-full min-h-0 shrink-0",
