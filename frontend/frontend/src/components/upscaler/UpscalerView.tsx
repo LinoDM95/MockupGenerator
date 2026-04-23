@@ -3,13 +3,16 @@ import {
   ArrowLeft,
   CheckCircle2,
   ChevronDown,
+  Cloud,
   Copy,
+  Cpu,
   Download,
   Loader2,
   Plus,
   Settings,
   Sparkles,
   Trash2,
+  Zap,
 } from "lucide-react";
 import {
   useCallback,
@@ -58,6 +61,16 @@ import {
   workspaceEmbeddedPanelClassName,
 } from "../../lib/ui/workspaceSurfaces";
 import {
+  batchScopeLabel,
+  displayEngineLabel,
+  modelRowLabel,
+  UPSCALER_UI_PRODUCT_NAME,
+  printflowUpscalerEnginePicker,
+  printflowUpscalerHero,
+  queueSubtitleForEngine,
+  type PrintflowUpscalerEngineMode,
+} from "../../lib/upscaler/printflowUpscalerBranding";
+import {
   formatReplicateSessionEta,
   maxReplicateParallelWorkers,
 } from "../../lib/upscaler/replicateTileParallel";
@@ -75,24 +88,17 @@ import { WorkSessionShell } from "../ui/workSession/WorkSessionShell";
 import { UpscalerQueueTable } from "./UpscalerQueueTable";
 
 /**
- * Replicate im Upscaler: Karte bleibt sichtbar, ist aber nicht wählbar.
- * Auf `true` setzen, wenn Replicate wieder angeboten werden soll.
+ * PrintFlow Cloud (Backend: Replicate): Karte bleibt sichtbar, ist aber nicht wählbar.
+ * Auf `true` setzen, wenn die gehostete Cloud-Strecke wieder angeboten werden soll.
  */
 const UPSCALER_REPLICATE_SELECTABLE = false;
 
-/** Cloud (Replicate): konservativ wegen API-Kosten/Quota. */
+/** PrintFlow Cloud / Replicate-Pfad: konservativ wegen API-Kosten/Quota. */
 const MAX_BATCH_FILES_CLOUD = 15;
 /** PrintFlow Engine (lokal): mehr Motive pro Durchgang. */
 const MAX_BATCH_FILES_LOCAL = 50;
 
-type UpscalerEngineMode = "vertex" | "replicate" | "local";
-
-const labelForEngineMode = (m: UpscalerEngineMode) =>
-  m === "vertex"
-    ? "Vertex (Cloud)"
-    : m === "replicate"
-      ? "Replicate (Cloud)"
-      : "PrintFlow Engine (lokal)";
+type UpscalerEngineMode = PrintflowUpscalerEngineMode;
 
 type ItemStatus = "pending" | "running" | "done" | "error" | "cancelled";
 
@@ -310,12 +316,7 @@ export const UpscalerView = () => {
     setItems((prev) => {
       const remaining = maxBatch - prev.length;
       if (remaining <= 0) {
-        const scopeLabel =
-          engineMode === "local"
-            ? "lokal"
-            : engineMode === "vertex"
-              ? "Vertex"
-              : "Replicate";
+        const scopeLabel = batchScopeLabel(engineMode);
         toast.error(
           `Maximal ${maxBatch} Dateien pro Durchgang (${scopeLabel}).`,
         );
@@ -558,7 +559,7 @@ export const UpscalerView = () => {
       return;
     } else if (engineMode === "replicate" && replicateUpscaleReady !== true) {
       toast.error(
-        "Replicate ist auf dem Server nicht konfiguriert (REPLICATE_API_TOKEN).",
+        "PrintFlow Cloud ist auf dem Server nicht eingerichtet. Bitte eine Administratorin bzw. einen Administrator kontaktieren.",
       );
       return;
     }
@@ -595,7 +596,7 @@ export const UpscalerView = () => {
         const tokenOk = await refreshAccessToken();
         if (!tokenOk) {
           toast.error(
-            "Sitzung konnte nicht erneuert werden. Bitte erneut anmelden und den Upscaler noch einmal starten.",
+            `Sitzung konnte nicht erneuert werden. Bitte erneut anmelden und den ${UPSCALER_UI_PRODUCT_NAME} erneut starten.`,
           );
           return;
         }
@@ -898,34 +899,42 @@ export const UpscalerView = () => {
 
   const queueSubtitle = useMemo(() => {
     const jobCountLabel = `${items.length} Job${items.length === 1 ? "" : "s"}`;
-    if (engineMode === "vertex") {
-      return `Vertex AI — dein BYOK-Key · ${jobCountLabel}`;
-    }
-    if (engineMode === "replicate") {
-      return `Replicate (Cloud) · ${jobCountLabel}`;
-    }
-    return `PrintFlow Engine (lokal) · ${jobCountLabel}`;
+    return queueSubtitleForEngine(engineMode, jobCountLabel);
   }, [items.length, engineMode]);
 
   // ── Leer, noch keine Engine: nur große Auswahl (keine Dropzone) ──
   if (items.length === 0 && !engineChoiceConfirmed) {
+    const engineCardInteractive =
+      "group flex min-h-[11.5rem] flex-col rounded-[length:var(--pf-radius-lg)] bg-[color:var(--pf-bg-elevated)] p-6 text-left shadow-[var(--pf-shadow-sm)] ring-1 ring-[color:var(--pf-border)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_40px_rgba(79,70,229,0.07)] hover:ring-[color:var(--pf-accent-border)] sm:p-7";
+
     return (
       <AppPage>
         <div className="space-y-4">
-          <h1 className="sr-only">KI Upscaler</h1>
+          <h1 className="sr-only">{UPSCALER_UI_PRODUCT_NAME}</h1>
           <div className="w-full min-w-0">
-            <div className="mx-auto w-full max-w-5xl rounded-[length:var(--pf-radius-lg)] border border-[color:var(--pf-border)] bg-[color:var(--pf-bg-elevated)] p-5 shadow-[var(--pf-shadow-sm)] sm:p-8 lg:min-h-[min(32rem,70dvh)] lg:px-10 lg:py-12">
-              <p className="text-center text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                Schritt 1
-              </p>
-              <h2 className="mt-1 text-balance text-center text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-                Wo soll skaliert werden?
-              </h2>
-              <p className="mt-2 text-balance text-center text-sm font-medium text-slate-600">
-                Tippen, um Einstellungen und Dropzone zu öffnen.
-              </p>
-              <fieldset className="mt-8 min-w-0">
-                <legend className="sr-only">Upscaling-Engine wählen</legend>
+            <div
+              className={cn(
+                "relative mx-auto w-full max-w-5xl overflow-hidden rounded-[length:var(--pf-radius-lg)] p-6 shadow-[var(--pf-shadow-sm)] ring-1 ring-[color:var(--pf-border)] sm:p-8 lg:min-h-[min(34rem,72dvh)] lg:px-12 lg:py-14",
+                "bg-[color:var(--pf-bg-elevated)]",
+                "before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(120%_80%_at_0%_-20%,rgba(99,102,241,0.11),transparent_55%),radial-gradient(90%_60%_at_100%_0%,rgba(168,85,247,0.08),transparent_50%)]",
+              )}
+            >
+              <div className="relative text-center">
+                <span className="inline-flex items-center justify-center rounded-full bg-[color:var(--pf-accent-bg)] px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-[color:var(--pf-accent)] ring-1 ring-inset ring-[color:var(--pf-accent-border)]">
+                  {printflowUpscalerHero.eyebrow}
+                </span>
+                <h2 className="mt-4 text-balance text-2xl font-bold tracking-tight text-[color:var(--pf-fg)] sm:text-3xl md:text-[1.75rem]">
+                  {printflowUpscalerHero.headline}
+                </h2>
+                <p className="mx-auto mt-3 max-w-2xl text-balance text-sm font-medium leading-relaxed text-[color:var(--pf-fg-muted)] sm:text-[15px]">
+                  {printflowUpscalerHero.subline}
+                </p>
+                <p className="mt-4 text-[10px] font-bold uppercase tracking-widest text-[color:var(--pf-fg-subtle)]">
+                  {printflowUpscalerHero.stepHint}
+                </p>
+              </div>
+              <fieldset className="relative mt-10 min-w-0">
+                <legend className="sr-only">Rechenziel für den Upscaler wählen</legend>
                 <div
                   className={cn(
                     "grid auto-rows-fr gap-4",
@@ -940,13 +949,16 @@ export const UpscalerView = () => {
                       setEngineMode("vertex");
                       setEngineChoiceConfirmed(true);
                     }}
-                    className="flex min-h-[9.5rem] flex-col justify-between rounded-2xl bg-white p-6 text-left shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 transition-all hover:ring-indigo-500/20 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] sm:p-7"
+                    className={engineCardInteractive}
                   >
-                    <p className="text-base font-bold tracking-tight text-slate-900 sm:text-lg">
-                      Vertex (Cloud)
+                    <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[color:var(--pf-accent-bg)] text-[color:var(--pf-accent)] ring-1 ring-inset ring-[color:var(--pf-accent-border)] transition-transform duration-200 group-hover:scale-[1.02]">
+                      <Cloud size={22} strokeWidth={1.5} aria-hidden />
+                    </div>
+                    <p className="text-base font-bold tracking-tight text-[color:var(--pf-fg)] sm:text-lg">
+                      {printflowUpscalerEnginePicker.vertex.title}
                     </p>
-                    <p className="mt-3 text-sm font-medium leading-relaxed text-slate-600">
-                      Imagen, eigenes GCP-Konto (BYOK)
+                    <p className="mt-2 text-sm font-medium leading-relaxed text-[color:var(--pf-fg-muted)]">
+                      {printflowUpscalerEnginePicker.vertex.description}
                     </p>
                   </button>
                   <button
@@ -955,7 +967,7 @@ export const UpscalerView = () => {
                     title={
                       UPSCALER_REPLICATE_SELECTABLE
                         ? undefined
-                        : "Replicate ist im Upscaler vorübergehend deaktiviert."
+                        : "PrintFlow Cloud ist derzeit nicht verfügbar."
                     }
                     aria-disabled={!UPSCALER_REPLICATE_SELECTABLE}
                     onClick={() => {
@@ -964,35 +976,44 @@ export const UpscalerView = () => {
                       setEngineChoiceConfirmed(true);
                     }}
                     className={cn(
-                      "flex min-h-[9.5rem] flex-col justify-between rounded-2xl p-6 text-left sm:p-7",
                       UPSCALER_REPLICATE_SELECTABLE
-                        ? "bg-white shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 transition-all hover:ring-indigo-500/20 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)]"
-                        : "cursor-not-allowed bg-slate-100/90 opacity-70 shadow-none ring-1 ring-slate-900/10 saturate-50",
+                        ? engineCardInteractive
+                        : "flex min-h-[11.5rem] flex-col cursor-not-allowed rounded-[length:var(--pf-radius-lg)] p-6 text-left sm:p-7 bg-[color:var(--pf-bg-muted)]/80 opacity-[0.82] ring-1 ring-inset ring-[color:var(--pf-border-subtle)] saturate-[0.85]",
                     )}
                   >
+                    <div
+                      className={cn(
+                        "mb-4 flex h-12 w-12 items-center justify-center rounded-xl ring-1 ring-inset",
+                        UPSCALER_REPLICATE_SELECTABLE
+                          ? "bg-[color:var(--pf-accent-bg)] text-[color:var(--pf-accent)] ring-[color:var(--pf-accent-border)] transition-transform duration-200 group-hover:scale-[1.02]"
+                          : "bg-[color:var(--pf-bg-muted)] text-[color:var(--pf-fg-muted)] ring-[color:var(--pf-border-subtle)]",
+                      )}
+                    >
+                      <Zap size={22} strokeWidth={1.5} aria-hidden />
+                    </div>
                     <p
                       className={cn(
                         "text-base font-bold tracking-tight sm:text-lg",
                         UPSCALER_REPLICATE_SELECTABLE
-                          ? "text-slate-900"
-                          : "text-slate-500",
+                          ? "text-[color:var(--pf-fg)]"
+                          : "text-[color:var(--pf-fg-muted)]",
                       )}
                     >
-                      Replicate (Cloud)
+                      {printflowUpscalerEnginePicker.hostedCloud.title}
                     </p>
                     <p
                       className={cn(
-                        "mt-3 text-sm font-medium leading-relaxed",
+                        "mt-2 text-sm font-medium leading-relaxed",
                         UPSCALER_REPLICATE_SELECTABLE
-                          ? "text-slate-600"
-                          : "text-slate-500",
+                          ? "text-[color:var(--pf-fg-muted)]"
+                          : "text-[color:var(--pf-fg-subtle)]",
                       )}
                     >
-                      Real-ESRGAN, Token auf dem Server
+                      {printflowUpscalerEnginePicker.hostedCloud.description}
                     </p>
                     {!UPSCALER_REPLICATE_SELECTABLE ? (
-                      <p className="mt-3 text-xs font-semibold text-slate-500">
-                        Vorübergehend nicht verfügbar
+                      <p className="mt-3 text-xs font-semibold text-[color:var(--pf-fg-muted)]">
+                        {printflowUpscalerEnginePicker.hostedCloud.disabledFootnote}
                       </p>
                     ) : null}
                   </button>
@@ -1003,13 +1024,16 @@ export const UpscalerView = () => {
                         setEngineMode("local");
                         setEngineChoiceConfirmed(true);
                       }}
-                      className="flex min-h-[9.5rem] flex-col justify-between rounded-2xl bg-white p-6 text-left shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 transition-all hover:ring-indigo-500/20 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] sm:p-7"
+                      className={engineCardInteractive}
                     >
-                      <p className="text-base font-bold tracking-tight text-slate-900 sm:text-lg">
-                        PrintFlow Engine (lokal)
+                      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[color:var(--pf-accent-bg)] text-[color:var(--pf-accent)] ring-1 ring-inset ring-[color:var(--pf-accent-border)] transition-transform duration-200 group-hover:scale-[1.02]">
+                        <Cpu size={22} strokeWidth={1.5} aria-hidden />
+                      </div>
+                      <p className="text-base font-bold tracking-tight text-[color:var(--pf-fg)] sm:text-lg">
+                        {printflowUpscalerEnginePicker.local.title}
                       </p>
-                      <p className="mt-3 text-sm font-medium leading-relaxed text-slate-600">
-                        Kostenlos — nutzt deine Grafikkarte
+                      <p className="mt-2 text-sm font-medium leading-relaxed text-[color:var(--pf-fg-muted)]">
+                        {printflowUpscalerEnginePicker.local.description}
                       </p>
                     </button>
                   ) : null}
@@ -1020,15 +1044,15 @@ export const UpscalerView = () => {
               (UPSCALER_REPLICATE_SELECTABLE && replicateUpscaleReady === null)) ? (
               <div
                 role="status"
-                className="mx-auto mt-4 flex max-w-5xl items-start gap-3 rounded-xl bg-slate-50 px-4 py-4 text-sm font-medium text-slate-600 ring-1 ring-inset ring-slate-900/5"
+                className="mx-auto mt-4 flex max-w-5xl items-start gap-3 rounded-xl bg-[color:var(--pf-bg-muted)] px-4 py-4 text-sm font-medium text-[color:var(--pf-fg-muted)] ring-1 ring-inset ring-[color:var(--pf-border-subtle)]"
                 aria-live="polite"
               >
                 <Loader2
-                  className="mt-0.5 shrink-0 animate-spin text-indigo-600"
+                  className="mt-0.5 shrink-0 animate-spin text-[color:var(--pf-accent)]"
                   size={18}
                   aria-hidden
                 />
-                <p>Status der Cloud-Engines wird geprüft …</p>
+                <p>Cloud-Anbindungen werden geprüft …</p>
               </div>
             ) : null}
           </div>
@@ -1042,8 +1066,8 @@ export const UpscalerView = () => {
     <AppPage className="pb-10">
       {isProcessing ? (
         <WorkSessionShell
-          title="Upscaler"
-          subtitle="Bilder werden nacheinander hochskaliert — bitte warten oder gezielt abbrechen."
+          title={UPSCALER_UI_PRODUCT_NAME}
+          subtitle="Deine Motive werden nacheinander veredelt — bitte warten oder den Lauf abbrechen."
           message={
             runningItem
               ? `Aktuell: ${runningItem.file.name}`
@@ -1102,14 +1126,14 @@ export const UpscalerView = () => {
       ) : null}
 
       <div className="space-y-4">
-      <h1 className="sr-only">KI Upscaler</h1>
+      <h1 className="sr-only">{UPSCALER_UI_PRODUCT_NAME}</h1>
       {genericError ? <ErrorBanner message={genericError} /> : null}
 
       {!showResults && !isProcessing && engineChoiceConfirmed ? (
         <div
           className="relative w-full min-w-0"
           role="group"
-          aria-label="Upscaler-Warteschlange und Einstellungen"
+          aria-label="Upscaler — Warteschlange und Einstellungen"
         >
           <input
             ref={newJobFileInputRef}
@@ -1144,7 +1168,7 @@ export const UpscalerView = () => {
               title={
                 <div className="flex w-full min-w-0 flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h3 className={WORKSPACE_PANEL_TITLE}>Upscaler-Queue</h3>
+                    <h3 className={WORKSPACE_PANEL_TITLE}>Warteschlange</h3>
                     <p className="mt-0.5 text-xs font-medium text-[color:var(--pf-fg-muted)]">
                       {queueSubtitle}
                     </p>
@@ -1172,7 +1196,7 @@ export const UpscalerView = () => {
               />
             </WorkspacePanelCard>
 
-            <WorkspacePanelCard title="Neuer Upscale-Job" bodyClassName="p-3">
+            <WorkspacePanelCard title="Skalierung" bodyClassName="p-3">
               <div className="flex min-h-0 flex-col gap-4">
                 {items.length === 0 ? (
                   <Button
@@ -1237,10 +1261,10 @@ export const UpscalerView = () => {
                 {engineMode === "replicate" && replicateUpscaleReady === false ? (
                   <div className="rounded-[length:var(--pf-radius-lg)] bg-[color:var(--pf-bg-muted)] px-4 py-3 text-xs font-medium text-[color:var(--pf-fg-muted)] ring-1 ring-inset ring-[color:var(--pf-border-subtle)]">
                     <p className="font-semibold text-[color:var(--pf-fg)]">
-                      Replicate nicht bereit
+                      PrintFlow Cloud nicht bereit
                     </p>
                     <p className="mt-1">
-                      REPLICATE_API_TOKEN muss auf dem Server gesetzt sein.
+                      Die gehostete Cloud-Strecke ist auf dem Server noch nicht freigeschaltet.
                     </p>
                   </div>
                 ) : null}
@@ -1274,12 +1298,12 @@ export const UpscalerView = () => {
                   </p>
                   {engineMode === "vertex" ? (
                     <div className="rounded-[length:var(--pf-radius)] border border-[color:var(--pf-border)] bg-[color:var(--pf-bg-subtle)] px-3 py-2.5 text-sm font-medium text-[color:var(--pf-fg)]">
-                      Vertex — imagegeneration@006
+                      {modelRowLabel("vertex")}
                     </div>
                   ) : null}
                   {engineMode === "replicate" ? (
                     <div className="rounded-[length:var(--pf-radius)] border border-[color:var(--pf-border)] bg-[color:var(--pf-bg-subtle)] px-3 py-2.5 text-sm font-medium text-[color:var(--pf-fg)]">
-                      Replicate — Real-ESRGAN
+                      {modelRowLabel("replicate")}
                     </div>
                   ) : null}
                   {engineMode === "local" && activeModelId ? (
@@ -1331,10 +1355,10 @@ export const UpscalerView = () => {
                     aria-label="Aktive Engine (ohne Umschaltung)"
                   >
                     <p className="text-[10px] font-bold uppercase tracking-widest text-[color:var(--pf-fg-muted)]">
-                      Aktive Engine
+                      Aktive Umgebung
                     </p>
                     <p className="mt-1 text-sm font-semibold text-[color:var(--pf-fg)]">
-                      {labelForEngineMode(engineMode)}
+                      {displayEngineLabel(engineMode)}
                     </p>
                     <p className="mt-1 text-xs font-medium text-[color:var(--pf-fg-muted)]">
                       {items.length === 0
@@ -1468,8 +1492,8 @@ export const UpscalerView = () => {
                 ) : null}
                 {engineMode === "replicate" && selectedCloudReady === true ? (
                   <p className="rounded-[length:var(--pf-radius)] bg-[color:var(--pf-bg-muted)] px-3 py-2.5 text-xs font-medium leading-relaxed text-[color:var(--pf-fg-muted)] ring-1 ring-inset ring-[color:var(--pf-border-subtle)]">
-                    Replicate berechnet pro API-Aufruf — Kosten siehst du im
-                    Replicate-Dashboard.
+                    PrintFlow Cloud wird pro Lauf abgerechnet — Details zu Nutzung und Kosten
+                    erhältst du auf der Rechnung bzw. im Nutzerkonto deines Anbieters.
                   </p>
                 ) : null}
               </div>
@@ -1479,15 +1503,15 @@ export const UpscalerView = () => {
       ) : null}
 
       {showResults && doneCount > 0 && singlePreviewItem ? (
-        <div className="overflow-hidden rounded-xl bg-white shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
-            <h2 className="text-lg font-semibold text-slate-900">Ergebnis</h2>
+        <div className="overflow-hidden rounded-[length:var(--pf-radius-lg)] bg-[color:var(--pf-bg-elevated)] shadow-[var(--pf-shadow-sm)] ring-1 ring-[color:var(--pf-border)]">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[color:var(--pf-border-subtle)] px-5 py-4">
+            <h2 className="text-lg font-semibold tracking-tight text-[color:var(--pf-fg)]">Ergebnis</h2>
             <Button variant="outline" onClick={() => setShowResults(false)}>
               Zurueck zur Liste
             </Button>
           </div>
           <div className="space-y-4 p-5">
-            <p className="text-sm font-medium text-slate-900">
+            <p className="text-sm font-medium text-[color:var(--pf-fg)]">
               {singlePreviewItem.file.name}
             </p>
             <BeforeAfterSlider
@@ -1506,11 +1530,11 @@ export const UpscalerView = () => {
       ) : null}
 
       {showResults && doneCount > 0 && items.length > 1 ? (
-        <div className="overflow-hidden rounded-xl bg-white shadow-[0_2px_8px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+        <div className="overflow-hidden rounded-[length:var(--pf-radius-lg)] bg-[color:var(--pf-bg-elevated)] shadow-[var(--pf-shadow-sm)] ring-1 ring-[color:var(--pf-border)]">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[color:var(--pf-border-subtle)] px-5 py-4">
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">Ergebnisse</h2>
-              <p className="mt-0.5 text-xs text-slate-500">
+              <h2 className="text-lg font-semibold tracking-tight text-[color:var(--pf-fg)]">Ergebnisse</h2>
+              <p className="mt-0.5 text-xs font-medium text-[color:var(--pf-fg-muted)]">
                 {doneCount} von {items.length} erfolgreich — ZIP enthaelt nur
                 fertige Dateien.
               </p>
@@ -1520,7 +1544,7 @@ export const UpscalerView = () => {
             </Button>
           </div>
 
-          <ul className="divide-y divide-slate-100" aria-label="Upscale-Ergebnisse">
+          <ul className="divide-y divide-[color:var(--pf-border-subtle)]" aria-label="Upscale-Ergebnisse">
             {items.map((it) => (
               <li
                 key={it.id}
@@ -1544,14 +1568,14 @@ export const UpscalerView = () => {
                     />
                   ) : it.status === "cancelled" ? (
                     <span
-                      className="text-xs font-medium text-slate-400"
+                      className="text-xs font-medium text-[color:var(--pf-fg-faint)]"
                       aria-hidden
                     >
                       —
                     </span>
                   ) : (
                     <span
-                      className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] text-slate-400 ring-1 ring-slate-900/10"
+                      className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[color:var(--pf-bg-elevated)] text-[10px] text-[color:var(--pf-fg-faint)] ring-1 ring-[color:var(--pf-border-subtle)]"
                       aria-hidden
                     >
                       ·
@@ -1559,38 +1583,38 @@ export const UpscalerView = () => {
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-slate-900">
+                  <p className="truncate text-sm font-medium text-[color:var(--pf-fg)]">
                     {it.file.name}
                   </p>
                   {it.status === "done" &&
                   it.upscaledWidth &&
                   it.upscaledHeight ? (
-                    <p className="mt-0.5 text-xs text-slate-600">
+                    <p className="mt-0.5 text-xs font-medium text-[color:var(--pf-fg-muted)]">
                       Fertig · Ausgabe {it.upscaledWidth}×{it.upscaledHeight} px
                     </p>
                   ) : null}
                   {it.status === "error" && it.errorMessage ? (
-                    <p className="mt-0.5 text-xs text-red-600">
+                    <p className="mt-0.5 text-xs font-medium text-[color:var(--pf-danger)]">
                       {it.errorMessage}
                     </p>
                   ) : null}
                   {it.status === "cancelled" && it.errorMessage ? (
-                    <p className="mt-0.5 text-xs text-slate-500">
+                    <p className="mt-0.5 text-xs font-medium text-[color:var(--pf-fg-muted)]">
                       {it.errorMessage}
                     </p>
                   ) : null}
                   {it.status === "pending" ? (
-                    <p className="mt-0.5 text-xs text-slate-400">Ausstehend</p>
+                    <p className="mt-0.5 text-xs font-medium text-[color:var(--pf-fg-faint)]">Ausstehend</p>
                   ) : null}
                   {it.status === "running" ? (
-                    <p className="mt-0.5 text-xs text-indigo-600">Laeuft …</p>
+                    <p className="mt-0.5 text-xs font-semibold text-[color:var(--pf-accent)]">Laeuft …</p>
                   ) : null}
                 </div>
               </li>
             ))}
           </ul>
 
-          <div className="border-t border-slate-100 px-5 py-4">
+          <div className="border-t border-[color:var(--pf-border-subtle)] px-5 py-4">
             <Button
               className="w-full"
               onClick={() => void handleDownloadZip()}

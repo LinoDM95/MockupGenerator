@@ -46,7 +46,7 @@ const variantClass: Record<NonNullable<Props["variant"]>, string> = {
   accent: cn("relative rounded-[2rem] border border-transparent", cardSurfaceElevationAccent),
   embedded: workspaceEmbeddedCardClassName,
   bordered: cn(
-    "relative rounded-xl border border-zinc-200 bg-white shadow-[0_1px_2px_0_rgb(9,9,11,0.04)] dark:border-zinc-800 dark:bg-zinc-950",
+    "relative rounded-xl border border-zinc-200 bg-white shadow-[0_1px_2px_0_rgb(9,9,11,0.04)] dark:border-[color:var(--pf-border)] dark:bg-[color:var(--pf-bg-elevated)] dark:shadow-[var(--pf-shadow-sm)]",
   ),
 };
 

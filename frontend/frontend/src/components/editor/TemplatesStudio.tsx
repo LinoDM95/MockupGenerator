@@ -24,6 +24,11 @@ import {
 } from "../../api/sets";
 import { compressImage, dataUrlToBlob, loadImage } from "../../lib/canvas/image";
 import { cn } from "../../lib/ui/cn";
+import {
+  WORKSPACE_PANEL_HEADER,
+  WORKSPACE_PANEL_TITLE,
+  workspacePanelCardClassName,
+} from "../../lib/ui/workspaceSurfaces";
 import { newClientElementId } from "../../lib/editor/elementId";
 import { getErrorMessage } from "../../lib/common/error";
 import { normalizeTemplateForEditor } from "../../lib/editor/normalizeTemplateForEditor";
@@ -287,14 +292,12 @@ export const TemplatesStudio = () => {
       {progressMessage ? <LinearLoadingBar message={progressMessage} /> : null}
 
       <div className="grid min-h-[min(820px,calc(100dvh-7rem))] gap-4 lg:grid-cols-[260px_1fr] lg:items-stretch">
-        <Card
-          variant="bordered"
-          padding="none"
-          className="flex min-h-0 flex-col overflow-hidden shadow-[var(--pf-shadow-sm)] ring-1 ring-[color:var(--pf-border)]"
+        <div
+          className={cn(workspacePanelCardClassName, "min-h-0")}
           aria-label="Vorlagen-Sets"
         >
-          <div className="flex items-center justify-between border-b border-[color:var(--pf-border)] px-3.5 py-3">
-            <span className="text-[13px] font-semibold text-[color:var(--pf-fg)]">Vorlagen-Sets</span>
+          <div className={cn(WORKSPACE_PANEL_HEADER, "flex items-center justify-between")}>
+            <span className={WORKSPACE_PANEL_TITLE}>Vorlagen-Sets</span>
             <Button
               type="button"
               variant="ghost"
@@ -307,7 +310,7 @@ export const TemplatesStudio = () => {
             </Button>
           </div>
 
-          <div className="min-h-[12rem] flex-1 overflow-y-auto p-1.5">
+          <div className="min-h-[12rem] flex-1 overflow-y-auto bg-[color:var(--pf-bg-elevated)] p-1.5 dark:bg-[color:var(--pf-bg-muted)]">
             {templateSets.length === 0 ? (
               <p className="px-2 py-8 text-center text-sm font-medium text-[color:var(--pf-fg-muted)]">
                 Noch keine Sets — nutze „+“ oben oder importiere unten eine .mockup-Datei.
@@ -324,7 +327,7 @@ export const TemplatesStudio = () => {
                       "relative mb-0.5 cursor-pointer rounded-md border px-2.5 py-2.5 pr-8 transition-colors",
                       selected
                         ? "border-[color:var(--pf-accent-border)] bg-[color:var(--pf-accent-bg)]"
-                        : "border-transparent hover:bg-[color:var(--pf-bg-muted)]",
+                        : "border-transparent hover:bg-[color:var(--pf-bg-muted)] dark:hover:bg-[color:var(--pf-bg-elevated)]",
                     )}
                     onClick={() => setEditingSetId(set.id)}
                     onKeyDown={(e) => {
@@ -374,7 +377,7 @@ export const TemplatesStudio = () => {
             )}
           </div>
 
-          <div className="flex gap-1.5 border-t border-[color:var(--pf-border)] p-2.5">
+          <div className="flex gap-1.5 border-t border-[color:var(--pf-border)] bg-[color:var(--pf-bg-elevated)] p-2.5">
             <label
               className={cn(
                 "flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-[color:var(--pf-border)] bg-[color:var(--pf-bg)] px-2 py-2 text-center text-[11px] font-semibold text-[color:var(--pf-fg)] shadow-[var(--pf-shadow-sm)] transition-colors hover:bg-[color:var(--pf-bg-muted)]",
@@ -401,17 +404,20 @@ export const TemplatesStudio = () => {
               Export
             </Button>
           </div>
-        </Card>
+        </div>
 
-        <Card
-          variant="bordered"
-          padding="none"
-          className="flex min-h-0 flex-col overflow-hidden shadow-[var(--pf-shadow-sm)] ring-1 ring-[color:var(--pf-border)]"
+        <div
+          className={cn(workspacePanelCardClassName, "min-h-0")}
           aria-label="Vorlagen im ausgewählten Set"
         >
           {currentSet ? (
             <>
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[color:var(--pf-border)] px-4 py-3">
+              <div
+                className={cn(
+                  WORKSPACE_PANEL_HEADER,
+                  "flex flex-wrap items-center justify-between gap-3 px-4",
+                )}
+              >
                 <div className="min-w-0">
                   <button
                     type="button"
@@ -445,7 +451,7 @@ export const TemplatesStudio = () => {
                 </div>
               </div>
 
-              <div className="min-h-0 flex-1 overflow-y-auto p-5">
+              <div className="min-h-0 flex-1 overflow-y-auto bg-[color:var(--pf-bg-subtle)] p-5">
                 {currentSet.templates.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-[color:var(--pf-border)] bg-[color:var(--pf-bg-subtle)] py-16 text-center ring-1 ring-inset ring-[color:var(--pf-border-subtle)]">
                     <LayoutTemplate
@@ -561,14 +567,14 @@ export const TemplatesStudio = () => {
               </div>
             </>
           ) : (
-            <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 bg-[color:var(--pf-bg-subtle)] p-8 text-center">
               <Folder className="text-[color:var(--pf-fg-faint)]" size={40} strokeWidth={1.25} aria-hidden />
               <p className="text-sm font-medium text-[color:var(--pf-fg-muted)]">
                 Wähle ein Vorlagen-Set in der linken Liste.
               </p>
             </div>
           )}
-        </Card>
+        </div>
       </div>
     </div>
   );
