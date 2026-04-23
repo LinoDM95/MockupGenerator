@@ -360,7 +360,7 @@ export const GelatoExportModal = ({
 
   const { gelato: gelatoIntegrationOk, loading: integrationFlagsLoading } =
     useIntegrationFlags();
-  const goToIntegrationWizardStep = useAppStore((s) => s.goToIntegrationWizardStep);
+  const goToIntegration = useAppStore((s) => s.goToIntegration);
 
   useEffect(() => {
     void fetchAiStatus()
@@ -893,9 +893,9 @@ export const GelatoExportModal = ({
             <IntegrationMissingCallout
               className="mb-4"
               title="Gelato ist nicht verbunden"
-              description="Ohne API-Verbindung kann kein Export zu Gelato gestartet werden. Richte Gelato im Assistenten ein oder unter „Alle Integrationen“."
+              description="Ohne API-Verbindung kann kein Export zu Gelato gestartet werden. Richte Gelato unter Integrationen ein."
               actionLabel="Gelato einrichten"
-              onSetup={() => goToIntegrationWizardStep(1)}
+              onSetup={() => goToIntegration("gelato")}
             />
           ) : null}
           {step === 1 ? (
@@ -925,7 +925,7 @@ export const GelatoExportModal = ({
                   title="Gemini (KI) ist nicht verbunden"
                   description="Für automatische Listing-Texte brauchst du einen Gemini-API-Key. Du kannst Metadaten auch manuell eintragen."
                   actionLabel="Gemini einrichten"
-                  onSetup={() => goToIntegrationWizardStep(2)}
+                  onSetup={() => goToIntegration("gemini")}
                 />
               ) : null}
 

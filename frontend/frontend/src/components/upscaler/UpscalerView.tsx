@@ -137,9 +137,7 @@ const isAbortError = (e: unknown): boolean =>
 export const UpscalerView = () => {
   const activeTab = useAppStore((s) => s.activeTab);
   const workspaceTab = useAppStore((s) => s.workspaceTab);
-  const goToIntegrationWizardStep = useAppStore(
-    (s) => s.goToIntegrationWizardStep,
-  );
+  const goToIntegration = useAppStore((s) => s.goToIntegration);
   const setEditingSetId = useAppStore((s) => s.setEditingSetId);
   const setNavigationLocked = useAppStore((s) => s.setNavigationLocked);
   const openConfirm = useAppStore((s) => s.openConfirm);
@@ -1227,7 +1225,7 @@ export const UpscalerView = () => {
                       size="sm"
                       className="mt-2"
                       onClick={() => {
-                        goToIntegrationWizardStep(3);
+                        goToIntegration("gemini");
                         setEditingSetId(null);
                       }}
                     >

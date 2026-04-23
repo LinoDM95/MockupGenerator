@@ -30,7 +30,7 @@ const AuthenticatedApp = () => {
   const location = useLocation();
   const isDenseWorkspace =
     /^\/app\/(erstellen|publizieren|integrationen)\//.test(location.pathname) ||
-    /^\/app\/konto\/?$/.test(location.pathname);
+    /^\/app\/(konto|feedback)\/?$/.test(location.pathname);
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsedDesktop, setSidebarCollapsedDesktop] = useState(

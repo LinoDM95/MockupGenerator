@@ -1,4 +1,4 @@
-import { ArrowLeft, Download, Trash2 } from "lucide-react";
+import { Download, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -195,20 +195,7 @@ export const AccountPage = () => {
     <AppSubNavPageLayout hideTitle title="Konto" description="">
       <h1 className="sr-only">Konto</h1>
       <div className="w-full min-w-0 space-y-6 pb-8">
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={() => navigate("/app")}
-          >
-            <ArrowLeft size={16} strokeWidth={2} aria-hidden />
-            Zurück zur App
-          </Button>
-        </div>
-
-        <div className="mx-auto w-full min-w-0 space-y-6 lg:max-w-6xl">
+        <div className="w-full min-w-0 space-y-6">
           <AccountPanel
             title="Profil & Kontaktdaten"
             description="Benutzername und E-Mail-Adresse für Login und Benachrichtigungen."

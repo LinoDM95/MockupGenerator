@@ -19,7 +19,6 @@ type EtsyIntegrationSetupProps = {
  */
 export const EtsyIntegrationSetup = ({ isConnected = false }: EtsyIntegrationSetupProps) => {
   const goToWorkspace = useAppStore((s) => s.goToWorkspace);
-  const goToRoadmap = useAppStore((s) => s.goToRoadmap);
 
   const handleConnect = useCallback(async () => {
     try {
@@ -92,15 +91,7 @@ export const EtsyIntegrationSetup = ({ isConnected = false }: EtsyIntegrationSet
           >
             Erstellen → Generator
           </button>
-          .           Details und geplante Erweiterungen in der{" "}
-          <button
-            type="button"
-            className="text-indigo-600 hover:text-indigo-800 hover:underline"
-            onClick={() => goToRoadmap()}
-          >
-            Roadmap
-          </button>
-          .
+          . Weitere Funktionen ergänzen wir schrittweise.
         </p>
       </div>
     </div>

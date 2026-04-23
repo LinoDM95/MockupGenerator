@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  integrationsModeFromUrlSegment,
-  integrationsUrlSegmentFromMode,
   publishTabFromUrlSegment,
   workspaceTabFromUrlSegment,
   workspaceUrlSegmentFromTab,
@@ -25,13 +23,5 @@ describe("appNavigation", () => {
     expect(publishTabFromUrlSegment("marketing")).toBe("marketing");
     expect(publishTabFromUrlSegment("automation")).toBe("automation");
     expect(publishTabFromUrlSegment("x")).toBeNull();
-  });
-
-  it("maps integrations URL mode", () => {
-    expect(integrationsModeFromUrlSegment(undefined)).toBe("wizard");
-    expect(integrationsModeFromUrlSegment("assistent")).toBe("wizard");
-    expect(integrationsModeFromUrlSegment("alle")).toBe("all");
-    expect(integrationsUrlSegmentFromMode("wizard")).toBe("assistent");
-    expect(integrationsUrlSegmentFromMode("all")).toBe("alle");
   });
 });

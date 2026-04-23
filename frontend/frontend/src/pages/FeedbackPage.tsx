@@ -1,6 +1,5 @@
-import { ArrowLeft, MessageCircle, PenLine } from "lucide-react";
+import { MessageCircle, PenLine } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 
 import { fetchCurrentUser } from "../api/auth";
 import {
@@ -23,6 +22,7 @@ import { Select } from "../components/ui/primitives/Select";
 import { cn } from "../lib/ui/cn";
 import { getErrorMessage } from "../lib/common/error";
 import { feedbackStatusLabel } from "../lib/common/feedbackStatus";
+import { WORKSPACE_ZINC_MUTED } from "../lib/ui/workspaceSurfaces";
 import { toast } from "../lib/ui/toast";
 import { useAppStore } from "../store/appStore";
 
@@ -38,21 +38,20 @@ const formatDe = (iso: string | null): string => {
   }
 };
 
-const glassCard = cn(
-  "rounded-2xl border border-zinc-200/80 bg-white shadow-[0_1px_2px_0_rgb(9,9,11,0.04)] dark:border-zinc-800 dark:bg-zinc-950",
+const panelCard = cn(
+  "rounded-[length:var(--pf-radius-lg)] bg-[color:var(--pf-bg-elevated)] shadow-[var(--pf-shadow-sm)] ring-1 ring-[color:var(--pf-border)]",
 );
 
 const statusBadgeClass = (status: FeedbackThreadStatus) =>
   cn(
     "shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ring-slate-900/5 dark:ring-white/10",
-    status === "pending" && "bg-slate-100 text-slate-700",
-    status === "in_progress" && "bg-amber-50 text-amber-800",
-    status === "answered" && "bg-emerald-50 text-emerald-800",
-    status === "closed" && "bg-slate-200/80 text-slate-700",
+    status === "pending" && "bg-[color:var(--pf-bg-muted)] text-[color:var(--pf-fg)]",
+    status === "in_progress" && "bg-[color:var(--pf-warning-bg)] text-[color:var(--pf-warning)]",
+    status === "answered" && "bg-[color:var(--pf-success-bg)] text-[color:var(--pf-success)]",
+    status === "closed" && "bg-[color:var(--pf-bg-muted)] text-[color:var(--pf-fg-muted)]",
   );
 
 export const FeedbackPage = () => {
-  const navigate = useNavigate();
   const openConfirm = useAppStore((s) => s.openConfirm);
   const [isStaff, setIsStaff] = useState(false);
   const [threads, setThreads] = useState<FeedbackThreadListItem[]>([]);
@@ -206,126 +205,113 @@ export const FeedbackPage = () => {
   };
 
   const textareaClass = cn(
-    "w-full cursor-text rounded-xl bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm ring-1 ring-inset ring-slate-900/5 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 dark:bg-slate-100 dark:shadow-[0_2px_8px_rgba(0,0,0,0.2)] dark:ring-white/10 dark:placeholder:text-slate-500",
+    "w-full cursor-text rounded-xl bg-[color:var(--pf-bg-elevated)] px-4 py-3 text-sm font-medium text-[color:var(--pf-fg)] shadow-[var(--pf-shadow-sm)] ring-1 ring-[color:var(--pf-border)] placeholder:text-[color:var(--pf-fg-faint)] focus:outline-none focus:ring-4 focus:ring-indigo-500/10",
   );
 
   return (
-    <AppSubNavPageLayout
-      title="Feedback"
-      description="Schreibe uns Verbesserungsvorschläge oder Fragen — du siehst nur deine eigenen Gespräche. Unser Team kann antworten und den Status anpassen."
-      contentClassName="pt-6"
-      className="[&_header_h1]:text-3xl [&_header_h1]:tracking-tight sm:[&_header_h1]:text-4xl"
-    >
-      <div className="min-w-0 rounded-2xl bg-slate-50/50 px-4 py-6 sm:px-6 sm:py-8">
-        <AppPage className="space-y-12 !pt-0">
-          <div className="flex flex-wrap justify-end gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              onClick={() => navigate("/app")}
-            >
-              <ArrowLeft size={16} strokeWidth={2} aria-hidden />
-              Zurück zur App
-            </Button>
-          </div>
-
-          <div className="grid min-h-0 gap-6 lg:grid-cols-[minmax(0,300px)_1fr] lg:items-start lg:gap-8">
-            <div className="flex min-w-0 flex-col gap-6">
-              <div className={cn(glassCard, "overflow-hidden p-3")}>
-                <button
-                  type="button"
-                  onClick={handleOpenCompose}
-                  className={cn(
-                    "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-all",
-                    isComposing
-                      ? "bg-indigo-50/80 text-indigo-800 ring-1 ring-inset ring-indigo-500/20"
-                      : "text-slate-800 hover:bg-slate-50/80",
-                  )}
-                >
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md shadow-indigo-500/20">
-                    <PenLine size={16} strokeWidth={2} aria-hidden />
-                  </span>
-                  <span className="min-w-0 leading-tight">Neues Feedback erstellen</span>
-                </button>
-              </div>
-
-              <div
+    <AppSubNavPageLayout hideTitle title="Feedback" description="" contentClassName="pt-0">
+      <h1 className="sr-only">Feedback</h1>
+      <AppPage className="space-y-6 !pt-0">
+        <div className="grid min-h-0 gap-6 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)] lg:items-stretch lg:gap-8 lg:min-h-[calc(100dvh-7.5rem)]">
+          <div className="flex h-full min-h-0 min-w-0 flex-col gap-6">
+            <div className={cn(panelCard, "shrink-0 overflow-hidden p-3")}>
+              <button
+                type="button"
+                onClick={handleOpenCompose}
                 className={cn(
-                  glassCard,
-                  "flex max-h-[min(60vh,520px)] min-h-0 flex-col gap-4 overflow-hidden p-4",
+                  "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-colors",
+                  isComposing
+                    ? "bg-[color:var(--pf-accent-bg)] text-[color:var(--pf-fg)] ring-1 ring-inset ring-[color:var(--pf-accent-border)]"
+                    : "text-[color:var(--pf-fg)] hover:bg-[color:var(--pf-bg-muted)]",
                 )}
               >
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                  {isStaff ? "Alle Gespräche" : "Deine Beiträge"}
-                </p>
-                {listLoading ? (
-                  <p className="text-xs font-medium text-slate-600">Wird geladen …</p>
-                ) : threads.length === 0 ? (
-                  <p className="text-xs font-medium text-slate-600">
-                    Noch keine Einträge.
-                  </p>
-                ) : (
-                  <div
-                    className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain pr-1"
-                    role="list"
-                    aria-label="Feedback-Liste"
-                  >
-                    {threads.map((t) => {
-                      const active = !isComposing && t.id === selectedId;
-                      return (
-                        <button
-                          key={t.id}
-                          type="button"
-                          role="listitem"
-                          onClick={() => handleSelectThread(t.id)}
-                          className={cn(
-                            "flex w-full flex-col gap-3 rounded-2xl bg-slate-50/50 p-4 text-left ring-1 ring-inset ring-slate-900/5 transition-all hover:scale-[1.01] dark:ring-white/10",
-                            active &&
-                              "bg-indigo-50/60 ring-2 ring-indigo-500/25 dark:ring-indigo-400/30",
-                          )}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <span className="line-clamp-2 text-left text-xs font-bold leading-snug tracking-tight text-slate-900">
-                              {(t.subject || "").trim() || "Ohne Betreff"}
-                            </span>
-                            <span className={statusBadgeClass(t.status)}>{feedbackStatusLabel(t.status)}</span>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-x-2 text-[10px] font-medium text-slate-500">
-                            {t.removed_at ? <span className="font-bold uppercase tracking-wide">Entfernt</span> : null}
-                            <span className="font-normal normal-case">
-                              {t.message_count} Nachrichten · {formatDe(t.updated_at)}
-                            </span>
-                          </div>
-                          {isStaff && t.user_username ? (
-                            <span className="text-[10px] font-medium text-slate-500">
-                              {t.user_username}
-                            </span>
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 via-violet-600 to-fuchsia-600 text-white shadow-[0_2px_8px_rgb(0,0,0,0.08)] ring-1 ring-inset ring-white/25">
+                  <PenLine size={16} strokeWidth={2} aria-hidden />
+                </span>
+                <span className="min-w-0 leading-tight">Neues Feedback erstellen</span>
+              </button>
             </div>
 
-            <div className="min-w-0">
-              {isComposing ? (
-                <>
-                  <AppPageSectionHeader
-                    icon={PenLine}
-                    title="Neues Feedback"
-                    description="Betreff ist optional. Beschreibe dein Anliegen — du kannst später in der Konversation nachfragen."
-                  />
-                  <div
-                    className={cn(
-                      glassCard,
-                      "mt-6 min-h-[min(70vh,560px)] p-6 sm:p-8",
-                    )}
-                  >
-                    <form onSubmit={(e) => void handleCreate(e)} className="flex min-h-0 flex-col gap-6">
+            <div
+              className={cn(
+                panelCard,
+                "flex min-h-[min(50vh,360px)] min-w-0 flex-1 flex-col gap-4 overflow-hidden p-4 lg:min-h-0",
+              )}
+            >
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[color:var(--pf-fg-subtle)]">
+                {isStaff ? "Alle Gespräche" : "Deine Beiträge"}
+              </p>
+              {listLoading ? (
+                <p className={cn("text-xs font-medium", WORKSPACE_ZINC_MUTED)}>Wird geladen …</p>
+              ) : threads.length === 0 ? (
+                <p className={cn("text-xs font-medium", WORKSPACE_ZINC_MUTED)}>Noch keine Einträge.</p>
+              ) : (
+                <div
+                  className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain pr-1"
+                  role="list"
+                  aria-label="Feedback-Liste"
+                >
+                  {threads.map((t) => {
+                    const active = !isComposing && t.id === selectedId;
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        role="listitem"
+                        onClick={() => handleSelectThread(t.id)}
+                        className={cn(
+                          "flex w-full flex-col gap-3 rounded-xl bg-[color:var(--pf-bg-muted)]/60 p-4 text-left ring-1 ring-inset ring-slate-900/5 transition-colors hover:bg-[color:var(--pf-bg-muted)] dark:ring-white/10",
+                          active &&
+                            "bg-[color:var(--pf-accent-bg)] ring-2 ring-[color:var(--pf-accent-border)]",
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="line-clamp-2 text-left text-xs font-bold leading-snug tracking-tight text-[color:var(--pf-fg)]">
+                            {(t.subject || "").trim() || "Ohne Betreff"}
+                          </span>
+                          <span className={statusBadgeClass(t.status)}>{feedbackStatusLabel(t.status)}</span>
+                        </div>
+                        <div
+                          className={cn(
+                            "flex flex-wrap items-center gap-x-2 text-[10px] font-medium",
+                            WORKSPACE_ZINC_MUTED,
+                          )}
+                        >
+                          {t.removed_at ? (
+                            <span className="font-bold uppercase tracking-wide">Entfernt</span>
+                          ) : null}
+                          <span className="font-normal normal-case">
+                            {t.message_count} Nachrichten · {formatDe(t.updated_at)}
+                          </span>
+                        </div>
+                        {isStaff && t.user_username ? (
+                          <span className={cn("text-[10px] font-medium", WORKSPACE_ZINC_MUTED)}>
+                            {t.user_username}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex min-h-0 min-w-0 flex-col lg:h-full lg:min-h-0">
+            {isComposing ? (
+              <>
+                <AppPageSectionHeader
+                  icon={PenLine}
+                  title="Neues Feedback"
+                  description="Betreff ist optional. Beschreibe dein Anliegen — du kannst später in der Konversation nachfragen."
+                />
+                <div
+                  className={cn(
+                    panelCard,
+                    "mt-6 flex min-h-[min(60vh,320px)] min-w-0 flex-1 flex-col p-6 sm:p-8 lg:min-h-0",
+                  )}
+                >
+                    <form onSubmit={(e) => void handleCreate(e)} className="flex min-h-0 flex-1 flex-col gap-6">
                       <Input
                         label="Betreff (optional)"
                         name="subject"
@@ -336,7 +322,7 @@ export const FeedbackPage = () => {
                       <div className="flex min-h-0 flex-1 flex-col gap-2">
                         <label
                           htmlFor="feedback-new-body"
-                          className="text-xs font-semibold tracking-wide text-slate-700"
+                          className="text-xs font-semibold tracking-wide text-[color:var(--pf-fg-muted)]"
                         >
                           Nachricht
                         </label>
@@ -351,7 +337,7 @@ export const FeedbackPage = () => {
                           placeholder="Dein Feedback, so ausführlich wie nötig …"
                         />
                       </div>
-                      <div className="mt-2 flex flex-wrap items-center gap-3 pt-6 ring-1 ring-inset ring-slate-900/5 dark:ring-white/10">
+                      <div className="mt-2 flex flex-wrap items-center gap-3 border-t border-[color:var(--pf-border-subtle)] pt-6">
                         <Button type="submit" variant="premium" disabled={createBusy}>
                           {createBusy ? "Senden …" : "Feedback absenden"}
                         </Button>
@@ -369,38 +355,36 @@ export const FeedbackPage = () => {
                     title="Konversation"
                     description="Antworten vom Team sind hervorgehoben. Wähle links einen Eintrag oder erstelle ein neues Feedback."
                   />
-                  <div
-                    className={cn(
-                      glassCard,
-                      "mt-6 min-h-[min(70vh,560px)] p-6 sm:p-8",
-                    )}
-                  >
+                <div
+                  className={cn(
+                    panelCard,
+                    "mt-6 flex min-h-[min(60vh,320px)] min-w-0 flex-1 flex-col p-6 sm:p-8 lg:min-h-0",
+                  )}
+                >
                     {!selectedId ? (
                       <div className="flex min-h-[240px] flex-col items-center justify-center gap-3 px-2 text-center">
                         <MessageCircle
-                          className="text-slate-300"
+                          className="text-[color:var(--pf-fg-faint)]"
                           size={40}
                           strokeWidth={1.5}
                           aria-hidden
                         />
-                        <p className="text-sm font-medium text-slate-600">
+                        <p className={cn("max-w-md text-sm font-medium", WORKSPACE_ZINC_MUTED)}>
                           Wähle links einen Beitrag oder tippe oben auf{" "}
-                          <span className="font-bold text-slate-800">
+                          <span className="font-semibold text-[color:var(--pf-fg)]">
                             Neues Feedback erstellen
                           </span>
                           .
                         </p>
                       </div>
                     ) : detailLoading || !detail ? (
-                      <p className="text-sm font-medium text-slate-600">
-                        Wird geladen …
-                      </p>
+                      <p className={cn("text-sm font-medium", WORKSPACE_ZINC_MUTED)}>Wird geladen …</p>
                     ) : (
-                      <div className="flex min-h-0 flex-col gap-6">
+                      <div className="flex min-h-0 flex-1 flex-col gap-6">
                         <div className="flex flex-wrap items-start justify-between gap-4">
                           <div className="min-w-0 space-y-2">
                             <div className="flex flex-wrap items-center gap-2">
-                              <h2 className="text-base font-bold tracking-tight text-slate-900">
+                              <h2 className="text-base font-bold tracking-tight text-[color:var(--pf-fg)]">
                                 {(detail.subject || "").trim() || "Ohne Betreff"}
                               </h2>
                               <span className={statusBadgeClass(detail.status)}>
@@ -408,12 +392,12 @@ export const FeedbackPage = () => {
                               </span>
                             </div>
                             {detail.removed_at ? (
-                              <p className="text-xs font-medium text-slate-500">
+                              <p className={cn("text-xs font-medium", WORKSPACE_ZINC_MUTED)}>
                                 vom Support entfernt
                               </p>
                             ) : null}
                             {isStaff && detail.user_username ? (
-                              <p className="text-xs font-medium text-slate-500">
+                              <p className={cn("text-xs font-medium", WORKSPACE_ZINC_MUTED)}>
                                 Nutzer: {detail.user_username}
                               </p>
                             ) : null}
@@ -448,20 +432,25 @@ export const FeedbackPage = () => {
                         </div>
 
                         <ul
-                          className="max-h-[min(48vh,480px)] min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain pr-1"
+                          className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1"
                           aria-label="Nachrichten"
                         >
                           {detail.messages.map((m) => (
                             <li
                               key={m.id}
                               className={cn(
-                                "rounded-2xl px-4 py-4 text-sm font-medium ring-1 ring-inset ring-slate-900/5 dark:ring-white/10",
+                                "rounded-xl px-4 py-4 text-sm font-medium ring-1 ring-inset ring-slate-900/5 dark:ring-white/10",
                                 m.is_staff_message
-                                  ? "bg-indigo-50/50 text-slate-900"
-                                  : "bg-slate-50/80 text-slate-800",
+                                  ? "bg-[color:var(--pf-accent-bg)] text-[color:var(--pf-fg)]"
+                                  : "bg-[color:var(--pf-bg-muted)]/80 text-[color:var(--pf-fg)]",
                               )}
                             >
-                              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                              <p
+                                className={cn(
+                                  "text-[10px] font-bold uppercase tracking-widest",
+                                  WORKSPACE_ZINC_MUTED,
+                                )}
+                              >
                                 {m.is_staff_message ? "Team" : m.author_username} ·{" "}
                                 {formatDe(m.created_at)}
                               </p>
@@ -471,7 +460,7 @@ export const FeedbackPage = () => {
                         </ul>
 
                         {detail.removed_at ? (
-                          <p className="text-sm font-medium text-slate-600">
+                          <p className={cn("text-sm font-medium", WORKSPACE_ZINC_MUTED)}>
                             {isStaff
                               ? "Dieses Gespräch wurde für den Nutzer entfernt — nur noch Lesen."
                               : "Dieses Gespräch wurde vom Support geschlossen und aus deiner Übersicht entfernt."}
@@ -479,12 +468,12 @@ export const FeedbackPage = () => {
                         ) : (
                           <form
                             onSubmit={(e) => void handleReply(e)}
-                            className="space-y-3 pt-6 ring-1 ring-inset ring-slate-900/5 dark:ring-white/10"
+                            className="space-y-3 border-t border-[color:var(--pf-border-subtle)] pt-6"
                           >
                             <div className="w-full">
                               <label
                                 htmlFor="feedback-reply"
-                                className="mb-1.5 block text-xs font-semibold tracking-wide text-slate-700"
+                                className="mb-1.5 block text-xs font-semibold tracking-wide text-[color:var(--pf-fg-muted)]"
                               >
                                 {isStaff ? "Antwort senden" : "Nachricht / Nachfrage"}
                               </label>
@@ -504,13 +493,12 @@ export const FeedbackPage = () => {
                         )}
                       </div>
                     )}
-                  </div>
-                </>
-              )}
-            </div>
+                </div>
+              </>
+            )}
           </div>
-        </AppPage>
-      </div>
+        </div>
+      </AppPage>
     </AppSubNavPageLayout>
   );
 };

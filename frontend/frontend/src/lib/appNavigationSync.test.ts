@@ -9,7 +9,6 @@ describe("syncAppStoreWithPathname", () => {
       activeTab: "workspace",
       workspaceTab: "generator",
       publishTab: null,
-      integrationsPanelMode: "wizard",
     });
   });
 
@@ -29,13 +28,12 @@ describe("syncAppStoreWithPathname", () => {
   it("syncs Integrationen /alle", () => {
     syncAppStoreWithPathname("/app/integrationen/alle");
     expect(useAppStore.getState().activeTab).toBe("integrations");
-    expect(useAppStore.getState().integrationsPanelMode).toBe("all");
   });
 
   it("ignores Konto path", () => {
-    useAppStore.setState({ activeTab: "roadmap" });
+    useAppStore.setState({ activeTab: "integrations" });
     syncAppStoreWithPathname("/app/konto");
-    expect(useAppStore.getState().activeTab).toBe("roadmap");
+    expect(useAppStore.getState().activeTab).toBe("integrations");
   });
 });
 

@@ -1,16 +1,12 @@
 import { create } from "zustand";
 
 import { isIntegrationHubUiEnabled, type HubTabId } from "../lib/common/integrationAvailability";
-import {
-  appNavigateTo,
-  integrationsUrlSegmentFromMode,
-  workspaceUrlSegmentFromTab,
-} from "../lib/appNavigation";
+import { appNavigateTo, workspaceUrlSegmentFromTab } from "../lib/appNavigation";
 import { toast } from "../lib/ui/toast";
 import type { ArtworkItem, Template, TemplateSet } from "../types/mockup";
 
-/** Hauptnavigation (Sidebar): Erstellen, Publizieren, Roadmap, Integrationen. */
-export type AppTab = "workspace" | "roadmap" | "integrations" | "publish";
+/** Hauptnavigation (Sidebar): Erstellen, Publizieren, Integrationen. */
+export type AppTab = "workspace" | "integrations" | "publish";
 
 /** Unterbereich „Publizieren“ (Sidebar). */
 export type PublishTab = "etsy" | "marketing" | "automation";
@@ -20,11 +16,6 @@ export type WorkspaceTab = "generator" | "templates" | "upscaler";
 
 /** Zielbereich im zentralen Integrations-Setup (Setup Hub). */
 export type IntegrationHubSection = HubTabId;
-
-/** Unteransicht auf der Seite „Integrationen“. */
-export type IntegrationsPanelMode = "wizard" | "all";
-
-export type IntegrationWizardStepId = 1 | 2 | 3;
 
 interface DialogState {
   isOpen: boolean;
@@ -56,24 +47,11 @@ interface AppState {
   integrationHubSection: IntegrationHubSection | null;
   setIntegrationHubSection: (s: IntegrationHubSection | null) => void;
 
-  /** Assistent vs. alle Integrationen (Setup Hub). */
-  integrationsPanelMode: IntegrationsPanelMode;
-  setIntegrationsPanelMode: (m: IntegrationsPanelMode) => void;
-
-  /** Einmalig: geführter Assistent startet auf diesem Schritt (1=Gelato, 2=Gemini, 3=Vertex). */
-  integrationWizardInitialStep: IntegrationWizardStepId | null;
-  setIntegrationWizardInitialStep: (s: IntegrationWizardStepId | null) => void;
-
-  /** Zum Integrations-Setup wechseln und optional einen Bereich öffnen (öffnet „Alle Integrationen“). */
+  /** Zum Integrations-Setup wechseln und optional einen Bereich öffnen. */
   goToIntegration: (section: IntegrationHubSection) => void;
-
-  /** Geführten Assistenten öffnen und Schritt fokussieren. */
-  goToIntegrationWizardStep: (step: IntegrationWizardStepId) => void;
 
   /** Erstellen-Bereich inkl. Unter-Tab (z. B. von Etsy-Integration zu Listings). */
   goToWorkspace: (tab: WorkspaceTab) => void;
-
-  goToRoadmap: () => void;
 
   templateSets: TemplateSet[];
   setTemplateSets: (sets: TemplateSet[]) => void;
@@ -144,11 +122,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (t === "workspace") {
       appNavigateTo(`/app/erstellen/${workspaceUrlSegmentFromTab(s.workspaceTab)}`);
       set({ activeTab: "workspace", publishTab: null });
-    } else if (t === "roadmap") {
-      appNavigateTo("/app/roadmap");
-      set({ activeTab: "roadmap", publishTab: null });
     } else if (t === "integrations") {
-      appNavigateTo(`/app/integrationen/${integrationsUrlSegmentFromMode(s.integrationsPanelMode)}`);
+      appNavigateTo("/app/integrationen/alle");
       set({ activeTab: "integrations", publishTab: null });
     } else if (t === "publish") {
       const pt = s.publishTab ?? "etsy";
@@ -166,19 +141,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   integrationHubSection: null,
   setIntegrationHubSection: (s) => set({ integrationHubSection: s }),
 
-  integrationsPanelMode: "wizard",
-  setIntegrationsPanelMode: (m) => set({ integrationsPanelMode: m }),
-
-  integrationWizardInitialStep: null,
-  setIntegrationWizardInitialStep: (s) => set({ integrationWizardInitialStep: s }),
-
   goToIntegration: (section) => {
     if (!isIntegrationHubUiEnabled(section)) {
       toast.info("Diese Integration ist derzeit noch nicht freigeschaltet.");
       appNavigateTo("/app/integrationen/alle");
       set({
         activeTab: "integrations",
-        integrationsPanelMode: "all",
         integrationHubSection: null,
         publishTab: null,
       });
@@ -187,19 +155,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     appNavigateTo("/app/integrationen/alle");
     set({
       activeTab: "integrations",
-      integrationsPanelMode: "all",
       integrationHubSection: section,
-      publishTab: null,
-    });
-  },
-
-  goToIntegrationWizardStep: (step) => {
-    appNavigateTo("/app/integrationen/assistent");
-    set({
-      activeTab: "integrations",
-      integrationsPanelMode: "wizard",
-      integrationWizardInitialStep: step,
-      integrationHubSection: null,
       publishTab: null,
     });
   },
@@ -207,11 +163,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   goToWorkspace: (tab) => {
     appNavigateTo(`/app/erstellen/${workspaceUrlSegmentFromTab(tab)}`);
     set({ activeTab: "workspace", workspaceTab: tab, publishTab: null });
-  },
-
-  goToRoadmap: () => {
-    appNavigateTo("/app/roadmap");
-    set({ activeTab: "roadmap", publishTab: null });
   },
 
   templateSets: [],

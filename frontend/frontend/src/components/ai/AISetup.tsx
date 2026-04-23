@@ -56,7 +56,7 @@ export type AISetupWizardSection = "gemini" | "vertex" | "all";
 type AISetupProps = {
   /** Im Setup Hub: kompakte Überschrift; Hilfetexte kürzen wenn schon verbunden. */
   hubSettingsMode?: boolean;
-  /** Geführter Assistent: nur Gemini- oder nur Vertex-Block (Default: alles). */
+  /** Optional: nur Gemini-, nur Vertex- oder alle KI-Blöcke (Default: alles). */
   wizardSection?: AISetupWizardSection;
 };
 

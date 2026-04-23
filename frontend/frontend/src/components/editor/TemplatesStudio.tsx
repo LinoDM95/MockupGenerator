@@ -299,11 +299,11 @@ export const TemplatesStudio = () => {
               type="button"
               variant="ghost"
               size="sm"
-              className="h-8 w-8 shrink-0 p-0 text-[color:var(--pf-fg-muted)]"
+              className="h-10 w-10 shrink-0 p-0 text-[color:var(--pf-fg-muted)] hover:text-[color:var(--pf-fg)]"
               onClick={() => void createNewSet()}
               aria-label="Neues Set anlegen"
             >
-              <FolderPlus size={15} strokeWidth={1.75} aria-hidden />
+              <FolderPlus size={22} strokeWidth={2} aria-hidden />
             </Button>
           </div>
 

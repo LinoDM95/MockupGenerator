@@ -1,6 +1,6 @@
 import type { NavigateFunction } from "react-router-dom";
 
-import type { IntegrationsPanelMode, PublishTab, WorkspaceTab } from "../store/appStore";
+import type { PublishTab, WorkspaceTab } from "../store/appStore";
 
 export const ACCOUNT_PATH = "/app/konto";
 export const FEEDBACK_PATH = "/app/feedback";
@@ -37,8 +37,3 @@ export const publishTabFromUrlSegment = (segment: string): PublishTab | null => 
   return null;
 };
 
-export const integrationsModeFromUrlSegment = (segment: string | undefined): IntegrationsPanelMode =>
-  segment === "alle" ? "all" : "wizard";
-
-export const integrationsUrlSegmentFromMode = (mode: IntegrationsPanelMode): "assistent" | "alle" =>
-  mode === "all" ? "alle" : "assistent";

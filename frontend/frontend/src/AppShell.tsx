@@ -14,9 +14,6 @@ const AuthenticatedApp = lazy(() => import("./components/shell/AuthenticatedApp.
 const WorkspaceView = lazy(() =>
   import("./components/views/WorkspaceView").then((m) => ({ default: m.WorkspaceView })),
 );
-const RoadmapView = lazy(() =>
-  import("./components/views/RoadmapView").then((m) => ({ default: m.RoadmapView })),
-);
 const IntegrationsView = lazy(() =>
   import("./components/views/IntegrationsView").then((m) => ({ default: m.IntegrationsView })),
 );
@@ -98,7 +95,10 @@ export const AppShell = () => {
                   <Route path="/app" element={<AuthenticatedApp />}>
                     <Route index element={<Navigate to="erstellen/generator" replace />} />
                     <Route path="erstellen/:tab" element={<WorkspaceView />} />
-                    <Route path="roadmap" element={<RoadmapView />} />
+                    <Route
+                      path="roadmap"
+                      element={<Navigate to="/app/erstellen/generator" replace />}
+                    />
                     <Route
                       path="publizieren"
                       element={<Navigate to="/app/publizieren/etsy" replace />}
@@ -106,7 +106,7 @@ export const AppShell = () => {
                     <Route path="publizieren/:publishTab" element={<PublishRouteOutlet />} />
                     <Route
                       path="integrationen"
-                      element={<Navigate to="/app/integrationen/assistent" replace />}
+                      element={<Navigate to="/app/integrationen/alle" replace />}
                     />
                     <Route path="integrationen/:mode" element={<IntegrationsView />} />
                     <Route path="konto" element={<AccountPage />} />

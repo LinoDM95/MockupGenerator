@@ -73,7 +73,7 @@ export const BatchQueue = ({
   gelatoPhase = "unknown",
   onGelatoExport,
 }: Props) => {
-  const goToIntegrationWizardStep = useAppStore((s) => s.goToIntegrationWizardStep);
+  const goToIntegration = useAppStore((s) => s.goToIntegration);
   const { loadImage } = useCanvasRender();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const filterInputRef = useRef<HTMLInputElement>(null);
@@ -461,7 +461,7 @@ export const BatchQueue = ({
                         title="Gelato ist nicht verbunden"
                         description="Verbinde dein Gelato-Konto, um Mockups direkt als Produkte zu exportieren."
                         actionLabel="Gelato einrichten"
-                        onSetup={() => goToIntegrationWizardStep(1)}
+                        onSetup={() => goToIntegration("gelato")}
                       />
                     ) : null}
                   </div>

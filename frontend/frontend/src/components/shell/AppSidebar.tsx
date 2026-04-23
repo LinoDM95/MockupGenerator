@@ -1,7 +1,6 @@
 import {
   ChevronLeft,
   ChevronRight,
-  Compass,
   Folder,
   Layers,
   Link2,
@@ -196,21 +195,9 @@ export const AppSidebar = ({
           />
         </SidebarGroup>
 
-        <SidebarGroup eyebrow="Produkt" collapsed={collapsed && !isDrawer}>
-          <SidebarNavItem
-            to="/app/roadmap"
-            icon={Compass}
-            label="Roadmap"
-            end
-            collapsed={collapsed && !isDrawer}
-            navigationLocked={navigationLocked}
-            onNavigate={onNavigate}
-          />
-        </SidebarGroup>
-
         <SidebarGroup eyebrow="Konto" collapsed={collapsed && !isDrawer}>
           <Link
-            to="/app/integrationen/assistent"
+            to="/app/integrationen/alle"
             onClick={(e) => {
               if (navigationLocked) {
                 e.preventDefault();

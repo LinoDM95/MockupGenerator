@@ -9,16 +9,13 @@ import {
 import { useIntegrationFlags } from "../../hooks/useIntegrationFlags";
 import { getErrorMessage } from "../../lib/common/error";
 import { toast } from "../../lib/ui/toast";
-import { useAppStore } from "../../store/appStore";
 import { Button } from "../ui/primitives/Button";
 import { IntegrationMissingCallout } from "../ui/patterns/IntegrationMissingCallout";
 
 /**
  * Pinterest OAuth im zentralen Integrations-Setup.
- * Veröffentlichungs-UI: vorerst aus der Hauptnavigation — siehe Roadmap.
  */
 export const MarketingIntegrationSetup = () => {
-  const goToRoadmap = useAppStore((s) => s.goToRoadmap);
   const { pinterest: pinterestOk, loading: flagsLoading } = useIntegrationFlags();
   const [connected, setConnected] = useState<boolean | null>(null);
 
@@ -81,14 +78,14 @@ export const MarketingIntegrationSetup = () => {
             {connected === true ? (
               <p className="mt-1 max-w-xl text-sm font-medium leading-relaxed text-slate-500">
                 Konto-Verbindung verwalten. Boards und Pins für die Veröffentlichung sind vorgemerkt —
-                die Oberfläche dazu folgt (siehe Roadmap).
+                die zugehörige Oberfläche wird ergänzt.
               </p>
             ) : (
               <p className="mt-1 max-w-xl text-sm font-medium leading-relaxed text-slate-500">
                 Verknüpfe dein Pinterest-Konto per OAuth (App-ID und Redirect-URI in der
                 Pinterest Developer Console wie in der{" "}
                 <code className="text-xs">.env</code> hinterlegt). Danach stehen Boards für die
-                Veröffentlichung bereit — die zugehörige Oberfläche wird überarbeitet (siehe Roadmap).
+                Veröffentlichung bereit — die Oberfläche dazu wird ergänzt.
               </p>
             )}
             {connected === true ? (
@@ -113,17 +110,8 @@ export const MarketingIntegrationSetup = () => {
 
       <div className="rounded-xl bg-slate-50 px-4 py-3 ring-1 ring-inset ring-slate-900/5">
         <p className="text-sm font-medium text-slate-600">
-          Zu{" "}
           <span className="font-bold text-slate-900">Pins und Veröffentlichungs-Warteschlange</span>{" "}
-          findest du den geplanten Ausbau unter{" "}
-          <button
-            type="button"
-            className="text-indigo-600 hover:text-indigo-800 hover:underline"
-            onClick={() => goToRoadmap()}
-          >
-            Roadmap
-          </button>{" "}
-          in der Roadmap (Seitenleiste → Produkt).
+          werden in einem späteren Release ergänzt.
         </p>
       </div>
     </div>

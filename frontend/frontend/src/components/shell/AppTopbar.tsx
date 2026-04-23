@@ -40,14 +40,7 @@ const breadcrumbForPath = (pathname: string): { area: string; label: string } =>
     return { area: "Publizieren", label: labels[seg] ?? "Publizieren" };
   }
   if (pathname.startsWith("/app/integrationen")) {
-    const mode = pathname.split("/")[3];
-    return {
-      area: "Konto",
-      label: mode === "alle" ? "Integrationen — Alle" : "Integrationen — Assistent",
-    };
-  }
-  if (pathname.startsWith("/app/roadmap")) {
-    return { area: "Produkt", label: "Roadmap" };
+    return { area: "Konto", label: "Integrationen" };
   }
   return { area: "PrintFlow", label: "App" };
 };

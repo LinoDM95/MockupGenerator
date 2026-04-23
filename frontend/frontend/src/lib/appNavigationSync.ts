@@ -1,7 +1,6 @@
 import {
   ACCOUNT_PATH,
   FEEDBACK_PATH,
-  integrationsModeFromUrlSegment,
   publishTabFromUrlSegment,
   workspaceTabFromUrlSegment,
 } from "./appNavigation";
@@ -29,11 +28,6 @@ export const syncAppStoreWithPathname = (pathname: string): void => {
     return;
   }
 
-  if (s1 === "roadmap") {
-    set({ activeTab: "roadmap", publishTab: null });
-    return;
-  }
-
   if (s1 === "publizieren" && s2) {
     const pt = publishTabFromUrlSegment(s2);
     if (pt) {
@@ -43,10 +37,8 @@ export const syncAppStoreWithPathname = (pathname: string): void => {
   }
 
   if (s1 === "integrationen") {
-    const mode = integrationsModeFromUrlSegment(s2);
     set({
       activeTab: "integrations",
-      integrationsPanelMode: mode,
       publishTab: null,
     });
   }

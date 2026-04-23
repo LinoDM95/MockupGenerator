@@ -1,8 +1,6 @@
 import { motion } from "framer-motion";
 import {
   CheckCircle2,
-  Cloud,
-  LayoutGrid,
   Link2,
   Loader2,
   Lock,
@@ -13,13 +11,8 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
-import { ApiError } from "../../api/client";
 import type { IntegrationStatusResponse } from "../../api/settings";
-import {
-  fetchIntegrationStatus,
-  saveIntegration,
-  testIntegrationConnection,
-} from "../../api/settings";
+import { fetchIntegrationStatus } from "../../api/settings";
 import { getErrorMessage } from "../../lib/common/error";
 import {
   getDefaultHubTab,
@@ -34,27 +27,10 @@ import { AISetup } from "../ai/AISetup";
 import { EtsyIntegrationSetup } from "../etsy/EtsyIntegrationSetup";
 import { GelatoSetup } from "../gelato/GelatoSetup";
 import { MarketingIntegrationSetup } from "../marketing/MarketingIntegrationSetup";
-import { AppPageSectionHeader } from "../ui/layout/AppPageSectionHeader";
 import { Button } from "../ui/primitives/Button";
-import { Input } from "../ui/primitives/Input";
 import { PanelModal } from "../ui/overlay/PanelModal";
 
 export type { HubTabId };
-
-const R2_GUIDE = {
-  title: "Cloudflare R2",
-  tagline:
-    "R2 (S3-kompatibel) für temporäre Uploads und Assets – BYOK mit eigenem Bucket.",
-  steps: [
-    "Im Cloudflare-Dashboard R2 aktivieren und S3-kompatible Access-/Secret-Keys anlegen.",
-    "Endpoint (HTTPS), Bucket-Name und Keys unten eintragen und speichern.",
-    "Test ausführen, um Bucket-Zugriff zu prüfen.",
-  ] as [string, string, string],
-  docs: [
-    { href: "https://developers.cloudflare.com/r2/", label: "Cloudflare R2 Docs" },
-    { href: "https://developers.cloudflare.com/r2/api/s3/api/", label: "S3 API für R2" },
-  ],
-};
 
 const INTEGRATION_CARDS: {
   id: HubTabId;
@@ -81,12 +57,6 @@ const INTEGRATION_CARDS: {
     icon: Sparkles,
   },
   {
-    id: "cloudflare_r2",
-    title: "Cloudflare R2",
-    desc: "S3-kompatible Keys für temporäre Uploads und Assets.",
-    icon: Cloud,
-  },
-  {
     id: "pinterest",
     title: "Pinterest",
     desc: "OAuth für Boards, Pins und Marketing-Flows.",
@@ -99,7 +69,6 @@ const statusField = (tab: HubTabId, s: IntegrationStatusResponse | null): boolea
   if (tab === "etsy") return s.etsy;
   if (tab === "gelato") return s.gelato;
   if (tab === "gemini") return s.gemini;
-  if (tab === "cloudflare_r2") return s.cloudflare_r2;
   return s.pinterest;
 };
 
@@ -111,17 +80,6 @@ export const SetupHub = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [status, setStatus] = useState<IntegrationStatusResponse | null>(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
-
-  const [r2Access, setR2Access] = useState("");
-  const [r2Secret, setR2Secret] = useState("");
-  const [r2Endpoint, setR2Endpoint] = useState("");
-  const [r2Bucket, setR2Bucket] = useState("");
-
-  const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
-
-  const [fieldTone, setFieldTone] = useState<"neutral" | "success" | "error">("neutral");
-  const [feedback, setFeedback] = useState("");
 
   const loadStatus = useCallback(async (force?: boolean) => {
     setLoadingStatus(true);
@@ -150,82 +108,23 @@ export const SetupHub = () => {
     void loadStatus();
   }, [tab, loadStatus]);
 
-  const resetFeedback = () => {
-    setFieldTone("neutral");
-    setFeedback("");
-  };
-
   const handleOpenSettings = (next: HubTabId) => {
     if (!isIntegrationHubUiEnabled(next)) {
       toast.info("Diese Integration ist derzeit noch nicht freigeschaltet.");
       return;
     }
     setTab(next);
-    resetFeedback();
     setSettingsOpen(true);
   };
 
   const settingsModalTitle = `${INTEGRATION_CARDS.find((c) => c.id === tab)?.title ?? "Integration"} – Einstellungen`;
 
-  const inputRingClass =
-    fieldTone === "success"
-      ? "border-emerald-500 ring-2 ring-emerald-500/30"
-      : fieldTone === "error"
-        ? "border-red-500 ring-2 ring-red-500/30"
-        : "";
-
-  const handleSaveR2 = async () => {
-    resetFeedback();
-    setSaving(true);
-    try {
-      await saveIntegration("cloudflare_r2", {
-        access_key: r2Access.trim(),
-        secret_key: r2Secret.trim(),
-        endpoint: r2Endpoint.trim(),
-        bucket_name: r2Bucket.trim(),
-      });
-      toast.success("Gespeichert.");
-      await loadStatus(true);
-    } catch (e) {
-      toast.error(getErrorMessage(e));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleTestR2 = async () => {
-    resetFeedback();
-    setTesting(true);
-    try {
-      await testIntegrationConnection("cloudflare_r2");
-      setFieldTone("success");
-      setFeedback("Verbindung erfolgreich.");
-    } catch (e) {
-      setFieldTone("error");
-      if (e instanceof ApiError) {
-        setFeedback(e.getDetail());
-      } else {
-        setFeedback(getErrorMessage(e));
-      }
-    } finally {
-      setTesting(false);
-    }
-  };
-
-  const embedded =
-    tab === "etsy" || tab === "gelato" || tab === "gemini" || tab === "pinterest";
-
-  const connected = statusField(tab, status);
-  const r2Configured = !!status?.cloudflare_r2;
-  const g = R2_GUIDE;
-
   return (
     <div className="w-full min-w-0 space-y-8">
-      <AppPageSectionHeader
-        icon={LayoutGrid}
-        title="Alle Integrationen"
-        description="Verwalte Shop-Verbindungen und API-Keys zentral. Karten mit „In Vorbereitung“ sind vorübergehend gesperrt und können noch nicht eingerichtet werden."
-      />
+      <p className="max-w-3xl text-sm font-medium leading-relaxed text-[color:var(--pf-fg-muted)]">
+        Verwalte Shop-Verbindungen und API-Keys zentral. Karten mit „In Vorbereitung“ sind vorübergehend
+        gesperrt und können noch nicht eingerichtet werden.
+      </p>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {INTEGRATION_CARDS.map((item, i) => {
@@ -329,136 +228,12 @@ export const SetupHub = () => {
         title={settingsModalTitle}
         size="2xl"
       >
-        {embedded ? (
-          <div className="min-w-0">
-            {tab === "etsy" ? (
-              <EtsyIntegrationSetup isConnected={!!status?.etsy} />
-            ) : null}
-            {tab === "gelato" ? <GelatoSetup hubSettingsMode /> : null}
-            {tab === "gemini" ? <AISetup hubSettingsMode /> : null}
-            {tab === "pinterest" ? <MarketingIntegrationSetup /> : null}
-          </div>
-        ) : (
-          <div>
-            <header className="mb-6">
-              <p className={cn("text-sm font-medium", WORKSPACE_ZINC_MUTED)}>
-                {r2Configured
-                  ? "Credentials sind gespeichert. Zum Ändern neue Werte eintragen und speichern oder Verbindung testen."
-                  : g.tagline}
-              </p>
-            </header>
-
-            {!r2Configured ? (
-              <>
-                <div className="mb-6">
-                  <h3 className="mb-3 text-sm font-semibold text-[color:var(--pf-fg)]">Anleitung</h3>
-                  <ol className={cn("list-decimal space-y-2 pl-5 text-sm font-medium", WORKSPACE_ZINC_MUTED)}>
-                    <li>{g.steps[0]}</li>
-                    <li>{g.steps[1]}</li>
-                    <li>{g.steps[2]}</li>
-                  </ol>
-                  <div className="mt-3 flex flex-wrap gap-3">
-                    {g.docs.map((l) => (
-                      <a
-                        key={l.href}
-                        href={l.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm font-semibold text-[color:var(--pf-accent)] underline-offset-2 hover:underline"
-                      >
-                        {l.label}
-                      </a>
-                    ))}
-                  </div>
-                </div>
-
-                <div
-                  className={cn(
-                    "mb-6 flex aspect-video items-center justify-center rounded-[length:var(--pf-radius)] bg-[color:var(--pf-bg-muted)] text-sm font-medium",
-                    WORKSPACE_ZINC_MUTED,
-                  )}
-                  aria-hidden
-                >
-                  Video Placeholder
-                </div>
-              </>
-            ) : null}
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Input
-                label="R2 Endpoint (HTTPS)"
-                name="r2_endpoint"
-                type="url"
-                placeholder="https://…"
-                value={r2Endpoint}
-                onChange={(e) => setR2Endpoint(e.target.value)}
-                className={cn("sm:col-span-2", inputRingClass)}
-              />
-              <Input
-                label="Bucket-Name"
-                name="r2_bucket"
-                value={r2Bucket}
-                onChange={(e) => setR2Bucket(e.target.value)}
-                className={inputRingClass}
-              />
-              <Input
-                label="Access Key"
-                name="r2_access"
-                type="password"
-                autoComplete="off"
-                value={r2Access}
-                onChange={(e) => setR2Access(e.target.value)}
-                className={inputRingClass}
-              />
-              <Input
-                label="Secret Key"
-                name="r2_secret"
-                type="password"
-                autoComplete="off"
-                value={r2Secret}
-                onChange={(e) => setR2Secret(e.target.value)}
-                className={inputRingClass}
-              />
-            </div>
-
-            <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-[color:var(--pf-border)] pt-6">
-              <Button
-                type="button"
-                variant="primary"
-                onClick={handleSaveR2}
-                disabled={saving}
-              >
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
-                Speichern
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleTestR2}
-                disabled={testing}
-                aria-busy={testing}
-              >
-                {testing ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
-                Verbindung testen
-              </Button>
-            </div>
-
-            <div className="mt-4 min-h-[1.5rem] text-sm font-medium" aria-live="polite" role="status">
-              {feedback ? (
-                <span
-                  className={cn(
-                    fieldTone === "success" && "text-[color:var(--pf-success)]",
-                    fieldTone === "error" && "text-[color:var(--pf-danger)]",
-                  )}
-                >
-                  {feedback}
-                </span>
-              ) : connected ? (
-                <span className="text-[color:var(--pf-success)]">R2-Credentials gespeichert.</span>
-              ) : null}
-            </div>
-          </div>
-        )}
+        <div className="min-w-0">
+          {tab === "etsy" ? <EtsyIntegrationSetup isConnected={!!status?.etsy} /> : null}
+          {tab === "gelato" ? <GelatoSetup hubSettingsMode /> : null}
+          {tab === "gemini" ? <AISetup hubSettingsMode /> : null}
+          {tab === "pinterest" ? <MarketingIntegrationSetup /> : null}
+        </div>
       </PanelModal>
     </div>
   );

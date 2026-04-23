@@ -27,6 +27,7 @@ import {
 import type { ElementType, FrameStyle, TemplateElement } from "../../types/mockup";
 import { useAppStore } from "../../store/appStore";
 import { Button } from "../ui/primitives/Button";
+import { Input } from "../ui/primitives/Input";
 import { WorkspacePanelCard } from "../ui/layout/WorkspacePanelCard";
 import { LinearLoadingBar } from "../ui/overlay/LinearLoadingBar";
 import { Select } from "../ui/primitives/Select";
@@ -378,21 +379,6 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
       {saving ? <LinearLoadingBar message="Vorlage wird gespeichert…" /> : null}
       {replacingBg ? <LinearLoadingBar message="Hintergrundbild wird gewechselt…" /> : null}
 
-      <div className="min-w-0 shrink-0">
-        <input
-          type="text"
-          value={editingTemplate.name}
-          onChange={(e) =>
-            updateEditingTemplate((prev) => (prev ? { ...prev, name: e.target.value } : prev))
-          }
-          className={cn(
-            "w-full min-w-0 cursor-text border-b border-dashed border-transparent bg-transparent pb-1 text-2xl font-bold tracking-tight text-[color:var(--pf-fg)] outline-none transition-colors hover:border-[color:var(--pf-border)] focus:border-[color:var(--pf-accent)]",
-          )}
-          title="Vorlage umbenennen"
-          aria-label="Vorlage umbenennen"
-        />
-      </div>
-
       <div
         className="grid min-h-0 w-full min-w-0 gap-4 max-lg:grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)_320px]"
         style={{ minHeight: "min(820px, calc(100dvh - 100px))" }}
@@ -464,7 +450,25 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
         </aside>
 
         <WorkspacePanelCard
-          title="Vorlage"
+          title={
+            <div className="flex w-full min-w-0 flex-col gap-2.5">
+              <h3 className={WORKSPACE_PANEL_TITLE}>Vorlage</h3>
+              <Input
+                id="template-editor-vorlage-name"
+                label="Name der Vorlage"
+                value={editingTemplate.name}
+                onChange={(e) =>
+                  updateEditingTemplate((prev) =>
+                    prev ? { ...prev, name: e.target.value } : prev,
+                  )
+                }
+                placeholder="z. B. Produkt-Mockup, Shop-Titel …"
+                title="Vorlage umbenennen"
+                autoComplete="off"
+                disabled={saving || replacingBg}
+              />
+            </div>
+          }
           className="order-2 min-h-[min(24rem,50vh)] min-w-0 lg:min-h-0 lg:h-full"
           bodyClassName="flex min-h-0 flex-1 flex-col overflow-hidden p-0"
         >
