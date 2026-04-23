@@ -175,17 +175,18 @@ export const AuthScreen = () => {
 
       {/* Rechte Spalte: Showcase */}
       <div className="relative hidden flex-col justify-center overflow-hidden border-l border-[color:var(--pf-border)] bg-[color:var(--pf-bg-subtle)] px-10 py-20 lg:flex lg:px-16">
+        <div
+          className="pointer-events-none absolute inset-0 z-0 landing-pf-grid landing-pf-grid-mask"
+          aria-hidden
+        />
         <AnimatedGridBackground
           width={40}
           height={40}
           numSquares={32}
-          className={cn(animatedGridHeroSurfaceClassName, "opacity-40")}
+          showGridLines={false}
+          className={cn(animatedGridHeroSurfaceClassName, "z-[1] opacity-40")}
         />
-        <div
-          className="pointer-events-none absolute inset-0 bg-app-grid bg-app-grid-mask opacity-25"
-          aria-hidden
-        />
-        <div className="relative z-[1] max-w-[460px]">
+        <div className="relative z-[2] max-w-[460px]">
           <span className="mb-5 inline-flex rounded-md border border-[color:var(--pf-accent-border)] bg-[color:var(--pf-accent-bg)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-[color:var(--pf-accent)]">
             Workflow
           </span>
