@@ -243,10 +243,32 @@ MARKETING_PIN_IMAGE_URL_ALLOWED_HOSTS = [
     if h.strip()
 ]
 
-REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": (
+# --- Kurz offen: API nutzt bei fehlendem JWT einen Default-User (s. core.open_auth). ---
+# Wieder sperren: env auf false/entfernen und Frontend `MOCKUP_AUTH_DISABLED` in devFlags.
+MOCKUP_AUTH_DISABLED = os.environ.get("MOCKUP_AUTH_DISABLED", "").lower() in (
+    "1",
+    "true",
+    "yes",
+)
+_m_open_uid = os.environ.get("MOCKUP_OPEN_ACCESS_USER_ID", "").strip()
+MOCKUP_OPEN_ACCESS_USER_ID = None
+if _m_open_uid:
+    try:
+        MOCKUP_OPEN_ACCESS_USER_ID = int(_m_open_uid)
+    except ValueError:
+        MOCKUP_OPEN_ACCESS_USER_ID = None
+
+# JWT zuerst; bei fehlendem/ungültigem Token optional DefaultUserAuthentication (nur wenn MOCKUP_AUTH_DISABLED).
+if MOCKUP_AUTH_DISABLED:
+    _DRF_AUTH_CLASSES = (
         "core.auth_cookie.JWTCookieAuthentication",
-    ),
+        "core.open_auth.DefaultUserAuthentication",
+    )
+else:
+    _DRF_AUTH_CLASSES = ("core.auth_cookie.JWTCookieAuthentication",)
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": _DRF_AUTH_CLASSES,
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_PAGINATION_CLASS": "core.pagination.StandardLimitOffsetPagination",
     "DEFAULT_THROTTLE_CLASSES": (

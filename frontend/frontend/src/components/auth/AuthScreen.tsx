@@ -7,6 +7,7 @@ import { fetchCurrentUser, login, register } from "../../api/auth";
 import { prefetchAuthenticatedSession } from "../../lib/sessionPrefetch";
 import { getErrorMessage } from "../../lib/common/error";
 import { cn } from "../../lib/ui/cn";
+import { MOCKUP_AUTH_DISABLED } from "../../lib/devFlags";
 import { getLegalSiteConfig } from "../../lib/legal/config";
 import { useAppStore } from "../../store/appStore";
 import {
@@ -39,6 +40,8 @@ export const AuthScreen = () => {
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  if (MOCKUP_AUTH_DISABLED) return <Navigate to="/app" replace />;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

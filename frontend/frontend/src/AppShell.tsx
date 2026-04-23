@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 import { fetchCurrentUser } from "./api/auth";
 import { bootstrapCsrf } from "./api/client";
+import { MOCKUP_AUTH_DISABLED } from "./lib/devFlags";
 import { prefetchAuthenticatedSession } from "./lib/sessionPrefetch";
 import { Toaster } from "./components/ui/overlay/Toaster.tsx";
 import { GlobalLegalFooter } from "./components/legal/GlobalLegalFooter.tsx";
@@ -44,12 +45,23 @@ export const AppShell = () => {
     void (async () => {
       try {
         await bootstrapCsrf();
-        try {
-          await fetchCurrentUser();
+        if (MOCKUP_AUTH_DISABLED) {
           useAppStore.getState().setAuthenticated(true);
+          try {
+            await fetchCurrentUser();
+          } catch {
+            /* Offener Modus: UI bleibt nutzbar auch wenn /api/auth/me/ fehlt */
+          }
           void prefetchAuthenticatedSession();
-        } catch {
-          useAppStore.getState().setAuthenticated(false);
+        } else {
+          // try { await fetchCurrentUser(); set true } catch { set false }
+          try {
+            await fetchCurrentUser();
+            useAppStore.getState().setAuthenticated(true);
+            void prefetchAuthenticatedSession();
+          } catch {
+            useAppStore.getState().setAuthenticated(false);
+          }
         }
       } finally {
         if (!cancelled) setReady(true);

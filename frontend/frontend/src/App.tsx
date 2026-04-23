@@ -5,6 +5,7 @@ import type { LucideIcon } from "lucide-react";
 import { Compass, Link2, Layers, LogOut, MessageCircle, RefreshCw, UserCircle, Zap } from "lucide-react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
+import { MOCKUP_AUTH_DISABLED } from "./lib/devFlags";
 import { cn } from "./lib/ui/cn";
 import { Button } from "./components/ui/primitives/Button";
 import { LoadingOverlay } from "./components/ui/LoadingOverlay";
@@ -67,7 +68,10 @@ function App() {
   );
   const [logoutBusy, setLogoutBusy] = useState(false);
 
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  // Login erzwingen (Standard): unten einkommentieren, `MOCKUP_AUTH_DISABLED` in devFlags false.
+  // if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!MOCKUP_AUTH_DISABLED && !isAuthenticated)
+    return <Navigate to="/login" replace />;
 
   const ActiveView = tabContent[activeTab];
 
