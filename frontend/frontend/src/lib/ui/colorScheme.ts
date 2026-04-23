@@ -7,7 +7,7 @@ const LEGACY_COLOR_SCHEME_STORAGE_KEY = "ce-color-scheme";
 export type ColorSchemeMode = "light" | "dark" | "system";
 
 export const getStoredColorSchemeMode = (): ColorSchemeMode => {
-  if (typeof window === "undefined") return "system";
+  if (typeof window === "undefined") return "dark";
   try {
     const raw =
       localStorage.getItem(COLOR_SCHEME_STORAGE_KEY) ??
@@ -16,7 +16,7 @@ export const getStoredColorSchemeMode = (): ColorSchemeMode => {
   } catch {
     /* ignore */
   }
-  return "system";
+  return "dark";
 };
 
 export const setStoredColorSchemeMode = (mode: ColorSchemeMode): void => {

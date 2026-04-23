@@ -13,16 +13,17 @@
           var stored =
             localStorage.getItem("pf-color-scheme") ||
             localStorage.getItem("ce-color-scheme");
-          var isDark =
-            stored === "dark" ||
-            (stored !== "light" &&
-              window.matchMedia &&
-              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          var isDark;
+          if (stored === "light") isDark = false;
+          else if (stored === "dark") isDark = true;
+          else if (stored === "system" && window.matchMedia)
+            isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          else isDark = true; /* Standard: Dark Mode (kein Eintrag / ungültig) */
           document.documentElement.classList.toggle("dark", isDark);
           document.documentElement.style.colorScheme = isDark ? "dark" : "light";
         } catch (e) {
-          /* localStorage ggf. blockiert → Fallback: hell. */
-          document.documentElement.style.colorScheme = "light";
+          document.documentElement.classList.add("dark");
+          document.documentElement.style.colorScheme = "dark";
         }
       })();
     </script>

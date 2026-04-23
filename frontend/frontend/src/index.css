@@ -90,6 +90,19 @@
     mask-image: radial-gradient(ellipse at center, #000 40%, transparent 75%);
     -webkit-mask-image: radial-gradient(ellipse at center, #000 40%, transparent 75%);
   }
+
+  /* Landing (Mockupgenerator.zip): Raster + Maske über --pf-border-subtle */
+  .landing-pf-grid {
+    background-size: 40px 40px;
+    background-image:
+      linear-gradient(to right, var(--pf-border-subtle) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--pf-border-subtle) 1px, transparent 1px);
+  }
+
+  .landing-pf-grid-mask {
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 40%, transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 40%, transparent 100%);
+  }
 }
 
 .dark .bg-app-grid {

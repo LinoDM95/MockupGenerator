@@ -18,6 +18,11 @@ type Props = {
   height?: number;
   numSquares?: number;
   className?: string;
+  /**
+   * Wenn false: nur pulsierende Kacheln, kein SVG-Linienraster.
+   * Nutzen z. B. mit CSS-`landing-pf-grid` darunter, damit sich keine Raster überlagern.
+   */
+  showGridLines?: boolean;
 };
 
 /** Animiertes Raster wie auf der Landing Page — für Auth und Marketing-Hintergründe. */
@@ -26,6 +31,7 @@ export const AnimatedGridBackground = ({
   height = 40,
   numSquares = 30,
   className,
+  showGridLines = true,
 }: Props) => {
   const id = useId();
   const { isDark } = useColorScheme();
@@ -43,52 +49,62 @@ export const AnimatedGridBackground = ({
     }));
   }, [numSquares, id]);
 
+  const rects = squares.map((sq, i) => (
+    <motion.rect
+      key={i}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: [0, squarePulsePeak, 0] }}
+      transition={{
+        duration: sq.duration,
+        repeat: Infinity,
+        ease: "easeInOut",
+        delay: sq.delay,
+      }}
+      width={width}
+      height={height}
+      x={sq.x * width}
+      y={sq.y * height}
+      className={animatedSquareFillClassName}
+      strokeWidth="0"
+    />
+  ));
+
   return (
     <svg
       aria-hidden="true"
       className={cn("pointer-events-none absolute inset-0 h-full w-full", className)}
     >
-      <defs>
-        <pattern
-          id={id}
-          width={width}
-          height={height}
-          patternUnits="userSpaceOnUse"
-          x="-1"
-          y="-1"
-        >
-          <path
-            d={`M.5 ${height}V.5H${width}`}
-            fill="none"
-            strokeWidth="1"
-            className="stroke-slate-400/45 dark:stroke-slate-500/55"
-          />
-        </pattern>
-      </defs>
-
-      <svg x="-1" y="-1" className="overflow-visible">
-        {squares.map((sq, i) => (
-          <motion.rect
-            key={i}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: [0, squarePulsePeak, 0] }}
-            transition={{
-              duration: sq.duration,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: sq.delay,
-            }}
+      {showGridLines ? (
+        <defs>
+          <pattern
+            id={id}
             width={width}
             height={height}
-            x={sq.x * width}
-            y={sq.y * height}
-            className={animatedSquareFillClassName}
-            strokeWidth="0"
-          />
-        ))}
-      </svg>
+            patternUnits="userSpaceOnUse"
+            x="-1"
+            y="-1"
+          >
+            <path
+              d={`M.5 ${height}V.5H${width}`}
+              fill="none"
+              strokeWidth="1"
+              className="stroke-slate-400/45 dark:stroke-slate-500/55"
+            />
+          </pattern>
+        </defs>
+      ) : null}
 
-      <rect width="100%" height="100%" strokeWidth={0} fill={`url(#${id})`} />
+      {showGridLines ? (
+        <svg x="-1" y="-1" className="overflow-visible">
+          {rects}
+        </svg>
+      ) : (
+        <g className="overflow-visible">{rects}</g>
+      )}
+
+      {showGridLines ? (
+        <rect width="100%" height="100%" strokeWidth={0} fill={`url(#${id})`} />
+      ) : null}
     </svg>
   );
 };

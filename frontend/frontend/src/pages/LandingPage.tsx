@@ -5,6 +5,7 @@ import {
   AnimatedGridBackground,
   animatedGridHeroSurfaceClassName,
 } from "../components/marketing/AnimatedGridBackground";
+import { LegalFooterNav } from "../components/legal/LegalFooterNav";
 import { ThemeToggle } from "../components/ui/primitives/ThemeToggle";
 import { cn } from "../lib/ui/cn";
 import {
@@ -21,21 +22,20 @@ import {
   BarChart3,
   ChevronUp,
   Check,
-  FileImage,
+  Folder,
   FolderOpen,
   Layers,
-  Key,
   Link2,
   Maximize,
   Megaphone,
   Package,
+  Pin,
+  Play,
   Rocket,
-  Search,
   Send,
   ShoppingBag,
   Sparkles,
   Tag,
-  TrendingUp,
   Upload,
   Users,
   Zap,
@@ -99,31 +99,253 @@ const bentoCardClass =
 const bentoCardInnerLight =
   "pointer-events-none absolute inset-0 rounded-[2rem] ring-1 ring-inset ring-slate-900/5";
 
-const primaryCtaClass =
+const LogoMark = ({ className }: { className?: string }) => (
+  <span
+    className={cn(
+      "flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-indigo-500 via-violet-600 to-fuchsia-600 shadow-inner ring-1 ring-inset ring-white/25",
+      className,
+    )}
+    aria-hidden
+  >
+    <Zap size={13} className="text-white" fill="currentColor" strokeWidth={0} />
+  </span>
+);
+
+const landingNavLinkClass =
+  "text-[13px] font-medium text-[color:var(--pf-fg-muted)] transition-colors hover:text-[color:var(--pf-fg)]";
+
+const landingNavGhostCtaClass =
+  "hidden rounded-[length:var(--pf-radius)] px-3 py-2 text-xs font-semibold text-[color:var(--pf-fg-muted)] transition-colors hover:bg-[color:var(--pf-bg-muted)] hover:text-[color:var(--pf-fg)] focus:outline-none focus-visible:ring-4 focus-visible:ring-[color:var(--pf-accent)]/20 sm:inline-flex sm:items-center sm:justify-center";
+
+const landingNavPrimaryCtaClass =
+  "inline-flex items-center justify-center gap-1.5 rounded-full bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-md ring-1 ring-inset ring-indigo-500/30 transition-all hover:bg-indigo-700 hover:shadow-lg focus:outline-none focus-visible:ring-4 focus-visible:ring-indigo-500/25";
+
+const landingHeroPrimaryCtaClass =
   "group relative inline-flex w-full min-w-0 items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3.5 text-sm font-semibold tracking-wide text-white shadow-lg transition-all duration-300 hover:bg-indigo-700 hover:shadow-[0_0_40px_-10px_rgba(79,70,229,0.6)] sm:w-auto sm:px-8 sm:py-4 sm:text-base";
 
-const secondaryCtaClass =
-  "inline-flex w-full min-w-0 items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3.5 text-sm font-semibold tracking-wide text-slate-800 shadow-[0_2px_10px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 transition-all duration-300 hover:bg-slate-50 sm:w-auto sm:px-8 sm:py-4 sm:text-base";
+const landingHeroSecondaryCtaClass =
+  "inline-flex w-full min-w-0 items-center justify-center gap-2 rounded-[length:var(--pf-radius)] border border-[color:var(--pf-border)] bg-[color:var(--pf-bg-elevated)] px-6 py-3.5 text-sm font-semibold text-[color:var(--pf-fg)] shadow-[var(--pf-shadow-sm)] ring-1 ring-slate-900/5 transition-colors hover:bg-[color:var(--pf-bg-muted)] sm:w-auto sm:px-8 sm:py-4 sm:text-base";
+
+const HERO_PREVIEW_SWATCHES = [
+  "#6366f1",
+  "#ec4899",
+  "#f59e0b",
+  "#10b981",
+  "#0ea5e9",
+  "#8b5cf6",
+  "#f43f5e",
+  "#14b8a6",
+  "#a855f7",
+  "#f97316",
+  "#22c55e",
+  "#3b82f6",
+] as const;
+
+const HeroAppPreview = () => {
+  const navItem = (active: boolean) =>
+    cn(
+      "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm font-medium text-[color:var(--pf-fg-muted)]",
+      active
+        ? "border border-[color:var(--pf-border)] bg-[color:var(--pf-bg-muted)] text-[color:var(--pf-fg)]"
+        : "border border-transparent",
+    );
+  return (
+    <div
+      className="mx-auto mt-10 w-full max-w-5xl overflow-hidden rounded-[14px] border border-[color:var(--pf-border)] bg-[color:var(--pf-bg-elevated)] shadow-[0_10px_30px_-10px_rgba(9,9,11,0.12)] ring-1 ring-slate-900/5"
+      aria-hidden
+    >
+      <div className="flex items-center gap-2 border-b border-[color:var(--pf-border)] bg-[color:var(--pf-bg-subtle)] px-3.5 py-2.5">
+        <div className="flex gap-1.5" aria-hidden>
+          <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
+          <span className="h-2.5 w-2.5 rounded-full bg-yellow-500" />
+          <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
+        </div>
+        <div className="ml-3 max-w-[280px] flex-1 rounded-md border border-[color:var(--pf-border)] bg-[color:var(--pf-bg)] px-2.5 py-1 text-center font-mono text-[11px] text-[color:var(--pf-fg-muted)]">
+          app.printflow.io/erstellen/generator
+        </div>
+      </div>
+      <div className="grid min-h-[320px] grid-cols-1 lg:min-h-[380px] lg:grid-cols-[200px_1fr_280px]">
+        <aside className="hidden border-[color:var(--pf-border)] bg-[color:var(--pf-bg-subtle)] p-3.5 lg:block lg:border-r">
+          <p className="mb-2.5 text-[10px] font-bold uppercase tracking-widest text-[color:var(--pf-fg-subtle)]">
+            Erstellen
+          </p>
+          <div className="flex flex-col gap-0.5">
+            <div className={navItem(true)}>
+              <Layers size={14} strokeWidth={1.75} aria-hidden />
+              <span className="flex-1 text-left">Generator</span>
+              <span className="rounded-md bg-[color:var(--pf-bg)] px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-[color:var(--pf-fg-muted)]">
+                12
+              </span>
+            </div>
+            <div className={navItem(false)}>
+              <Folder size={14} strokeWidth={1.75} aria-hidden />
+              Vorlagen-Studio
+            </div>
+            <div className={navItem(false)}>
+              <Maximize size={14} strokeWidth={1.75} aria-hidden />
+              Upscaler
+            </div>
+          </div>
+          <p className="mb-2.5 mt-4 text-[10px] font-bold uppercase tracking-widest text-[color:var(--pf-fg-subtle)]">
+            Publizieren
+          </p>
+          <div className="flex flex-col gap-0.5">
+            <div className={navItem(false)}>
+              <ShoppingBag size={14} strokeWidth={1.75} aria-hidden />
+              Etsy
+            </div>
+            <div className={navItem(false)}>
+              <Megaphone size={14} strokeWidth={1.75} aria-hidden />
+              Verbreiten
+            </div>
+            <div className={navItem(false)}>
+              <Rocket size={14} strokeWidth={1.75} aria-hidden />
+              Automatisieren
+            </div>
+          </div>
+        </aside>
+        <main className="min-w-0 p-4">
+          <div className="mb-3.5 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold tracking-tight text-[color:var(--pf-fg)]">Generator</h2>
+              <p className="text-xs text-[color:var(--pf-fg-muted)]">
+                12 Motive · Vorlage: Poster A3 Lifestyle
+              </p>
+            </div>
+            <span className="inline-flex items-center gap-1.5 rounded-[length:var(--pf-radius)] border border-[color:var(--pf-accent-border)] bg-[color:var(--pf-accent-bg)] px-2.5 py-1 text-[11px] font-semibold text-[color:var(--pf-accent)]">
+              <Play size={12} strokeWidth={2} aria-hidden />
+              Alle generieren
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+            {HERO_PREVIEW_SWATCHES.map((c, i) => (
+              <div
+                key={i}
+                className="relative aspect-[3/4] rounded-md border border-[color:var(--pf-border)] bg-[color:var(--pf-bg-subtle)] p-1.5"
+              >
+                <div className="h-full rounded-sm opacity-75" style={{ backgroundColor: c }} />
+                <div className="absolute right-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[color:var(--pf-success)] text-[color:var(--pf-success-bg)]">
+                  <Check size={9} strokeWidth={3} className="text-white" aria-hidden />
+                </div>
+              </div>
+            ))}
+          </div>
+        </main>
+        <aside className="hidden border-[color:var(--pf-border)] bg-[color:var(--pf-bg-elevated)] p-3.5 lg:block lg:border-l">
+          <p className="mb-2.5 text-[10px] font-bold uppercase tracking-widest text-[color:var(--pf-fg-subtle)]">
+            Fortschritt
+          </p>
+          <div className="flex flex-col gap-2.5">
+            {[
+              { label: "Mockups", w: "100%" },
+              { label: "KI-Listings", w: "75%" },
+              { label: "Etsy-Entwurf", w: "0%" },
+            ].map((row) => (
+              <div key={row.label}>
+                <div className="mb-1.5 flex justify-between text-xs font-medium text-[color:var(--pf-fg)]">
+                  <span>{row.label}</span>
+                  <span className="font-mono tabular-nums text-[color:var(--pf-fg-muted)]">
+                    {row.label === "Mockups" ? "12/12" : row.label === "KI-Listings" ? "9/12" : "0/12"}
+                  </span>
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-[color:var(--pf-bg-muted)] ring-1 ring-inset ring-slate-900/5">
+                  <div
+                    className={cn(
+                      "h-full rounded-full",
+                      row.w === "100%" ? "bg-[color:var(--pf-success)]" : "bg-[color:var(--pf-accent)]",
+                    )}
+                    style={{ width: row.w }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 rounded-lg border border-[color:var(--pf-accent-border)] bg-[color:var(--pf-accent-bg)] p-2.5">
+            <p className="text-[11px] font-semibold text-[color:var(--pf-accent)]">ETA: ~2 Min</p>
+            <p className="mt-1 text-[11px] leading-snug text-[color:var(--pf-fg-muted)]">
+              9 Listings offen. Gelato-Sync parallel.
+            </p>
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+};
+
+const LandingTopNav = () => (
+  <header className="sticky top-0 z-50 border-b border-[color:var(--pf-border)] bg-[color:var(--pf-bg)]/90 backdrop-blur-md">
+    <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3.5 sm:gap-4 sm:px-6 lg:px-8">
+      <Link
+        to="/"
+        className="flex min-w-0 items-center gap-2 text-sm font-semibold tracking-tight text-[color:var(--pf-fg)]"
+      >
+        <LogoMark />
+        <span className="truncate">PrintFlow</span>
+      </Link>
+      <nav
+        className="hidden items-center gap-7 lg:flex"
+        aria-label="Seitenabschnitte"
+      >
+        <a href="#workflow" className={landingNavLinkClass}>
+          Workflow
+        </a>
+        <a href="#features" className={landingNavLinkClass}>
+          Features
+        </a>
+        <a href="#pricing" className={landingNavLinkClass}>
+          Preise
+        </a>
+        <a href="#integrations" className={landingNavLinkClass}>
+          Integrationen
+        </a>
+      </nav>
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+        <ThemeToggle size="sm" className="shrink-0" />
+        <Link to="/login" className={landingNavGhostCtaClass}>
+          Anmelden
+        </Link>
+        <Link to="/login" className={landingNavPrimaryCtaClass}>
+          <span className="hidden sm:inline">Kostenlos starten</span>
+          <span className="sm:hidden">Start</span>
+          <ArrowRight size={13} strokeWidth={2} className="shrink-0" aria-hidden />
+        </Link>
+      </div>
+    </div>
+  </header>
+);
 
 const Hero = () => {
   const reduceMotion = useReducedMotion();
   return (
-  <section className="relative overflow-hidden bg-[color:var(--pf-bg-subtle)] pb-16 pt-24 sm:pb-20 sm:pt-28 md:pb-24 md:pt-32">
-    {/* Neues animiertes Grid mit weicher Kante (radial-gradient) */}
-    <AnimatedGridBackground width={40} height={40} numSquares={40} className={animatedGridHeroSurfaceClassName} />
-    <div
-      className="pointer-events-none absolute inset-0 z-[1] bg-app-grid bg-app-grid-mask opacity-[0.35]"
-      aria-hidden
+  <section className="relative overflow-hidden bg-[color:var(--pf-bg)] pb-16 pt-12 sm:pb-20 sm:pt-16 md:pb-24 md:pt-20">
+    <div className="pointer-events-none absolute inset-0 z-0 landing-pf-grid landing-pf-grid-mask" aria-hidden />
+    <AnimatedGridBackground
+      width={40}
+      height={40}
+      numSquares={40}
+      showGridLines={false}
+      className={cn(animatedGridHeroSurfaceClassName, "z-[1]")}
     />
-    <div className="pointer-events-none absolute left-1/2 top-0 -z-10 h-[800px] w-[800px] -translate-x-1/2 -translate-y-[30%] rounded-full bg-indigo-500/15 blur-[120px] mix-blend-multiply" />
 
     <div className="relative z-10 mx-auto max-w-5xl px-3 text-center sm:px-6 lg:px-8">
       <div className="text-center">
+        <motion.div
+          initial={{ opacity: 0, y: reduceMotion ? 0 : 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: reduceMotion ? 0.2 : 0.5, delay: reduceMotion ? 0 : 0.05 }}
+          className="mb-7 inline-flex items-center gap-2 rounded-full border border-[color:var(--pf-border)] bg-[color:var(--pf-bg-elevated)] py-1 pl-1 pr-3 text-left text-xs font-medium text-[color:var(--pf-fg-muted)] shadow-[var(--pf-shadow-sm)] ring-1 ring-slate-900/5"
+        >
+          <span className="rounded-full bg-[color:var(--pf-accent-bg-strong)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[color:var(--pf-accent)]">
+            Neu
+          </span>
+          <span>Multi-Agent Listings jetzt mit Trend-Daten</span>
+          <ArrowRight size={12} className="shrink-0 text-[color:var(--pf-fg-subtle)]" aria-hidden />
+        </motion.div>
         <motion.h1
           initial={{ opacity: 0, y: reduceMotion ? 0 : 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: reduceMotion ? 0.2 : 0.7, delay: reduceMotion ? 0 : 0.1 }}
-          className="text-[2rem] font-bold leading-[1.08] tracking-tighter text-[color:var(--pf-fg)] sm:text-4xl sm:leading-[1.06] md:text-5xl md:leading-[1.05] lg:text-6xl xl:text-7xl 2xl:text-[5.5rem]"
+          className="mx-auto max-w-[860px] text-[2rem] font-bold leading-[1.08] tracking-tighter text-[color:var(--pf-fg)] sm:text-4xl sm:leading-[1.06] md:text-5xl md:leading-[1.05] lg:text-6xl xl:text-7xl 2xl:text-[5.5rem]"
         >
           Die komplette Print-Pipeline.
           <br />
@@ -143,157 +365,34 @@ const Hero = () => {
         </motion.p>
 
         <motion.div
-          initial={{ opacity: 0, y: reduceMotion ? 0 : 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: reduceMotion ? 0.2 : 0.55, delay: reduceMotion ? 0 : 0.35 }}
-          className="relative mx-auto mt-6 max-w-2xl rounded-[length:var(--pf-radius-lg)] border border-[color:var(--pf-border)] bg-[color:var(--pf-bg-elevated)]/95 px-3 py-3.5 text-left shadow-[var(--pf-shadow-sm)] ring-1 ring-[color:var(--pf-border-subtle)] backdrop-blur-sm sm:mt-8 sm:px-6 sm:py-5"
-        >
-          <div
-            className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-slate-900/5"
-            aria-hidden
-          />
-          <div className="relative">
-          <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-indigo-900">
-            <Key size={16} className="shrink-0 text-indigo-600" strokeWidth={2} aria-hidden />
-            Kostenlos starten · KI mit eigenen API-Keys
-          </p>
-          <ul className="space-y-2.5 text-sm leading-relaxed text-slate-700">
-            <li className="flex gap-2.5">
-              <Check
-                size={16}
-                className="mt-0.5 shrink-0 text-emerald-600"
-                strokeWidth={2}
-                aria-hidden
-              />
-              <span>
-                <strong className="font-semibold text-slate-900">Haupt-Tool</strong> (Generator,
-                Vorlagen-Studio, Kern-Workflow bis Etsy/Gelato):{" "}
-                <strong className="font-semibold text-slate-900">komplett kostenlos</strong> — ohne
-                Abo.
-              </span>
-            </li>
-            <li className="flex gap-2.5">
-              <Check
-                size={16}
-                className="mt-0.5 shrink-0 text-emerald-600"
-                strokeWidth={2}
-                aria-hidden
-              />
-              <span>
-                <strong className="font-semibold text-slate-900">KI-Upscaler &amp; KI-Texte</strong>{" "}
-                (z.&nbsp;B. Tags, Beschreibungen):{" "}
-                <strong className="font-semibold text-slate-900">eigene API-Keys eintragen</strong>{" "}
-                und nutzen — <strong className="font-semibold text-slate-900">kein Abo</strong> der
-                App für diese Funktionen; du zahlst nur deinen Anbieter nach Nutzung.
-              </span>
-            </li>
-            <li className="flex gap-2.5">
-              <Check
-                size={16}
-                className="mt-0.5 shrink-0 text-amber-600"
-                strokeWidth={2}
-                aria-hidden
-              />
-              <span>
-                <strong className="font-semibold text-slate-900">Kostenpflichtig</strong> sind nur
-                der Bereich <strong className="font-semibold text-slate-900">„Verbreiten“</strong>{" "}
-                (Marketing) und <strong className="font-semibold text-slate-900">„Automatisieren“</strong>{" "}
-                — der Rest der Plattform bleibt frei nutzbar.
-              </span>
-            </li>
-          </ul>
-          </div>
-        </motion.div>
-
-        <motion.div
           initial={{ opacity: 0, y: reduceMotion ? 0 : 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: reduceMotion ? 0.2 : 0.5, delay: reduceMotion ? 0 : 0.4 }}
-          className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row"
+          transition={{ duration: reduceMotion ? 0.2 : 0.5, delay: reduceMotion ? 0 : 0.35 }}
+          className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-2.5"
         >
-          <Link to="/login" className={primaryCtaClass}>
+          <Link to="/login" className={landingHeroPrimaryCtaClass}>
             Kostenlos starten
             <ArrowRight
               size={18}
               className="transition-transform duration-300 group-hover:translate-x-1"
             />
           </Link>
-          <a href="#four-pillars" className={secondaryCtaClass}>
-            Plattform entdecken
+          <a href="#workflow" className={landingHeroSecondaryCtaClass}>
+            Live-Demo ansehen
           </a>
         </motion.div>
       </div>
 
-      {/* Floating mockup grid animation */}
       <motion.div
-        initial={{ opacity: 0, scale: reduceMotion ? 1 : 0.9, y: reduceMotion ? 0 : 40 }}
+        initial={{ opacity: 0, scale: reduceMotion ? 1 : 0.98, y: reduceMotion ? 0 : 24 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{
-          duration: reduceMotion ? 0.25 : 0.9,
-          delay: reduceMotion ? 0 : 0.5,
+          duration: reduceMotion ? 0.25 : 0.85,
+          delay: reduceMotion ? 0 : 0.45,
           ease: [0.25, 0.46, 0.45, 0.94],
         }}
-        className="mx-auto mt-12 max-w-4xl px-0 sm:mt-16 md:mt-20"
       >
-        <div className="relative overflow-hidden rounded-3xl border border-white/40 bg-white/50 p-4 shadow-[0_20px_60px_rgb(0,0,0,0.05)] ring-1 ring-slate-900/5 backdrop-blur-xl sm:rounded-[2.5rem] sm:p-8 md:p-10">
-          <div
-            className="pointer-events-none absolute inset-0 rounded-[2rem] ring-1 ring-inset ring-slate-900/5"
-            aria-hidden
-          />
-          <div className="relative z-10">
-          {/* Source design file */}
-          <motion.div
-            initial={{ x: -60, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.8 }}
-            className="absolute -left-1 top-1/2 z-10 hidden -translate-y-1/2 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left shadow-lg min-[400px]:flex sm:-left-4 sm:gap-3 sm:px-4 sm:py-3 md:-left-8"
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
-              <FileImage size={20} strokeWidth={1.75} />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-slate-800">design.png</p>
-              <p className="text-xs text-slate-500">Upload</p>
-            </div>
-          </motion.div>
-
-          {/* Mockup output grid */}
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-3 md:grid-cols-6">
-            {MOCKUP_COLORS.map((color, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, scale: 0.5, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{
-                  duration: 0.4,
-                  delay: 1.0 + i * 0.06,
-                  ease: [0.25, 0.46, 0.45, 0.94],
-                }}
-                className="group relative aspect-[3/4] overflow-hidden rounded-lg border border-slate-200 bg-slate-50 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md"
-              >
-                <div className={`absolute inset-x-2 bottom-2 top-6 rounded ${color} opacity-80`} />
-                <div className="absolute inset-x-2 top-1.5 h-3 rounded-sm bg-slate-200" />
-              </motion.div>
-            ))}
-          </div>
-
-          {/* Arrow + label */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1.8, duration: 0.5 }}
-            className="absolute -right-1 top-1/2 z-10 hidden -translate-y-1/2 items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-left shadow-lg min-[400px]:flex sm:-right-4 sm:gap-3 sm:px-4 sm:py-3 md:-right-8"
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
-              <Check size={20} strokeWidth={2} />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-emerald-800">12 Mockups</p>
-              <p className="text-xs text-emerald-600">Generated</p>
-            </div>
-          </motion.div>
-          </div>
-        </div>
+        <HeroAppPreview />
       </motion.div>
     </div>
   </section>
@@ -698,7 +797,7 @@ const HowItWorks = () => {
   const progressHeight = useTransform(scrollYProgress, [0, 1], ["0%", "100%"]);
 
   return (
-    <section id="how-it-works" ref={containerRef} className="relative overflow-hidden bg-slate-50 py-24 lg:py-32">
+    <section id="workflow" ref={containerRef} className="relative overflow-hidden bg-slate-50 py-24 lg:py-32">
       {/* Auch hier ein leichter Hintergrundeffekt, aber dezent */}
       <AnimatedGridBackground 
         width={48} 
@@ -855,7 +954,7 @@ const ExtraModules = () => (
 /* SECTION 3 — Bento Grid (2×2)                                       */
 /* ------------------------------------------------------------------ */
 const BentoGrid = () => (
-  <section className="bg-white py-24 lg:py-32">
+  <section id="features" className="bg-white py-24 lg:py-32">
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
       <FadeIn className="mb-16 text-center">
         <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-indigo-600">
@@ -1048,50 +1147,31 @@ const BentoGrid = () => (
 );
 
 /* ------------------------------------------------------------------ */
-/* SECTION 4 — Logo Marquee                                           */
+/* SECTION — Integrationen (Prototyp: statischer Streifen)               */
 /* ------------------------------------------------------------------ */
-const MARQUEE_ITEMS = [
+const INTEGRATION_STRIP_ITEMS = [
   { icon: ShoppingBag, label: "Etsy" },
   { icon: Package, label: "Gelato" },
-  { icon: Sparkles, label: "KI · Gemini" },
-  { icon: Maximize, label: "Upscaler · Vertex" },
-  { icon: Megaphone, label: "Pinterest" },
-  { icon: FolderOpen, label: "Vorlagen-Studio" },
-  { icon: TrendingUp, label: "Analytics" },
-  { icon: Layers, label: "Mockups" },
-  { icon: Rocket, label: "Pipeline" },
-  { icon: Search, label: "Niche Research" },
-  { icon: FileImage, label: "Templates" },
-  { icon: Send, label: "Publishing" },
-  { icon: Link2, label: "Integrationen" },
-];
+  { icon: Pin, label: "Pinterest" },
+  { icon: Sparkles, label: "Gemini" },
+  { icon: Maximize, label: "Vertex AI" },
+] as const;
 
-const Marquee = () => (
-  <section className="overflow-hidden border-y border-slate-200 bg-slate-50 py-10">
-    <div className="relative flex">
-      <div className="animate-marquee flex shrink-0 items-center gap-12 pr-12">
-        {[...MARQUEE_ITEMS, ...MARQUEE_ITEMS].map((item, i) => (
+const IntegrationsStrip = () => (
+  <section
+    id="integrations"
+    className="border-y border-[color:var(--pf-border)] bg-[color:var(--pf-bg-subtle)]"
+  >
+    <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:flex-row sm:items-center sm:justify-between sm:gap-8 sm:px-6 lg:px-8">
+      <p className="shrink-0 text-sm font-medium text-[color:var(--pf-fg-muted)]">Nativ integriert</p>
+      <div className="flex flex-1 flex-wrap items-center gap-x-10 gap-y-4 sm:justify-end">
+        {INTEGRATION_STRIP_ITEMS.map(({ icon: Icon, label }) => (
           <div
-            key={i}
-            className="flex items-center gap-2.5 text-slate-400"
+            key={label}
+            className="flex items-center gap-2 text-[color:var(--pf-fg-muted)]"
           >
-            <item.icon size={20} strokeWidth={1.5} />
-            <span className="whitespace-nowrap text-sm font-semibold tracking-wide">
-              {item.label}
-            </span>
-          </div>
-        ))}
-      </div>
-      <div className="animate-marquee flex shrink-0 items-center gap-12 pr-12" aria-hidden>
-        {[...MARQUEE_ITEMS, ...MARQUEE_ITEMS].map((item, i) => (
-          <div
-            key={i}
-            className="flex items-center gap-2.5 text-slate-400"
-          >
-            <item.icon size={20} strokeWidth={1.5} />
-            <span className="whitespace-nowrap text-sm font-semibold tracking-wide">
-              {item.label}
-            </span>
+            <Icon size={18} strokeWidth={1.75} aria-hidden />
+            <span className="text-sm font-medium text-[color:var(--pf-fg)]">{label}</span>
           </div>
         ))}
       </div>
@@ -1100,45 +1180,199 @@ const Marquee = () => (
 );
 
 /* ------------------------------------------------------------------ */
-/* SECTION 5 — Final CTA                                              */
+/* SECTION — Preise (Design-Refactor)                                    */
+/* ------------------------------------------------------------------ */
+type LandingPlan = {
+  name: string;
+  price: string;
+  priceSub: string | null;
+  tag: string;
+  desc: string;
+  features: string[];
+  cta: string;
+  featured?: boolean;
+};
+
+const LANDING_PLANS: LandingPlan[] = [
+  {
+    name: "Kern",
+    price: "0 €",
+    priceSub: null,
+    tag: "Kostenlos · für immer",
+    desc: "Alles, was du für Print-on-Demand auf Etsy brauchst.",
+    features: [
+      "Generator · unbegrenzte Mockups",
+      "Vorlagen-Studio · alle Features",
+      "Etsy-Listing-Entwurf",
+      "Gelato-Produkt-Sync",
+      "Community-Support",
+    ],
+    cta: "Kostenlos starten",
+  },
+  {
+    name: "KI · BYOK",
+    price: "0 €",
+    priceSub: "+ API-Kosten",
+    tag: "Eigene Keys · ohne Abo",
+    desc: "KI-Upscaler und KI-Listings mit deinen eigenen Keys. Kein Abo.",
+    features: [
+      "KI-Upscaler (Vertex AI, BYOK)",
+      "KI-Listings (Gemini, BYOK)",
+      "Multi-Agent Listings mit Trend-Daten",
+      "Kein Aufschlag auf API-Nutzung",
+      "Prioritäts-Support",
+    ],
+    cta: "Keys hinterlegen",
+  },
+  {
+    name: "Pro",
+    price: "29 €",
+    priceSub: "pro Monat",
+    tag: "Verbreiten · Automatisieren",
+    desc: "Für Power-Seller mit großen Serien und Pinterest-Strategie.",
+    features: [
+      "Pinterest-Marketing + KI-Captions",
+      "Automatisieren-Pipeline (Batch)",
+      "Upscale → SEO → Mockups → Gelato",
+      "Parallele Jobs, transparenter Fortschritt",
+      "E-Mail-Support",
+    ],
+    cta: "Pro testen",
+    featured: true,
+  },
+];
+
+const LandingPlanCard = ({ plan }: { plan: LandingPlan }) => (
+  <div
+    className={cn(
+      "relative flex h-full flex-col rounded-[length:var(--pf-radius-lg)] border bg-[color:var(--pf-bg-elevated)] p-7 shadow-[var(--pf-shadow-sm)] ring-1 ring-slate-900/5",
+      plan.featured
+        ? "border-[color:var(--pf-accent)] ring-2 ring-[color:var(--pf-accent-bg-strong)]"
+        : "border-[color:var(--pf-border)]",
+    )}
+  >
+    {plan.featured ? (
+      <div className="absolute -top-2.5 right-4 rounded-full bg-[color:var(--pf-accent)] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-[color:var(--pf-accent-fg)]">
+        Beliebt
+      </div>
+    ) : null}
+    <div className="flex flex-wrap items-baseline justify-between gap-2">
+      <h3 className="text-lg font-semibold tracking-tight text-[color:var(--pf-fg)]">{plan.name}</h3>
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-[color:var(--pf-fg-muted)]">
+        {plan.tag}
+      </span>
+    </div>
+    <div className="mt-4 flex flex-wrap items-baseline gap-2">
+      <span className="text-4xl font-semibold tracking-tight text-[color:var(--pf-fg)]">{plan.price}</span>
+      {plan.priceSub ? (
+        <span className="text-sm font-medium text-[color:var(--pf-fg-muted)]">{plan.priceSub}</span>
+      ) : null}
+    </div>
+    <p className="mt-2 min-h-[44px] text-sm leading-relaxed text-[color:var(--pf-fg-muted)]">{plan.desc}</p>
+    <Link
+      to="/login"
+      className={cn(
+        "mt-5 inline-flex w-full items-center justify-center rounded-[length:var(--pf-radius)] px-4 py-2.5 text-center text-sm font-semibold text-white shadow-md transition-colors focus:outline-none focus-visible:ring-4 focus-visible:ring-indigo-500/25",
+        plan.featured
+          ? "bg-indigo-600 ring-2 ring-indigo-400/30 hover:bg-indigo-700"
+          : "bg-indigo-600 hover:bg-indigo-700",
+      )}
+    >
+      {plan.cta}
+    </Link>
+    <ul className="mt-5 flex flex-col gap-2.5">
+      {plan.features.map((f) => (
+        <li key={f} className="flex gap-2 text-sm text-[color:var(--pf-fg)]">
+          <Check
+            size={14}
+            strokeWidth={2.25}
+            className="mt-0.5 shrink-0 text-[color:var(--pf-success)]"
+            aria-hidden
+          />
+          <span>{f}</span>
+        </li>
+      ))}
+    </ul>
+  </div>
+);
+
+const LandingPricing = () => (
+  <section
+    id="pricing"
+    className="border-t border-[color:var(--pf-border)] bg-[color:var(--pf-bg-subtle)] py-20 lg:py-24"
+  >
+    <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+      <FadeIn className="mb-12">
+        <p className="mb-3 text-xs font-bold uppercase tracking-widest text-[color:var(--pf-accent)]">
+          Preise
+        </p>
+        <h2 className="text-3xl font-bold tracking-tight text-[color:var(--pf-fg)] sm:text-4xl lg:text-5xl">
+          Fairer Preis, keine Überraschungen.
+        </h2>
+        <p className="mt-4 max-w-xl text-base font-medium leading-relaxed text-[color:var(--pf-fg-muted)] sm:text-lg">
+          Der Kern-Workflow ist komplett kostenlos. KI nutzt du mit deinen eigenen API-Keys — du
+          zahlst nur deinen Anbieter.
+        </p>
+      </FadeIn>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-5">
+        {LANDING_PLANS.map((plan) => (
+          <FadeIn key={plan.name} delay={0.05}>
+            <LandingPlanCard plan={plan} />
+          </FadeIn>
+        ))}
+      </div>
+    </div>
+  </section>
+);
+
+/* ------------------------------------------------------------------ */
+/* SECTION — Final CTA                                                 */
 /* ------------------------------------------------------------------ */
 const FinalCTA = () => (
-  <section className="relative overflow-hidden bg-slate-50 py-24 lg:py-32">
-    {/* Finales Grid mit dichterer Kachelanordnung für einen krönenden Abschluss */}
-    <AnimatedGridBackground 
-      width={32} 
-      height={32} 
-      numSquares={60} 
-      className="z-0 opacity-100 [mask-image:radial-gradient(ellipse_at_center,white,transparent_70%)]" 
-    />
-    <div className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[480px] w-[640px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-indigo-500/15 blur-[100px]" />
+  <section className="relative overflow-hidden border-t border-[color:var(--pf-border)] bg-[color:var(--pf-bg)] py-20 lg:py-28">
+    <div className="pointer-events-none absolute inset-0 landing-pf-grid landing-pf-grid-mask opacity-60" aria-hidden />
 
     <div className="relative z-10 mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
       <FadeIn>
-        <h2 className="text-4xl font-semibold tracking-[-0.04em] text-slate-900 sm:text-5xl lg:text-6xl">
+        <h2 className="text-3xl font-bold tracking-tight text-[color:var(--pf-fg)] sm:text-4xl lg:text-5xl">
           Schluss mit manuellen Mockups.
-          <br />
-          <span className="bg-gradient-to-br from-indigo-500 via-violet-600 to-fuchsia-600 bg-clip-text text-transparent">
-            Starte jetzt.
-          </span>
         </h2>
-        <p className="mx-auto mt-8 max-w-xl text-lg leading-relaxed text-slate-500">
-          Motive, Vorlagen-Mockups, Listing-Texte mit oder ohne KI (eigene API-Keys), Gelato-Export
-          und Etsy-Listing-Entwurf — der Kern kostenlos; KI-Upscaler &amp; Co. per BYOK ohne
-          App-Abo. Marketing &amp; Automatisierung kostenpflichtig.
+        <p className="mx-auto mt-6 max-w-xl text-base font-medium leading-relaxed text-[color:var(--pf-fg-muted)] sm:text-lg">
+          Der Kern ist kostenlos. KI per BYOK, ohne Abo. Starte in 2 Minuten.
         </p>
-        <div className="mt-10">
-          <Link to="/login" className={`${primaryCtaClass} text-lg`}>
+        <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-2.5">
+          <Link to="/login" className={`${landingHeroPrimaryCtaClass} text-base sm:px-10 sm:py-4 sm:text-lg`}>
             Kostenlos starten
             <ArrowRight
               size={20}
               className="transition-transform duration-300 group-hover:translate-x-1"
             />
           </Link>
+          <a href="#features" className={landingHeroSecondaryCtaClass}>
+            Mehr zu Features
+          </a>
         </div>
       </FadeIn>
     </div>
   </section>
+);
+
+const LandingFooter = () => (
+  <footer className="border-t border-[color:var(--pf-border)] bg-[color:var(--pf-bg-subtle)] py-8">
+    <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-4 sm:flex-row sm:px-6 lg:px-8">
+      <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+        <LogoMark />
+        <span className="text-sm font-semibold text-[color:var(--pf-fg)]">PrintFlow</span>
+        <span className="text-xs font-medium text-[color:var(--pf-fg-muted)]">
+          © 2026 · Made in Germany
+        </span>
+      </div>
+      <LegalFooterNav
+        align="start"
+        className="justify-center text-[color:var(--pf-fg-muted)] sm:justify-end"
+      />
+    </div>
+  </footer>
 );
 
 /* ------------------------------------------------------------------ */
@@ -1216,46 +1450,17 @@ const LandingScrollToTop = () => {
 /* PAGE                                                               */
 /* ------------------------------------------------------------------ */
 export const LandingPage = () => (
-  <div className="flex min-h-0 flex-1 flex-col bg-slate-50 font-sans">
+  <div className="flex min-h-0 flex-1 flex-col bg-[color:var(--pf-bg-subtle)] font-sans">
     <LandingScrollToTop />
-    <header className="fixed inset-x-0 top-4 z-50 px-4 sm:px-6">
-      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between rounded-full border border-white/40 bg-white/70 px-4 shadow-[0_8px_30px_rgb(0,0,0,0.06)] ring-1 ring-slate-900/5 backdrop-blur-xl sm:px-6">
-        <span className="flex items-center gap-2 text-sm font-bold tracking-tight text-slate-900">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 shadow-inner">
-            <Zap size={16} className="text-white" fill="currentColor" />
-          </span>
-          PrintFlow
-        </span>
-        <div className="flex items-center gap-2 sm:gap-3">
-          <a
-            href="#how-it-works"
-            className="hidden text-sm font-semibold text-slate-600 transition-colors hover:text-indigo-600 sm:inline"
-          >
-            So funktioniert&apos;s
-          </a>
-          <a
-            href="#four-pillars"
-            className="hidden text-sm font-semibold text-slate-600 transition-colors hover:text-indigo-600 sm:inline"
-          >
-            Bereiche
-          </a>
-          <ThemeToggle size="sm" className="shrink-0" />
-          <Link
-            to="/login"
-            className="rounded-full bg-indigo-600 px-5 py-2 text-xs font-bold text-white shadow-md ring-1 ring-inset ring-indigo-500/30 transition-all hover:scale-[1.02] hover:bg-indigo-700"
-          >
-            Anmelden
-          </Link>
-        </div>
-      </div>
-    </header>
-
+    <LandingTopNav />
     <Hero />
+    <IntegrationsStrip />
     <HowItWorks />
     <FourPillars />
     <ExtraModules />
     <BentoGrid />
-    <Marquee />
+    <LandingPricing />
     <FinalCTA />
+    <LandingFooter />
   </div>
 );
