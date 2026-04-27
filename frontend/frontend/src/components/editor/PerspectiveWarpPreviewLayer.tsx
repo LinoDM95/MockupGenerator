@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 
 import { blitTextureToTemplateQuad } from "../../lib/canvas/perspectiveBlit";
 import { quadCropRect, type QuadCorners } from "../../lib/canvas/placeholderGeometry";
@@ -32,7 +32,33 @@ type Props = {
  */
 const PerspectiveWarpPreviewLayerInner = ({ bgImageUrl, motifUrl, el, params }: Props) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const paramsRef = useRef(params);
+  paramsRef.current = params;
   const [supported, setSupported] = useState(true);
+
+  const warpParamsKey = useMemo(
+    () =>
+      [
+        params.foldStrength ?? "",
+        params.foldShadowDepth ?? "",
+        params.foldHighlightStrength ?? "",
+        params.foldSmoothing ?? "",
+        params.artworkSaturation ?? "",
+        params.sobelRadius ?? "",
+        params.analysisDenoise ?? "",
+        params.foldNoiseFloor ?? "",
+      ].join("|"),
+    [
+      params.foldStrength,
+      params.foldShadowDepth,
+      params.foldHighlightStrength,
+      params.foldSmoothing,
+      params.artworkSaturation,
+      params.sobelRadius,
+      params.analysisDenoise,
+      params.foldNoiseFloor,
+    ],
+  );
 
   useEffect(() => {
     if (!el.quadCorners || el.quadCorners.length !== 4) return;
@@ -45,7 +71,7 @@ const PerspectiveWarpPreviewLayerInner = ({ bgImageUrl, motifUrl, el, params }: 
         const bg = bgOk ? await loadImage(bgImageUrl) : null;
         if (cancelled) return;
         const crop = quadCropRect(el.quadCorners as QuadCorners);
-        const warpParams = resolveWarpParams(params);
+        const warpParams = resolveWarpParams(paramsRef.current);
         const useGl = isWebGLAvailable();
         let rectPass: HTMLCanvasElement | null = null;
         if (useGl && bg) {
@@ -99,20 +125,7 @@ const PerspectiveWarpPreviewLayerInner = ({ bgImageUrl, motifUrl, el, params }: 
     return () => {
       cancelled = true;
     };
-  }, [
-    bgImageUrl,
-    motifUrl,
-    el.quadCorners,
-    el.x,
-    el.y,
-    el.w,
-    el.h,
-    params.foldStrength,
-    params.foldShadowDepth,
-    params.foldHighlightStrength,
-    params.foldSmoothing,
-    params.artworkSaturation,
-  ]);
+  }, [bgImageUrl, motifUrl, el.quadCorners, el.x, el.y, el.w, el.h, warpParamsKey]);
 
   if (!supported) return null;
   const corners = el.quadCorners as QuadCorners;

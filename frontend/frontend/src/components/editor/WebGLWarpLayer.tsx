@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   WebGLWarpRenderer,
@@ -38,7 +38,51 @@ const WebGLWarpLayerInner = ({ bgImageUrl, motifUrl, region, params }: Props) =>
   const lastSourcesKeyRef = useRef<string>("");
   const rafRef = useRef(0);
   const pendingParamsRef = useRef<WarpParams | null>(null);
+  /** Immer aktuelle Slider/API-Werte — vermeidet stale closures mit useCallback([]). */
+  const paramsRef = useRef(params);
+  paramsRef.current = params;
   const [supported, setSupported] = useState<boolean>(true);
+
+  const warpParamsKey = useMemo(
+    () =>
+      [
+        params.foldStrength ?? "",
+        params.foldShadowDepth ?? "",
+        params.foldHighlightStrength ?? "",
+        params.foldSmoothing ?? "",
+        params.artworkSaturation ?? "",
+        params.sobelRadius ?? "",
+        params.analysisDenoise ?? "",
+        params.foldNoiseFloor ?? "",
+      ].join("|"),
+    [
+      params.foldStrength,
+      params.foldShadowDepth,
+      params.foldHighlightStrength,
+      params.foldSmoothing,
+      params.artworkSaturation,
+      params.sobelRadius,
+      params.analysisDenoise,
+      params.foldNoiseFloor,
+    ],
+  );
+
+  const scheduleRender = useCallback(() => {
+    pendingParamsRef.current = resolveWarpParams(paramsRef.current);
+    if (rafRef.current) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = 0;
+      const r = rendererRef.current;
+      const p = pendingParamsRef.current;
+      if (r && p) {
+        try {
+          r.render(p);
+        } catch (err) {
+          console.warn("[WebGLWarpLayer] render failed:", err);
+        }
+      }
+    });
+  }, []);
 
   useEffect(() => {
     if (!isWebGLAvailable()) {
@@ -52,7 +96,6 @@ const WebGLWarpLayerInner = ({ bgImageUrl, motifUrl, region, params }: Props) =>
     let cancelled = false;
     const sourcesKey = `${bgImageUrl}|${motifUrl}|${region.x},${region.y},${region.w},${region.h}`;
     if (sourcesKey === lastSourcesKeyRef.current && rendererRef.current && imagesRef.current) {
-      // Region/Quellen unverändert → nur erneut rendern
       scheduleRender();
       return;
     }
@@ -63,10 +106,11 @@ const WebGLWarpLayerInner = ({ bgImageUrl, motifUrl, region, params }: Props) =>
         imagesRef.current = { bg, art };
         const c = canvasRef.current;
         if (!c) return;
-        // Output-Größe auf max. Kantenlänge limitieren für FPS
         const scale = Math.min(1, PREVIEW_MAX_EDGE / Math.max(region.w, region.h));
-        const dstW = Math.max(8, Math.round(region.w * scale));
-        const dstH = Math.max(8, Math.round(region.h * scale));
+        const dpr =
+          typeof window !== "undefined" ? Math.min(2, window.devicePixelRatio || 1) : 1;
+        const dstW = Math.max(8, Math.round(region.w * scale * dpr));
+        const dstH = Math.max(8, Math.round(region.h * scale * dpr));
         if (!rendererRef.current) {
           rendererRef.current = new WebGLWarpRenderer(c);
         }
@@ -81,40 +125,15 @@ const WebGLWarpLayerInner = ({ bgImageUrl, motifUrl, region, params }: Props) =>
     return () => {
       cancelled = true;
     };
+    // scheduleRender absichtlich nicht: sonst Bild-Neuladen bei jedem Falten-Parameter
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bgImageUrl, motifUrl, region.x, region.y, region.w, region.h, supported]);
 
-  const scheduleRender = () => {
-    pendingParamsRef.current = resolveWarpParams(params);
-    if (rafRef.current) return;
-    rafRef.current = requestAnimationFrame(() => {
-      rafRef.current = 0;
-      const r = rendererRef.current;
-      const p = pendingParamsRef.current;
-      if (r && p) {
-        try {
-          r.render(p);
-        } catch (err) {
-          console.warn("[WebGLWarpLayer] render failed:", err);
-        }
-      }
-    });
-  };
-
-  // Re-render bei Param-Änderungen
   useEffect(() => {
     if (!supported) return;
     if (!rendererRef.current || !imagesRef.current) return;
     scheduleRender();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    params.foldStrength,
-    params.foldShadowDepth,
-    params.foldHighlightStrength,
-    params.foldSmoothing,
-    params.artworkSaturation,
-    supported,
-  ]);
+  }, [supported, scheduleRender, warpParamsKey]);
 
   useEffect(() => {
     return () => {

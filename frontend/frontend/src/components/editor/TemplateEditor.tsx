@@ -350,10 +350,10 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
         frame_shadow_depth: editingTemplate.frameShadowDepth ?? 0.82,
         artwork_saturation: editingTemplate.artworkSaturation ?? 1,
         folds_enabled: editingTemplate.foldsEnabled === true,
-        fold_strength: editingTemplate.foldStrength ?? 0.4,
-        fold_shadow_depth: editingTemplate.foldShadowDepth ?? 0.6,
-        fold_highlight_strength: editingTemplate.foldHighlightStrength ?? 0.25,
-        fold_smoothing: editingTemplate.foldSmoothing ?? 4,
+        fold_strength: editingTemplate.foldStrength ?? 0.35,
+        fold_shadow_depth: editingTemplate.foldShadowDepth ?? 0.28,
+        fold_highlight_strength: editingTemplate.foldHighlightStrength ?? 0.08,
+        fold_smoothing: editingTemplate.foldSmoothing ?? 6,
       });
       await replaceTemplateElements(editingTemplate.id, editingTemplate.elements);
       await onSaved();
@@ -771,7 +771,7 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
               >
                 <div>
                   <label className="text-sm font-semibold text-[color:var(--pf-fg)]" htmlFor="fold-strength">
-                    Faltenstärke ({Math.round((editingTemplate.foldStrength ?? 0.4) * 100)}&nbsp;%)
+                    Faltenstärke ({Math.round((editingTemplate.foldStrength ?? 0.35) * 100)}&nbsp;%)
                   </label>
                   <input
                     id="fold-strength"
@@ -779,7 +779,7 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                     min={0}
                     max={100}
                     step={1}
-                    value={Math.round((editingTemplate.foldStrength ?? 0.4) * 100)}
+                    value={Math.round((editingTemplate.foldStrength ?? 0.35) * 100)}
                     onChange={(e) => {
                       const v = Number(e.target.value);
                       updateEditingTemplate((prev) =>
@@ -791,7 +791,7 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                 </div>
                 <div>
                   <label className="text-sm font-semibold text-[color:var(--pf-fg)]" htmlFor="fold-shadow">
-                    Schattentiefe ({Math.round((editingTemplate.foldShadowDepth ?? 0.6) * 100)}&nbsp;%)
+                    Schattentiefe ({Math.round((editingTemplate.foldShadowDepth ?? 0.28) * 100)}&nbsp;%)
                   </label>
                   <input
                     id="fold-shadow"
@@ -799,7 +799,7 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                     min={0}
                     max={100}
                     step={1}
-                    value={Math.round((editingTemplate.foldShadowDepth ?? 0.6) * 100)}
+                    value={Math.round((editingTemplate.foldShadowDepth ?? 0.28) * 100)}
                     onChange={(e) => {
                       const v = Number(e.target.value);
                       updateEditingTemplate((prev) =>
@@ -811,7 +811,7 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                 </div>
                 <div>
                   <label className="text-sm font-semibold text-[color:var(--pf-fg)]" htmlFor="fold-highlight">
-                    Glanzlichter ({Math.round((editingTemplate.foldHighlightStrength ?? 0.25) * 100)}&nbsp;%)
+                    Glanzlichter ({Math.round((editingTemplate.foldHighlightStrength ?? 0.08) * 100)}&nbsp;%)
                   </label>
                   <input
                     id="fold-highlight"
@@ -819,7 +819,7 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                     min={0}
                     max={100}
                     step={1}
-                    value={Math.round((editingTemplate.foldHighlightStrength ?? 0.25) * 100)}
+                    value={Math.round((editingTemplate.foldHighlightStrength ?? 0.08) * 100)}
                     onChange={(e) => {
                       const v = Number(e.target.value);
                       updateEditingTemplate((prev) =>
@@ -833,7 +833,7 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                 </div>
                 <div>
                   <label className="text-sm font-semibold text-[color:var(--pf-fg)]" htmlFor="fold-smoothing">
-                    Glättung ({editingTemplate.foldSmoothing ?? 4}&nbsp;px)
+                    Glättung ({editingTemplate.foldSmoothing ?? 6}&nbsp;px)
                   </label>
                   <input
                     id="fold-smoothing"
@@ -841,7 +841,7 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                     min={1}
                     max={32}
                     step={1}
-                    value={editingTemplate.foldSmoothing ?? 4}
+                    value={editingTemplate.foldSmoothing ?? 6}
                     onChange={(e) => {
                       const v = Number(e.target.value);
                       updateEditingTemplate((prev) =>

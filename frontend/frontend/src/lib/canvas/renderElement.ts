@@ -15,6 +15,9 @@ import {
 import { blitTextureToTemplateQuad } from "./perspectiveBlit";
 import { WebGLWarpRenderer, isWebGLAvailable, resolveWarpParams } from "./webglWarp";
 
+/** Interne Supersampling-Auflösung für WebGL-Warp beim Export (weichere Kanten, weniger Shader-Artefakte). */
+const WARP_EXPORT_INTERNAL_SCALE = 2;
+
 export type RenderElementOptions = {
   frameShadowOuterEnabled?: boolean;
   frameShadowInnerEnabled?: boolean;
@@ -29,6 +32,9 @@ export type RenderElementOptions = {
   foldShadowDepth?: number;
   foldHighlightStrength?: number;
   foldSmoothing?: number;
+  analysisDenoise?: number;
+  foldNoiseFloor?: number;
+  sobelRadius?: number;
 };
 
 export const renderElementToCanvas = (
@@ -76,6 +82,9 @@ export const renderElementToCanvas = (
       foldHighlightStrength: opts?.foldHighlightStrength,
       foldSmoothing: opts?.foldSmoothing,
       artworkSaturation,
+      sobelRadius: opts?.sobelRadius,
+      analysisDenoise: opts?.analysisDenoise,
+      foldNoiseFloor: opts?.foldNoiseFloor,
     });
 
     const drawRectangularMotifPass = (
@@ -113,7 +122,11 @@ export const renderElementToCanvas = (
     if (quadMode && el.quadCorners) {
       ctx.shadowColor = "transparent";
       const crop = quadCropRect(el.quadCorners as QuadCorners);
-      const pass = drawRectangularMotifPass(crop, crop.w, crop.h);
+      const pass = drawRectangularMotifPass(
+        crop,
+        Math.max(8, Math.round(crop.w * WARP_EXPORT_INTERNAL_SCALE)),
+        Math.max(8, Math.round(crop.h * WARP_EXPORT_INTERNAL_SCALE)),
+      );
       if (pass) {
         const projected = blitTextureToTemplateQuad(
           pass,
@@ -135,8 +148,8 @@ export const renderElementToCanvas = (
         artImg,
         { x: el.x, y: el.y, w: el.w, h: el.h },
         warpParams,
-        el.w,
-        el.h,
+        Math.max(8, Math.round(el.w * WARP_EXPORT_INTERNAL_SCALE)),
+        Math.max(8, Math.round(el.h * WARP_EXPORT_INTERNAL_SCALE)),
       );
       ctx.shadowColor = "transparent";
       if (warped) {

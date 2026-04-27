@@ -72,8 +72,14 @@ export interface Template {
   foldShadowDepth?: number;
   /** Additive Glanzlichter an Faltenkämmen (0–1, default 0.25). */
   foldHighlightStrength?: number;
-  /** Pre-Smoothing-Radius in Pixeln vor Sobel (1–32, default 4). */
+  /** Pre-Smoothing-Radius in Pixeln vor Sobel (1–32, default 6). */
   foldSmoothing?: number;
+  /** 0..1: Stabilisierung nur für Mockup-Analyse (Falten/Luma), nicht fürs Motiv. */
+  analysisDenoise?: number;
+  /** Unterdrückt Mikro-Gradienten im Displacement (Shader). */
+  foldNoiseFloor?: number;
+  /** Sobel-Stützradius in Texeln. */
+  sobelRadius?: number;
 }
 
 export interface TemplateSet {

@@ -58,8 +58,29 @@ const parseUnit01 = (raw: unknown, fallback: number): number => {
 
 const parseFoldSmoothing = (raw: unknown): number => {
   const n = Number(raw);
-  if (!Number.isFinite(n)) return 4;
+  if (!Number.isFinite(n)) return 6;
   return Math.min(32, Math.max(1, Math.round(n)));
+};
+
+const parseOptionalUnit01 = (raw: unknown): number | undefined => {
+  if (raw === undefined || raw === null || raw === "") return undefined;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return undefined;
+  return Math.min(1, Math.max(0, n));
+};
+
+const parseOptionalNoiseFloor = (raw: unknown): number | undefined => {
+  if (raw === undefined || raw === null || raw === "") return undefined;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return undefined;
+  return Math.min(0.2, Math.max(0, n));
+};
+
+const parseOptionalSobelRadius = (raw: unknown): number | undefined => {
+  if (raw === undefined || raw === null || raw === "") return undefined;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return undefined;
+  return Math.min(8, Math.max(0.25, n));
 };
 
 export const normalizeTemplate = (raw: Record<string, unknown>): Template => {
@@ -97,13 +118,16 @@ export const normalizeTemplate = (raw: Record<string, unknown>): Template => {
     frameShadowDepth: parseFrameShadowDepth(raw.frame_shadow_depth ?? raw.frameShadowDepth),
     artworkSaturation: parseArtworkSaturation(raw.artwork_saturation ?? raw.artworkSaturation),
     foldsEnabled: parseOptionalBool(raw.folds_enabled ?? raw.foldsEnabled) === true,
-    foldStrength: parseUnit01(raw.fold_strength ?? raw.foldStrength, 0.4),
-    foldShadowDepth: parseUnit01(raw.fold_shadow_depth ?? raw.foldShadowDepth, 0.6),
+    foldStrength: parseUnit01(raw.fold_strength ?? raw.foldStrength, 0.35),
+    foldShadowDepth: parseUnit01(raw.fold_shadow_depth ?? raw.foldShadowDepth, 0.28),
     foldHighlightStrength: parseUnit01(
       raw.fold_highlight_strength ?? raw.foldHighlightStrength,
-      0.25,
+      0.08,
     ),
     foldSmoothing: parseFoldSmoothing(raw.fold_smoothing ?? raw.foldSmoothing),
+    analysisDenoise: parseOptionalUnit01(raw.analysis_denoise ?? raw.analysisDenoise),
+    foldNoiseFloor: parseOptionalNoiseFloor(raw.fold_noise_floor ?? raw.foldNoiseFloor),
+    sobelRadius: parseOptionalSobelRadius(raw.sobel_radius ?? raw.sobelRadius),
     elements: Array.isArray(raw.elements)
       ? (raw.elements as Record<string, unknown>[]).map(normalizeElement)
       : [],

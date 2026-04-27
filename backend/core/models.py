@@ -104,22 +104,22 @@ class Template(models.Model):
         help_text="WebGL-Stoffverformung (Sobel-Normalen aus BG-Luminanz) aktivieren.",
     )
     fold_strength = models.FloatField(
-        default=0.4,
+        default=0.15,
         validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
         help_text="Verschiebungsstärke entlang der Sobel-Normalen (0–1).",
     )
     fold_shadow_depth = models.FloatField(
-        default=0.6,
+        default=0.2,
         validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
         help_text="Multiply-Blend-Stärke gegen Hintergrund-Luminanz (0–1).",
     )
     fold_highlight_strength = models.FloatField(
-        default=0.25,
+        default=0.08,
         validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
         help_text="Additive Glanzlichter an Faltenkämmen (0–1).",
     )
     fold_smoothing = models.PositiveSmallIntegerField(
-        default=4,
+        default=8,
         validators=[MinValueValidator(1), MaxValueValidator(32)],
         help_text="Pre-Smoothing-Radius (Pixel) der Heightmap vor Sobel.",
     )

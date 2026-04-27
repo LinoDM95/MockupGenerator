@@ -224,10 +224,13 @@ const CanvasViewportInner = ({
   const frameShadowDepth = editingTemplate.frameShadowDepth ?? 0.82;
   const artworkSaturation = editingTemplate.artworkSaturation ?? 1;
   const foldsEnabled = editingTemplate.foldsEnabled === true;
-  const foldStrength = editingTemplate.foldStrength ?? 0.4;
-  const foldShadowDepth = editingTemplate.foldShadowDepth ?? 0.6;
-  const foldHighlightStrength = editingTemplate.foldHighlightStrength ?? 0.25;
-  const foldSmoothing = editingTemplate.foldSmoothing ?? 4;
+  const foldStrength = editingTemplate.foldStrength ?? 0.35;
+  const foldShadowDepth = editingTemplate.foldShadowDepth ?? 0.28;
+  const foldHighlightStrength = editingTemplate.foldHighlightStrength ?? 0.08;
+  const foldSmoothing = editingTemplate.foldSmoothing ?? 6;
+  const analysisDenoise = editingTemplate.analysisDenoise ?? 0.42;
+  const foldNoiseFloor = editingTemplate.foldNoiseFloor ?? 0.012;
+  const sobelRadius = editingTemplate.sobelRadius ?? 1;
   const allowFrameOuterShadowBleed =
     editingTemplate.elements.some((e) => e.type === "placeholder") &&
     frameShadowOuterEnabled &&
@@ -761,6 +764,9 @@ const CanvasViewportInner = ({
                         foldHighlightStrength,
                         foldSmoothing,
                         artworkSaturation,
+                        analysisDenoise,
+                        foldNoiseFloor,
+                        sobelRadius,
                       }}
                     />
                   ) : previewEndView && previewMotifUrl ? (
@@ -775,6 +781,9 @@ const CanvasViewportInner = ({
                           foldHighlightStrength,
                           foldSmoothing,
                           artworkSaturation,
+                          analysisDenoise,
+                          foldNoiseFloor,
+                          sobelRadius,
                         }}
                       />
                     ) : (
@@ -999,8 +1008,9 @@ const CanvasViewportInner = ({
                         "cursor-nwse-resize",
                         "cursor-nesw-resize",
                       ] as const;
-                      const corners = el.quadCorners;
-                      const p = corners[i];
+                      const qc = el.quadCorners;
+                      if (!qc) return null;
+                      const p = qc[i];
                       return (
                         <div
                           key={qh}

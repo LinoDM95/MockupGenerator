@@ -2,13 +2,14 @@
  * GPU-beschleunigte Stoff-/Faltenverformung für Mockup-Motive.
  *
  * Angelehnt an die Server-Pipeline (Luminanz-Displacement + Template-Lighting):
- *   1. Zwei CPU-Vorverarbeitungen der Vorlagen-Region: „weiches“ Grau (mittlerer Blur) und
- *      stark tiefpass-gefiltertes Grau (großer Blur) — analog zu gray−smooth für Falten bzw.
- *      großem Gaussian für Schatten-/Highlight-Basis.
- *   2. Falten (Displacement): Full-Res-Luma vs. u_lumaSmooth — darf fein strukturiert sein.
- *   3. Lighting/Schatten: eigene weich gefilterte u_lumaLighting (Downscale + Blur), nie
- *      Full-Res-BG minus Tiefpass — vermeidet JPEG-/Körnung als falsche Schatten.
- *   4. Rand: korrektes smoothstep-Feathering am Motiv-UV-Rand.
+ *   0. Intern: `buildStableAnalysisBackground` — entrauschte Grau-Version des Mockup-Ausschnitts
+ *      nur für Analyse (Sobel, Luma, Lighting); das sichtbare Export-Motiv bleibt scharf.
+ *   1. Zwei CPU-Vorverarbeitungen auf der Analyse-Textur: „weiches“ Grau und stark tiefpass-
+ *      gefiltertes Grau — Falten bzw. Schatten-/Highlight-Basis.
+ *   2. Falten (Displacement): Analyse-Luma vs. u_lumaSmooth; Noise-Floor + sanfte Sättigung
+ *      statt aggressiver Gradient-Normalisierung (kein Hochziehen von Pixelrauschen).
+ *   3. Lighting/Schatten: u_lumaLighting aus derselben Analyse-Textur (weich, niedrig aufgelöst).
+ *   4. Rand: minimales Feather (~1 Texel), damit Motivränder scharf bleiben.
  */
 
 const VERT_SRC = `
@@ -25,7 +26,7 @@ precision highp float;
 varying vec2 v_uv;
 
 uniform sampler2D u_artwork;
-uniform sampler2D u_background;
+uniform sampler2D u_analysisBackground;
 uniform sampler2D u_lumaSmooth;
 uniform sampler2D u_lumaCoarse;
 uniform sampler2D u_lumaLighting;
@@ -38,9 +39,10 @@ uniform float u_sobelRadius;
 uniform float u_saturation;
 uniform float u_detailGain;
 uniform float u_bgMeanLuma;
+uniform float u_noiseFloor;
 
-float lumaBg(vec2 tuv) {
-  vec3 rgb = texture2D(u_background, clamp(tuv, vec2(0.0), vec2(1.0))).rgb;
+float lumaAnalysis(vec2 tuv) {
+  vec3 rgb = texture2D(u_analysisBackground, clamp(tuv, vec2(0.0), vec2(1.0))).rgb;
   return dot(rgb, vec3(0.299, 0.587, 0.114));
 }
 
@@ -84,17 +86,17 @@ float lightingDetailWeighted(vec2 uv, vec2 sm) {
 
 void main() {
   vec2 uv = v_uv;
-  vec2 ts = u_texelSize * max(3.0, u_sobelRadius * 4.0);
+  vec2 ts = u_texelSize * max(5.0, u_sobelRadius * 6.0);
 
-  float b_ul = lumaBg(uv + vec2(-ts.x, -ts.y));
-  float b_u  = lumaBg(uv + vec2( 0.0,  -ts.y));
-  float b_ur = lumaBg(uv + vec2( ts.x, -ts.y));
-  float b_l  = lumaBg(uv + vec2(-ts.x,  0.0));
-  float b_c  = lumaBg(uv);
-  float b_r  = lumaBg(uv + vec2( ts.x,  0.0));
-  float b_dl = lumaBg(uv + vec2(-ts.x,  ts.y));
-  float b_d  = lumaBg(uv + vec2( 0.0,   ts.y));
-  float b_dr = lumaBg(uv + vec2( ts.x,  ts.y));
+  float b_ul = lumaAnalysis(uv + vec2(-ts.x, -ts.y));
+  float b_u  = lumaAnalysis(uv + vec2( 0.0,  -ts.y));
+  float b_ur = lumaAnalysis(uv + vec2( ts.x, -ts.y));
+  float b_l  = lumaAnalysis(uv + vec2(-ts.x,  0.0));
+  float b_c  = lumaAnalysis(uv);
+  float b_r  = lumaAnalysis(uv + vec2( ts.x,  0.0));
+  float b_dl = lumaAnalysis(uv + vec2(-ts.x,  ts.y));
+  float b_d  = lumaAnalysis(uv + vec2( 0.0,   ts.y));
+  float b_dr = lumaAnalysis(uv + vec2( ts.x,  ts.y));
 
   float s_ul = smoothLuma(uv + vec2(-ts.x, -ts.y));
   float s_u  = smoothLuma(uv + vec2( 0.0,  -ts.y));
@@ -119,24 +121,29 @@ void main() {
   float dE = (d_ur + d_r + d_dr) * 0.3333333;
   float dN = (d_ul + d_u + d_ur) * 0.3333333;
   float dS = (d_dl + d_d + d_dr) * 0.3333333;
-  vec2 gDisp = vec2(dE - dW, dS - dN) * 0.5;
+  vec2 gRaw = vec2(dE - dW, dS - dN) * 0.5;
+  float glen = length(gRaw);
+  float reduced = max(glen - u_noiseFloor, 0.0);
+  /** Weniger aggressive Sättigung als 6.0 — verhindert „plattgedrückte“ Reglerwirkung. */
+  float softMag = reduced / (1.0 + reduced * 3.2);
+  /** Früher einsetzen: nicht alles unter noiseFloor*4 unsichtbar machen. */
+  float macroMask = smoothstep(u_noiseFloor * 0.65, u_noiseFloor * 2.5, glen);
+  vec2 gDisp = glen > 1e-6
+    ? (gRaw / glen) * softMag * macroMask
+    : vec2(0.0);
+  vec2 warpedUv = uv - (gDisp * u_detailGain * u_foldStrength * 0.16);
 
-  float glen = length(gDisp);
-  float norm = max(max(abs(gDisp.x), abs(gDisp.y)), 0.14);
-  gDisp = clamp(gDisp / norm, -1.0, 1.0);
-  gDisp *= smoothstep(0.0, 0.06, glen);
+  vec2 artUv = clamp(warpedUv, vec2(1e-5), vec2(1.0 - 1e-5));
+  vec4 art = texture2D(u_artwork, artUv);
 
-  vec2 warpedUv = uv - (gDisp * u_detailGain * u_foldStrength * 0.14);
-
-  vec4 art = texture2D(u_artwork, warpedUv);
-
-  float edgeFeather = 0.014;
+  /** ~1–1.5 Texel weiches Antialiasing am Rand — kein breites Weichzeichnen mehr. */
+  float edgeW = max(min(u_texelSize.x, u_texelSize.y) * 1.2, 1e-6);
   float maskX =
-    smoothstep(0.0, edgeFeather, warpedUv.x) *
-    (1.0 - smoothstep(1.0 - edgeFeather, 1.0, warpedUv.x));
+    smoothstep(0.0, edgeW, warpedUv.x) *
+    (1.0 - smoothstep(1.0 - edgeW, 1.0, warpedUv.x));
   float maskY =
-    smoothstep(0.0, edgeFeather, warpedUv.y) *
-    (1.0 - smoothstep(1.0 - edgeFeather, 1.0, warpedUv.y));
+    smoothstep(0.0, edgeW, warpedUv.y) *
+    (1.0 - smoothstep(1.0 - edgeW, 1.0, warpedUv.y));
   float edgeMask = maskX * maskY;
   float finalAlpha = art.a * edgeMask;
 
@@ -173,11 +180,11 @@ void main() {
 `;
 
 export interface WarpParams {
-  /** 0..1, Verschiebungsstärke. Default 0.4. */
+  /** 0..1, Verschiebungsstärke. */
   foldStrength: number;
-  /** 0..1, Multiply-Stärke gegen BG-Luminanz. Default 0.6. */
+  /** 0..1, Multiply-Stärke gegen BG-Luminanz. */
   foldShadowDepth: number;
-  /** 0..1, additive Highlights. Default 0.25. */
+  /** 0..1, additive Highlights. */
   foldHighlightStrength: number;
   /** Mittlerer Blur (px) für „weiches“ Grau im Falten-Detail (Luma − Glättung), steuerbar wie zuvor. */
   foldSmoothing: number;
@@ -185,6 +192,16 @@ export interface WarpParams {
   sobelRadius?: number;
   /** Motiv-Sättigung (geteilt mit Frame-System). Default 1. */
   artworkSaturation?: number;
+  /**
+   * 0..1. Stabilisiert die Mockup-Region vor der Faltenanalyse (intern, nicht das sichtbare Motiv).
+   * Für T-Shirts oft 0.55–0.8.
+   */
+  analysisDenoise: number;
+  /**
+   * Unterdrückt Mikrodetails/Rauschen im Displacement (Shader-Schwelle).
+   * Für Shirts oft 0.018–0.035.
+   */
+  foldNoiseFloor: number;
 }
 
 export interface WarpRegion {
@@ -222,6 +239,9 @@ const aspectFillToCanvas = (src: Source, dstW: number, dstH: number): HTMLCanvas
     sHeight = sw / canvasAspect;
     sy = (sh - sHeight) / 2;
   }
+  /** Hochwertiges Resampling für Motivqualität. Keine Analyse-Glättung auf dem Motiv. */
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   ctx.drawImage(src as CanvasImageSource, sx, sy, sWidth, sHeight, 0, 0, c.width, c.height);
   return c;
 };
@@ -392,6 +412,53 @@ const estimateMeanLuma = (bgRegion: HTMLCanvasElement): number => {
   return n > 0 ? sum / n : 0.5;
 };
 
+/**
+ * Interne Analyse-Textur: entrauscht/stabilisiert für Falten- und Luma-Pipelines.
+ * Das sichtbare Mockup bleibt unverändert — nur diese Canvas-Variante geht in Sobel/Lighting.
+ */
+const buildStableAnalysisBackground = (
+  bgRegion: HTMLCanvasElement,
+  strengthRaw: number,
+): HTMLCanvasElement => {
+  const strength = strengthRaw < 0 ? 0 : strengthRaw > 1 ? 1 : strengthRaw;
+  const w = bgRegion.width;
+  const h = bgRegion.height;
+  const out = document.createElement("canvas");
+  out.width = w;
+  out.height = h;
+  const outCtx = out.getContext("2d");
+  if (!outCtx) return out;
+  if (strength <= 0.001) {
+    outCtx.drawImage(bgRegion, 0, 0);
+    return out;
+  }
+  const minDim = Math.min(w, h);
+  const scale = 1.0 - strength * 0.42;
+  const tw = Math.max(64, Math.round(w * scale));
+  const th = Math.max(64, Math.round(h * scale));
+  const down = document.createElement("canvas");
+  down.width = tw;
+  down.height = th;
+  const dctx = down.getContext("2d");
+  if (!dctx) {
+    outCtx.drawImage(bgRegion, 0, 0);
+    return out;
+  }
+  dctx.imageSmoothingEnabled = true;
+  dctx.imageSmoothingQuality = "high";
+  const lowBlur = 0.35 + strength * 1.25;
+  dctx.filter = `grayscale(1) blur(${lowBlur}px)`;
+  dctx.drawImage(bgRegion, 0, 0, tw, th);
+  dctx.filter = "none";
+  outCtx.imageSmoothingEnabled = true;
+  outCtx.imageSmoothingQuality = "high";
+  const finalBlur = Math.min(minDim * 0.012, 0.25 + strength * 0.9);
+  outCtx.filter = `blur(${finalBlur}px)`;
+  outCtx.drawImage(down, 0, 0, tw, th, 0, 0, w, h);
+  outCtx.filter = "none";
+  return out;
+};
+
 const compileShader = (gl: WebGLRenderingContext, type: number, src: string): WebGLShader => {
   const sh = gl.createShader(type);
   if (!sh) throw new Error("WebGL: createShader failed");
@@ -421,19 +488,24 @@ const createProgram = (gl: WebGLRenderingContext): WebGLProgram => {
   return prog;
 };
 
+type TexFilterMode = { minFilter: number; magFilter: number };
+
 const uploadTexture = (
   gl: WebGLRenderingContext,
   unit: number,
   source: TexImageSource,
+  filters?: TexFilterMode,
 ): WebGLTexture => {
   const tex = gl.createTexture();
   if (!tex) throw new Error("WebGL: createTexture failed");
+  const minF = filters?.minFilter ?? gl.LINEAR;
+  const magF = filters?.magFilter ?? gl.LINEAR;
   gl.activeTexture(gl.TEXTURE0 + unit);
   gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, minF);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, magF);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
   gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
@@ -442,7 +514,10 @@ const uploadTexture = (
 
 type WarpResources = {
   art: HTMLCanvasElement;
-  bg: HTMLCanvasElement;
+  /** Sichtbarer Originalausschnitt (Referenz / Debug). */
+  bgRaw: HTMLCanvasElement;
+  /** Entrauschte Analyse-Version — Falten/Luminanz/Sobel nur hierauf. */
+  bgAnalysis: HTMLCanvasElement | null;
   lumaSmooth: HTMLCanvasElement | null;
   lumaCoarse: HTMLCanvasElement | null;
   lumaLighting: HTMLCanvasElement | null;
@@ -465,7 +540,7 @@ export class WebGLWarpRenderer {
   private canvas: HTMLCanvasElement;
   private program: WebGLProgram | null = null;
   private texArt: WebGLTexture | null = null;
-  private texBg: WebGLTexture | null = null;
+  private texAnalysisBackground: WebGLTexture | null = null;
   private texLumaSmooth: WebGLTexture | null = null;
   private texLumaCoarse: WebGLTexture | null = null;
   private texLumaLighting: WebGLTexture | null = null;
@@ -479,13 +554,15 @@ export class WebGLWarpRenderer {
   private uDetailGain: WebGLUniformLocation | null = null;
   private uSat: WebGLUniformLocation | null = null;
   private uArt: WebGLUniformLocation | null = null;
-  private uBg: WebGLUniformLocation | null = null;
+  private uAnalysisBackground: WebGLUniformLocation | null = null;
   private uLumaSmooth: WebGLUniformLocation | null = null;
   private uLumaCoarse: WebGLUniformLocation | null = null;
   private uLumaLighting: WebGLUniformLocation | null = null;
   private uBgMeanLuma: WebGLUniformLocation | null = null;
+  private uNoiseFloor: WebGLUniformLocation | null = null;
   private aPos: number = 0;
   private lastBlurPx: number = -1;
+  private lastAnalysisDenoise: number = -1;
 
   /**
    * @param ownsCanvas erzeugt automatisch ein internes Canvas. Für Live-Preview
@@ -563,13 +640,15 @@ export class WebGLWarpRenderer {
     const artCanvas = aspectFillToCanvas(art, w, h);
     this.resources = {
       art: artCanvas,
-      bg: bgCanvas,
+      bgRaw: bgCanvas,
+      bgAnalysis: null,
       lumaSmooth: null,
       lumaCoarse: null,
       lumaLighting: null,
       bgMeanLuma: 0.5,
     };
     this.lastBlurPx = -1;
+    this.lastAnalysisDenoise = -1;
     this.disposeTextures();
   }
 
@@ -577,24 +656,66 @@ export class WebGLWarpRenderer {
     if (!this.resources) {
       throw new Error("WebGLWarpRenderer.render called before setSources");
     }
-    const blurPx = Math.max(0.5, params.foldSmoothing);
+    /** Sicherstellen, dass Analyse/Noise auch bei partiellen Objekten (Runtime) stabil sind. */
+    const resolved = resolveWarpParams(params);
+    const analysisDenoise = resolved.analysisDenoise;
+    const denoiseChanged =
+      this.lastAnalysisDenoise < 0 ||
+      Math.abs(analysisDenoise - this.lastAnalysisDenoise) > 0.005;
+
+    if (!this.resources.bgAnalysis || denoiseChanged) {
+      this.resources.bgAnalysis = buildStableAnalysisBackground(
+        this.resources.bgRaw,
+        analysisDenoise,
+      );
+      this.lastAnalysisDenoise = analysisDenoise;
+      this.resources.lumaCoarse = null;
+      this.resources.lumaLighting = null;
+      this.resources.lumaSmooth = null;
+      this.lastBlurPx = -1;
+      if (this.texAnalysisBackground && this.gl) {
+        this.gl.deleteTexture(this.texAnalysisBackground);
+        this.texAnalysisBackground = null;
+      }
+      if (this.texLumaCoarse && this.gl) {
+        this.gl.deleteTexture(this.texLumaCoarse);
+        this.texLumaCoarse = null;
+      }
+      if (this.texLumaLighting && this.gl) {
+        this.gl.deleteTexture(this.texLumaLighting);
+        this.texLumaLighting = null;
+      }
+      if (this.texLumaSmooth && this.gl) {
+        this.gl.deleteTexture(this.texLumaSmooth);
+        this.texLumaSmooth = null;
+      }
+    }
+
+    const bgA = this.resources.bgAnalysis;
+    if (!bgA) {
+      throw new Error("WebGLWarpRenderer: bgAnalysis missing");
+    }
+
+    const blurPx = Math.max(0.5, resolved.foldSmoothing);
     if (!this.resources.lumaCoarse) {
-      this.resources.lumaCoarse = buildLumaCoarse(this.resources.bg);
-      this.resources.bgMeanLuma = estimateMeanLuma(this.resources.bg);
+      this.resources.lumaCoarse = buildLumaCoarse(bgA);
+      this.resources.bgMeanLuma = estimateMeanLuma(bgA);
       if (this.texLumaCoarse && this.gl) {
         this.gl.deleteTexture(this.texLumaCoarse);
         this.texLumaCoarse = null;
       }
     }
     if (!this.resources.lumaLighting) {
-      this.resources.lumaLighting = buildLumaLighting(this.resources.bg);
+      this.resources.lumaLighting = buildLumaLighting(bgA);
       if (this.texLumaLighting && this.gl) {
         this.gl.deleteTexture(this.texLumaLighting);
         this.texLumaLighting = null;
       }
     }
-    if (blurPx !== this.lastBlurPx || !this.resources.lumaSmooth) {
-      this.resources.lumaSmooth = buildLumaSmooth(this.resources.bg, blurPx);
+    const blurChanged =
+      this.lastBlurPx < 0 || Math.abs(blurPx - this.lastBlurPx) > 0.01;
+    if (blurChanged || !this.resources.lumaSmooth) {
+      this.resources.lumaSmooth = buildLumaSmooth(bgA, blurPx);
       this.lastBlurPx = blurPx;
       if (this.texLumaSmooth && this.gl) {
         this.gl.deleteTexture(this.texLumaSmooth);
@@ -603,8 +724,10 @@ export class WebGLWarpRenderer {
     }
     this.ensureGL();
     const gl = this.gl!;
-    if (!this.texArt) this.texArt = uploadTexture(gl, 0, this.resources.art);
-    if (!this.texBg) this.texBg = uploadTexture(gl, 1, this.resources.bg);
+    if (!this.texArt) {
+      this.texArt = uploadTexture(gl, 0, this.resources.art);
+    }
+    if (!this.texAnalysisBackground) this.texAnalysisBackground = uploadTexture(gl, 1, bgA);
     if (!this.texLumaSmooth && this.resources.lumaSmooth) {
       this.texLumaSmooth = uploadTexture(gl, 2, this.resources.lumaSmooth);
     }
@@ -624,8 +747,8 @@ export class WebGLWarpRenderer {
     gl.bindTexture(gl.TEXTURE_2D, this.texArt);
     gl.uniform1i(this.uArt, 0);
     gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, this.texBg);
-    gl.uniform1i(this.uBg, 1);
+    gl.bindTexture(gl.TEXTURE_2D, this.texAnalysisBackground);
+    gl.uniform1i(this.uAnalysisBackground, 1);
     gl.activeTexture(gl.TEXTURE2);
     gl.bindTexture(gl.TEXTURE_2D, this.texLumaSmooth!);
     gl.uniform1i(this.uLumaSmooth, 2);
@@ -637,13 +760,14 @@ export class WebGLWarpRenderer {
     gl.uniform1i(this.uLumaLighting, 4);
 
     gl.uniform2f(this.uTexel, 1 / this.canvas.width, 1 / this.canvas.height);
-    gl.uniform1f(this.uFold, clamp01(params.foldStrength));
-    gl.uniform1f(this.uShadow, clamp01(params.foldShadowDepth));
-    gl.uniform1f(this.uHighlight, clamp01(params.foldHighlightStrength));
-    gl.uniform1f(this.uSobel, params.sobelRadius ?? 1.0);
+    gl.uniform1f(this.uFold, clamp01(resolved.foldStrength));
+    gl.uniform1f(this.uShadow, clamp01(resolved.foldShadowDepth));
+    gl.uniform1f(this.uHighlight, clamp01(resolved.foldHighlightStrength));
+    gl.uniform1f(this.uSobel, resolved.sobelRadius ?? 1.0);
     gl.uniform1f(this.uDetailGain, DEFAULT_DETAIL_GAIN);
-    gl.uniform1f(this.uSat, params.artworkSaturation ?? 1.0);
+    gl.uniform1f(this.uSat, resolved.artworkSaturation ?? 1.0);
     gl.uniform1f(this.uBgMeanLuma, this.resources.bgMeanLuma);
+    gl.uniform1f(this.uNoiseFloor, Math.max(0, resolved.foldNoiseFloor));
 
     gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
     gl.enableVertexAttribArray(this.aPos);
@@ -667,9 +791,9 @@ export class WebGLWarpRenderer {
       this.gl.deleteTexture(this.texArt);
       this.texArt = null;
     }
-    if (this.texBg) {
-      this.gl.deleteTexture(this.texBg);
-      this.texBg = null;
+    if (this.texAnalysisBackground) {
+      this.gl.deleteTexture(this.texAnalysisBackground);
+      this.texAnalysisBackground = null;
     }
     if (this.texLumaSmooth) {
       this.gl.deleteTexture(this.texLumaSmooth);
@@ -705,11 +829,12 @@ export class WebGLWarpRenderer {
     this.uDetailGain = gl.getUniformLocation(this.program, "u_detailGain");
     this.uSat = gl.getUniformLocation(this.program, "u_saturation");
     this.uArt = gl.getUniformLocation(this.program, "u_artwork");
-    this.uBg = gl.getUniformLocation(this.program, "u_background");
+    this.uAnalysisBackground = gl.getUniformLocation(this.program, "u_analysisBackground");
     this.uLumaSmooth = gl.getUniformLocation(this.program, "u_lumaSmooth");
     this.uLumaCoarse = gl.getUniformLocation(this.program, "u_lumaCoarse");
     this.uLumaLighting = gl.getUniformLocation(this.program, "u_lumaLighting");
     this.uBgMeanLuma = gl.getUniformLocation(this.program, "u_bgMeanLuma");
+    this.uNoiseFloor = gl.getUniformLocation(this.program, "u_noiseFloor");
 
     this.quadBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
@@ -723,8 +848,8 @@ export class WebGLWarpRenderer {
 
 const clamp01 = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
 
-/** Amplitude der UV-Verformung nach Sobel auf (Luma − weiches Grau). */
-const DEFAULT_DETAIL_GAIN = 2.2;
+/** Amplitude der UV-Verformung (Sobel auf Analyse-Luma − weiches Grau); mit Shader-Faktor 0.16 gekoppelt. */
+const DEFAULT_DETAIL_GAIN = 1.45;
 
 /**
  * Max. WebGL-Texturgröße (Export in 4k+ würde sonst texImage2D fehlschlagen → kein Warp).
@@ -750,12 +875,14 @@ const getMaxTextureSizeForWarp = (): number => {
 
 /** Merged params with safe defaults. */
 export const resolveWarpParams = (raw: Partial<WarpParams>): WarpParams => ({
-  foldStrength: raw.foldStrength ?? 0.4,
-  foldShadowDepth: raw.foldShadowDepth ?? 0.6,
-  foldHighlightStrength: raw.foldHighlightStrength ?? 0.25,
-  foldSmoothing: raw.foldSmoothing ?? 4,
+  foldStrength: raw.foldStrength ?? 0.35,
+  foldShadowDepth: raw.foldShadowDepth ?? 0.28,
+  foldHighlightStrength: raw.foldHighlightStrength ?? 0.08,
+  foldSmoothing: raw.foldSmoothing ?? 6,
   sobelRadius: raw.sobelRadius ?? 1,
   artworkSaturation: raw.artworkSaturation ?? 1,
+  analysisDenoise: raw.analysisDenoise ?? 0.42,
+  foldNoiseFloor: raw.foldNoiseFloor ?? 0.012,
 });
 
 /** Detect once whether WebGL is available; cached. */
