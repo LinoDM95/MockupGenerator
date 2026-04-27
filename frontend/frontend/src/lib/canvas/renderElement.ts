@@ -35,6 +35,8 @@ export type RenderElementOptions = {
   analysisDenoise?: number;
   foldNoiseFloor?: number;
   sobelRadius?: number;
+  /** Volles Mockup: Graustufen-Maske (gleiche Pixel wie bgImage), optional. */
+  occlusionMask?: HTMLImageElement | HTMLCanvasElement | ImageBitmap | null;
 };
 
 export const renderElementToCanvas = (
@@ -76,6 +78,7 @@ export const renderElementToCanvas = (
   if (el.type === "placeholder") {
     const useWebGL =
       opts?.foldsEnabled === true && bgImage != null && isWebGLAvailable();
+    const occFeather = Math.max(0, Math.min(16, el.occlusionFeather ?? 2));
     const warpParams = resolveWarpParams({
       foldStrength: opts?.foldStrength,
       foldShadowDepth: opts?.foldShadowDepth,
@@ -85,6 +88,7 @@ export const renderElementToCanvas = (
       sobelRadius: opts?.sobelRadius,
       analysisDenoise: opts?.analysisDenoise,
       foldNoiseFloor: opts?.foldNoiseFloor,
+      occlusionStrength: el.occlusionStrength,
     });
 
     const drawRectangularMotifPass = (
@@ -100,6 +104,8 @@ export const renderElementToCanvas = (
           warpParams,
           outW,
           outH,
+          opts?.occlusionMask ?? null,
+          occFeather,
         );
         if (warped) return warped;
       }
@@ -150,6 +156,8 @@ export const renderElementToCanvas = (
         warpParams,
         Math.max(8, Math.round(el.w * WARP_EXPORT_INTERNAL_SCALE)),
         Math.max(8, Math.round(el.h * WARP_EXPORT_INTERNAL_SCALE)),
+        opts?.occlusionMask ?? null,
+        occFeather,
       );
       ctx.shadowColor = "transparent";
       if (warped) {

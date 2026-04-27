@@ -40,6 +40,15 @@ export interface TemplateElement {
   placeholderShape?: PlaceholderShape;
   /** TL, TR, BR, BL in Template-Koordinaten (bei `placeholderShape === "quad"`). */
   quadCorners?: [QuadCornerPoint, QuadCornerPoint, QuadCornerPoint, QuadCornerPoint];
+  /**
+   * Graustufen-Maske im Mockup-Raum (gleiche Pixel wie Template-BG): hell = Vordergrund
+   * (Haare, Hände, …), wo das Motiv ausgeblendet wird. URL oder Blob-URL.
+   */
+  occlusionMaskUrl?: string;
+  /** 0..1 Stärke der Occlusion (Shader). Default 1. */
+  occlusionStrength?: number;
+  /** Kantenweichzeichnung der Maske in px nach dem Zuschneiden (0 = hart). */
+  occlusionFeather?: number;
 }
 
 export interface Template {

@@ -14,6 +14,9 @@ type Props = {
   region: { x: number; y: number; w: number; h: number };
   /** Output-Auflösung der Vorschau (idR Element-Größe). */
   params: Partial<WarpParams>;
+  /** Graustufen-Maske im Mockup-Raum (optional). */
+  occlusionMaskUrl?: string;
+  occlusionFeather?: number;
 };
 
 const loadImage = (src: string): Promise<HTMLImageElement> =>
@@ -31,7 +34,14 @@ const PREVIEW_MAX_EDGE = 1024;
  * Live-Preview-Layer: rendert das User-Motiv mit Stoffverformung in das Element.
  * Re-rendert bei Slider-Änderungen mit rAF-Drosselung (60 FPS).
  */
-const WebGLWarpLayerInner = ({ bgImageUrl, motifUrl, region, params }: Props) => {
+const WebGLWarpLayerInner = ({
+  bgImageUrl,
+  motifUrl,
+  region,
+  params,
+  occlusionMaskUrl,
+  occlusionFeather = 2,
+}: Props) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<WebGLWarpRenderer | null>(null);
   const imagesRef = useRef<{ bg: HTMLImageElement; art: HTMLImageElement } | null>(null);
@@ -54,6 +64,7 @@ const WebGLWarpLayerInner = ({ bgImageUrl, motifUrl, region, params }: Props) =>
         params.sobelRadius ?? "",
         params.analysisDenoise ?? "",
         params.foldNoiseFloor ?? "",
+        params.occlusionStrength ?? "",
       ].join("|"),
     [
       params.foldStrength,
@@ -64,6 +75,7 @@ const WebGLWarpLayerInner = ({ bgImageUrl, motifUrl, region, params }: Props) =>
       params.sobelRadius,
       params.analysisDenoise,
       params.foldNoiseFloor,
+      params.occlusionStrength,
     ],
   );
 
@@ -94,14 +106,20 @@ const WebGLWarpLayerInner = ({ bgImageUrl, motifUrl, region, params }: Props) =>
   useEffect(() => {
     if (!supported) return;
     let cancelled = false;
-    const sourcesKey = `${bgImageUrl}|${motifUrl}|${region.x},${region.y},${region.w},${region.h}`;
+    const occKey = occlusionMaskUrl?.trim() ?? "";
+    const sourcesKey = `${bgImageUrl}|${motifUrl}|${occKey}|${occlusionFeather}|${region.x},${region.y},${region.w},${region.h}`;
     if (sourcesKey === lastSourcesKeyRef.current && rendererRef.current && imagesRef.current) {
       scheduleRender();
       return;
     }
     (async () => {
       try {
-        const [bg, art] = await Promise.all([loadImage(bgImageUrl), loadImage(motifUrl)]);
+        const occUrl = occKey ? occKey : "";
+        const [bg, art, occ] = await Promise.all([
+          loadImage(bgImageUrl),
+          loadImage(motifUrl),
+          occUrl ? loadImage(occUrl).catch(() => null) : Promise.resolve(null),
+        ]);
         if (cancelled) return;
         imagesRef.current = { bg, art };
         const c = canvasRef.current;
@@ -114,7 +132,7 @@ const WebGLWarpLayerInner = ({ bgImageUrl, motifUrl, region, params }: Props) =>
         if (!rendererRef.current) {
           rendererRef.current = new WebGLWarpRenderer(c);
         }
-        rendererRef.current.setSources(bg, art, region, dstW, dstH);
+        rendererRef.current.setSources(bg, art, region, dstW, dstH, occ, occlusionFeather);
         lastSourcesKeyRef.current = sourcesKey;
         scheduleRender();
       } catch (err) {
@@ -127,7 +145,17 @@ const WebGLWarpLayerInner = ({ bgImageUrl, motifUrl, region, params }: Props) =>
     };
     // scheduleRender absichtlich nicht: sonst Bild-Neuladen bei jedem Falten-Parameter
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bgImageUrl, motifUrl, region.x, region.y, region.w, region.h, supported]);
+  }, [
+    bgImageUrl,
+    motifUrl,
+    occlusionMaskUrl,
+    occlusionFeather,
+    region.x,
+    region.y,
+    region.w,
+    region.h,
+    supported,
+  ]);
 
   useEffect(() => {
     if (!supported) return;

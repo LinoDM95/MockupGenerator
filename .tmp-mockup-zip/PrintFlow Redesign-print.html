@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PrintFlow — Design Redesign (Print)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css" />
+<style>
+  html, body, #root { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: #f0eee9; }
+  * { box-sizing: border-box; }
+
+  /* --- Print layout: each .page is one PDF page, landscape --- */
+  .page {
+    width: 1440px;
+    background: #fff;
+    position: relative;
+    break-after: page;
+    page-break-after: always;
+    overflow: hidden;
+    margin: 0 auto 24px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  }
+  .page:last-child { break-after: auto; page-break-after: auto; }
+
+  .page-header {
+    padding: 14px 28px 10px;
+    border-bottom: 1px solid #e5e3dd;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    font-size: 11px;
+    color: #6b6a66;
+    flex-shrink: 0;
+  }
+  .page-header .sec { font-weight: 600; color: #1a1a1a; font-size: 12px; letter-spacing: -0.01em; }
+  .page-header .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #8a8882; }
+  .page-header .pg { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #8a8882; }
+  .page-body { width: 100%; overflow: hidden; }
+
+  /* Cover page */
+  .cover {
+    padding: 80px 80px 40px;
+    display: flex; flex-direction: column;
+    height: 900px;
+    background: #fafaf8;
+  }
+  .cover .eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8a8882; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 14px; }
+  .cover h1 { font-size: 56px; font-weight: 600; letter-spacing: -0.025em; line-height: 1.05; margin: 0 0 14px; color: #0d0d0c; max-width: 820px; }
+  .cover h1 em { font-family: 'Instrument Serif', serif; font-style: italic; font-weight: 400; color: #6b6a66; }
+  .cover p { font-size: 17px; color: #4a4945; line-height: 1.5; max-width: 620px; margin: 0 0 40px; }
+  .cover .toc { display: grid; grid-template-columns: 1fr 1fr; gap: 24px 48px; margin-top: auto; }
+  .cover .toc section h3 { font-size: 11px; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: #8a8882; margin: 0 0 12px; font-weight: 500; }
+  .cover .toc section ul { list-style: none; padding: 0; margin: 0; }
+  .cover .toc section li { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #ebe9e3; font-size: 14px; color: #1a1a1a; }
+  .cover .toc section li .n { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8a8882; }
+  .cover .footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e5e3dd; padding-top: 16px; margin-top: 28px; font-size: 11px; color: #8a8882; font-family: 'JetBrains Mono', monospace; }
+  .cover .logo { width: 26px; height: 26px; border-radius: 6px; background: #0d0d0c; display: grid; place-items: center; }
+  .cover .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+  .cover .brand-text { font-weight: 600; font-size: 15px; letter-spacing: -0.01em; color: #0d0d0c; }
+
+  /* For the scrollable landing — expand it naturally */
+  .landing-full { height: auto !important; overflow: visible !important; }
+  .landing-full > div { height: auto !important; overflow: visible !important; }
+
+  /* AppShell pages — fit the 1440 width, natural height */
+  .shell-wrap { height: 900px; overflow: hidden; }
+  .shell-wrap > div { height: 900px !important; min-height: 900px !important; }
+
+  @page { size: 1480px 940px; margin: 0; }
+
+  @media print {
+    body { background: #fff !important; }
+    .page { margin: 0 auto; box-shadow: none; width: 1440px; }
+    .cover { height: 900px; }
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+
+  /* Force color fidelity (chips, accents, etc) */
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="icons.jsx"></script>
+<script type="text/babel" src="landing.jsx"></script>
+<script type="text/babel" src="screens.jsx"></script>
+<script type="text/babel" src="template-editor.jsx"></script>
+<script type="text/babel" src="app-shell.jsx"></script>
+
+<script type="text/babel" data-presets="react">
+function StatusDot({ color = "var(--success)" }) {
+  return <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: color, boxShadow: `0 0 0 2px ${color}33` }} />;
+}
+window.StatusDot = StatusDot;
+
+const PAGES = [
+  { id: "landing",         section: "1 · Marketing",   label: "Landingpage · scrollbar",                   kind: "landing" },
+  { id: "auth",            section: "2 · Auth",         label: "Anmelden / Registrieren",                   kind: "auth" },
+  { id: "generator",       section: "3 · Erstellen",    label: "Generator · Drop → Mockups → Listing",      kind: "shell", screen: "generator" },
+  { id: "templates",       section: "3 · Erstellen",    label: "Vorlagen-Studio",                           kind: "shell", screen: "templates" },
+  { id: "template-editor", section: "3 · Erstellen",    label: "Vorlagen-Editor · Einzelne Vorlage",        kind: "shell", screen: "template-editor" },
+  { id: "upscaler",        section: "3 · Erstellen",    label: "Upscaler · Queue",                          kind: "shell", screen: "upscaler" },
+  { id: "etsy",            section: "4 · Publizieren",  label: "Etsy-Listings",                             kind: "shell", screen: "etsy" },
+  { id: "marketing-app",   section: "4 · Publizieren",  label: "Verbreiten · Pinterest + Insights",         kind: "shell", screen: "marketing" },
+  { id: "automation",      section: "4 · Publizieren",  label: "Automatisieren · Batch-Pipeline",           kind: "shell", screen: "automation" },
+  { id: "integrations",    section: "5 · Konto",        label: "Integrationen",                             kind: "shell", screen: "integrations" },
+  { id: "account",         section: "5 · Konto",        label: "Konto & Nutzung",                           kind: "shell", screen: "account" },
+];
+
+function Cover() {
+  const groups = [
+    { t: "Marketing", items: [["01", "Landingpage"]] },
+    { t: "Auth", items: [["02", "Anmelden / Registrieren"]] },
+    { t: "Erstellen", items: [["03", "Generator"], ["04", "Vorlagen-Studio"], ["05", "Vorlagen-Editor"], ["06", "Upscaler"]] },
+    { t: "Publizieren", items: [["07", "Etsy-Listings"], ["08", "Verbreiten"], ["09", "Automatisieren"]] },
+    { t: "Konto", items: [["10", "Integrationen"], ["11", "Konto & Nutzung"]] },
+  ];
+  return (
+    <div className="page">
+      <div className="cover">
+        <div className="brand">
+          <div className="logo">
+            <svg width={15} height={15} viewBox="0 0 24 24" fill="#fafaf8">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+            </svg>
+          </div>
+          <span className="brand-text">PrintFlow</span>
+        </div>
+        <div className="eyebrow">Design Review · 23. April 2026</div>
+        <h1>Hochprofessionelles Redesign <em>— Landingpage &amp; Arbeitsflächen.</em></h1>
+        <p>
+          Elf Screens durchdacht: eine konversions-orientierte Landingpage und
+          eine dichte, sachliche App-Umgebung für den täglichen Workflow —
+          Motive, Mockups, KI-Listings, Upscale, Publizieren, Automatisieren.
+        </p>
+        <div className="toc">
+          {groups.map((g, i) => (
+            <section key={i}>
+              <h3>{g.t}</h3>
+              <ul>
+                {g.items.map(([n, t], j) => (
+                  <li key={j}><span>{t}</span><span className="n">{n}</span></li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+        <div className="footer">
+          <span>PrintFlow · Mockup-Studio für Etsy &amp; POD</span>
+          <span>11 Seiten · 1440 × 900</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Page({ p, idx, total }) {
+  return (
+    <div className="page">
+      <div className="page-header">
+        <div><span className="sec">{p.section}</span> <span className="lbl">· {p.label}</span></div>
+        <div className="pg">{String(idx).padStart(2, "0")} / {String(total).padStart(2, "0")}</div>
+      </div>
+      <div className="page-body">
+        {p.kind === "landing" && (
+          <div className="landing-full" style={{ background: "var(--bg)" }}>
+            <Landing />
+          </div>
+        )}
+        {p.kind === "auth" && (
+          <div className="shell-wrap"><AuthScreen /></div>
+        )}
+        {p.kind === "shell" && (
+          <div className="shell-wrap"><AppShell initialScreen={p.screen} /></div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <>
+      <Cover />
+      {PAGES.map((p, i) => (
+        <Page key={p.id} p={p} idx={i + 1} total={PAGES.length} />
+      ))}
+    </>
+  );
+}
+
+setTimeout(() => {
+  ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+}, 50);
+
+// Auto-print: wait for fonts + React render + Babel
+async function triggerPrint() {
+  try { if (document.fonts?.ready) await document.fonts.ready; } catch {}
+  await new Promise(r => setTimeout(r, 1500));
+  window.print();
+}
+window.addEventListener('load', () => { triggerPrint(); });
+</script>
+</body>
+</html>

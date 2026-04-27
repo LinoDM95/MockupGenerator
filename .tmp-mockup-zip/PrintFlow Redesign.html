@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PrintFlow — Design Redesign</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css" />
+<style>
+  html, body, #root { margin: 0; height: 100%; font-family: 'Inter', system-ui, sans-serif; background: #f0eee9; }
+  * { box-sizing: border-box; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="icons.jsx"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="landing.jsx"></script>
+<script type="text/babel" src="screens.jsx"></script>
+<script type="text/babel" src="template-editor.jsx"></script>
+<script type="text/babel" src="app-shell.jsx"></script>
+
+<script type="text/babel" data-presets="react">
+function StatusDot({ color = "var(--success)" }) {
+  return <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: color, boxShadow: `0 0 0 2px ${color}33` }} />;
+}
+window.StatusDot = StatusDot;
+
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection id="overview" title="PrintFlow — Redesign" subtitle="Professionelle Landingpage + komplettes App-Shell. Klickbar, Scroll-fähig.">
+        <DCPostIt x={-20} y={-80}>
+          Annahmen: Zielgruppe sind Etsy/POD-Verkäufer:innen (DE/EU).
+          Produkt macht: Mockups, KI-Listings (Multi-Agent), Upscale, Gelato-Push, Pinterest-Verbreitung, Batch-Pipeline.
+          Ton: sachlich-selbstbewusst, Linear/Vercel-Stil — nicht SaaS-bunt.
+        </DCPostIt>
+      </DCSection>
+
+      <DCSection id="marketing" title="1 · Marketing" subtitle="Landingpage — Conversion, nicht Feature-Liste">
+        <DCArtboard id="landing" label="Landingpage · scrollbar" width={1280} height={900}>
+          <div style={{ height: "100%", overflow: "auto" }}>
+            <Landing />
+          </div>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="auth" title="2 · Auth" subtitle="Anmelden / Registrieren in einer Ansicht">
+        <DCArtboard id="auth" label="Auth · Split" width={1280} height={900}>
+          <AuthScreen />
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="create" title="3 · Erstellen" subtitle="Die Kern-Arbeitsflächen — Generator, Vorlagen, Upscaler">
+        <DCArtboard id="generator" label="Generator · Drop → Mockups → Listing" width={1440} height={940}>
+          <AppShell initialScreen="generator" />
+        </DCArtboard>
+        <DCArtboard id="templates" label="Vorlagen-Studio" width={1440} height={940}>
+          <AppShell initialScreen="templates" />
+        </DCArtboard>
+        <DCArtboard id="template-editor" label="Vorlagen-Editor · Einzelne Vorlage gestalten" width={1440} height={940}>
+          <AppShell initialScreen="template-editor" />
+        </DCArtboard>
+        <DCArtboard id="upscaler" label="Upscaler · Queue" width={1440} height={940}>
+          <AppShell initialScreen="upscaler" />
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="publish" title="4 · Publizieren" subtitle="Etsy, Verbreiten, Automatisieren">
+        <DCArtboard id="etsy" label="Etsy-Listings" width={1440} height={900}>
+          <AppShell initialScreen="etsy" />
+        </DCArtboard>
+        <DCArtboard id="marketing-app" label="Verbreiten · Pinterest-Queue + Insights" width={1440} height={900}>
+          <AppShell initialScreen="marketing" />
+        </DCArtboard>
+        <DCArtboard id="automation" label="Automatisieren · Batch-Pipeline" width={1440} height={940}>
+          <AppShell initialScreen="automation" />
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="settings" title="5 · Konto" subtitle="Integrationen, Profil, Abrechnung">
+        <DCArtboard id="integrations" label="Integrationen" width={1280} height={900}>
+          <AppShell initialScreen="integrations" />
+        </DCArtboard>
+        <DCArtboard id="account" label="Konto &amp; Nutzung" width={1280} height={900}>
+          <AppShell initialScreen="account" />
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+// Wait a tick so all globals from previous scripts are attached.
+setTimeout(() => {
+  ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+}, 50);
+</script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 import { ArrowLeft, ImageUp, Save } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { patchTemplate, replaceTemplateElements } from "../../api/sets";
 import { compressImage, dataUrlToBlob, loadImage } from "../../lib/canvas/image";
@@ -32,6 +32,7 @@ import { Input } from "../ui/primitives/Input";
 import { WorkspacePanelCard } from "../ui/layout/WorkspacePanelCard";
 import { LinearLoadingBar } from "../ui/overlay/LinearLoadingBar";
 import { Select } from "../ui/primitives/Select";
+import type { OcclusionPaintTool } from "./OcclusionMaskPaintLayer";
 import { CanvasViewport } from "./CanvasViewport";
 import { LayerManager } from "./LayerManager";
 import { PropertiesPanel } from "./PropertiesPanel";
@@ -195,6 +196,62 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
 
   const activeEl = editingTemplate.elements.find((e) => e.id === selectedElementId) ?? null;
 
+  const [occlusionPaintSession, setOcclusionPaintSession] = useState<{
+    key: string;
+    initialMaskUrl?: string;
+  } | null>(null);
+  const [occlusionPaintTool, setOcclusionPaintTool] = useState<OcclusionPaintTool>("brush");
+  const [occlusionBrushPx, setOcclusionBrushPx] = useState(28);
+
+  const handleExitOcclusionPaint = useCallback(() => {
+    setOcclusionPaintSession(null);
+  }, []);
+
+  const handleOcclusionMaskCommitted = useCallback(
+    (url: string) => {
+      if (!selectedElementId) return;
+      updateEditingTemplate((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          elements: prev.elements.map((el) => {
+            if (el.id !== selectedElementId) return el;
+            const old = el.occlusionMaskUrl;
+            if (old?.startsWith("blob:") && old !== url) URL.revokeObjectURL(old);
+            return { ...el, occlusionMaskUrl: url };
+          }),
+        };
+      });
+    },
+    [selectedElementId, updateEditingTemplate],
+  );
+
+  const handleStartOcclusionPaint = useCallback(() => {
+    if (!activeEl || activeEl.type !== "placeholder") {
+      toast.error("Wählen Sie einen Platzhalter.");
+      return;
+    }
+    if (!editingTemplate.bgImage?.trim()) {
+      toast.error("Zuerst ein Mockup-Hintergrundbild setzen.");
+      return;
+    }
+    setIsDrawMode(false);
+    setDrawPoints([]);
+    setCursorPoint(null);
+    setOcclusionPaintSession({
+      key: `${activeEl.id}-${Date.now()}`,
+      initialMaskUrl: activeEl.occlusionMaskUrl,
+    });
+  }, [activeEl, editingTemplate.bgImage, setCursorPoint, setDrawPoints, setIsDrawMode]);
+
+  useEffect(() => {
+    setOcclusionPaintSession(null);
+  }, [selectedElementId]);
+
+  useEffect(() => {
+    if (previewEndView) setOcclusionPaintSession(null);
+  }, [previewEndView]);
+
   const updateActiveElement = (key: keyof TemplateElement, value: string | number | boolean) => {
     if (!selectedElementId) return;
     updateEditingTemplate((prev) => {
@@ -216,6 +273,13 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
         ...prev,
         elements: prev.elements.map((el) => {
           if (el.id !== selectedElementId) return el;
+          if (
+            patch.occlusionMaskUrl !== undefined &&
+            el.occlusionMaskUrl?.startsWith("blob:") &&
+            el.occlusionMaskUrl !== patch.occlusionMaskUrl
+          ) {
+            URL.revokeObjectURL(el.occlusionMaskUrl);
+          }
           let next: TemplateElement = { ...el, ...patch };
           if (next.type !== "placeholder") return next;
           if (next.placeholderShape === "quad") {
@@ -372,6 +436,7 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
   };
 
   const handleToggleDraw = () => {
+    setOcclusionPaintSession(null);
     setIsDrawMode((v) => !v);
     setDrawPoints([]);
     setCursorPoint(null);
@@ -537,6 +602,11 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
             setDrawPoints={setDrawPoints}
             cursorPoint={cursorPoint}
             setCursorPoint={setCursorPoint}
+            occlusionPaintSession={occlusionPaintSession}
+            occlusionBrushPx={occlusionBrushPx}
+            occlusionPaintTool={occlusionPaintTool}
+            onOcclusionMaskCommitted={handleOcclusionMaskCommitted}
+            onExitOcclusionPaintMode={handleExitOcclusionPaint}
           />
         </WorkspacePanelCard>
 
@@ -919,6 +989,16 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                   activeEl={activeEl}
                   onUpdate={updateActiveElement}
                   onPatch={patchActiveElement}
+                  occlusionPaintActive={!!occlusionPaintSession}
+                  onStartOcclusionPaint={handleStartOcclusionPaint}
+                  onEndOcclusionPaint={handleExitOcclusionPaint}
+                  canStartOcclusionPaint={
+                    activeEl?.type === "placeholder" && !!editingTemplate.bgImage?.trim()
+                  }
+                  occlusionPaintTool={occlusionPaintTool}
+                  onOcclusionPaintToolChange={setOcclusionPaintTool}
+                  occlusionBrushPx={occlusionBrushPx}
+                  onOcclusionBrushPxChange={setOcclusionBrushPx}
                 />
               </div>
             ) : null}

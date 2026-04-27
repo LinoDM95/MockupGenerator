@@ -47,6 +47,7 @@ const PerspectiveWarpPreviewLayerInner = ({ bgImageUrl, motifUrl, el, params }: 
         params.sobelRadius ?? "",
         params.analysisDenoise ?? "",
         params.foldNoiseFloor ?? "",
+        params.occlusionStrength ?? "",
       ].join("|"),
     [
       params.foldStrength,
@@ -57,6 +58,7 @@ const PerspectiveWarpPreviewLayerInner = ({ bgImageUrl, motifUrl, el, params }: 
       params.sobelRadius,
       params.analysisDenoise,
       params.foldNoiseFloor,
+      params.occlusionStrength,
     ],
   );
 
@@ -70,12 +72,25 @@ const PerspectiveWarpPreviewLayerInner = ({ bgImageUrl, motifUrl, el, params }: 
         const bgOk = bgImageUrl.trim().length > 0;
         const bg = bgOk ? await loadImage(bgImageUrl) : null;
         if (cancelled) return;
+        const occUrl = el.occlusionMaskUrl?.trim();
+        const occFeather = Math.max(0, Math.min(16, el.occlusionFeather ?? 2));
+        const occ =
+          occUrl && bgOk ? await loadImage(occUrl).catch(() => null) : null;
         const crop = quadCropRect(el.quadCorners as QuadCorners);
         const warpParams = resolveWarpParams(paramsRef.current);
         const useGl = isWebGLAvailable();
         let rectPass: HTMLCanvasElement | null = null;
         if (useGl && bg) {
-          rectPass = WebGLWarpRenderer.renderOnce(bg, art, crop, warpParams, crop.w, crop.h);
+          rectPass = WebGLWarpRenderer.renderOnce(
+            bg,
+            art,
+            crop,
+            warpParams,
+            crop.w,
+            crop.h,
+            occ,
+            occFeather,
+          );
         }
         if (!rectPass) {
           const c = document.createElement("canvas");
@@ -125,7 +140,18 @@ const PerspectiveWarpPreviewLayerInner = ({ bgImageUrl, motifUrl, el, params }: 
     return () => {
       cancelled = true;
     };
-  }, [bgImageUrl, motifUrl, el.quadCorners, el.x, el.y, el.w, el.h, warpParamsKey]);
+  }, [
+    bgImageUrl,
+    motifUrl,
+    el.quadCorners,
+    el.occlusionMaskUrl,
+    el.occlusionFeather,
+    el.x,
+    el.y,
+    el.w,
+    el.h,
+    warpParamsKey,
+  ]);
 
   if (!supported) return null;
   const corners = el.quadCorners as QuadCorners;

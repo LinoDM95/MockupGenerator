@@ -23,6 +23,10 @@ import { isQuadPlaceholder } from "../../lib/canvas/placeholderGeometry";
 import { newClientElementId } from "../../lib/editor/elementId";
 import type { FrameStyle, Template, TemplateElement } from "../../types/mockup";
 import { useAppStore } from "../../store/appStore";
+import {
+  OcclusionMaskPaintLayer,
+  type OcclusionPaintTool,
+} from "./OcclusionMaskPaintLayer";
 import { PerspectiveWarpPreviewLayer } from "./PerspectiveWarpPreviewLayer";
 import { WebGLWarpLayer } from "./WebGLWarpLayer";
 
@@ -186,6 +190,11 @@ type Props = {
   setDrawPoints: Dispatch<SetStateAction<Point[]>>;
   cursorPoint: Point | null;
   setCursorPoint: Dispatch<SetStateAction<Point | null>>;
+  occlusionPaintSession: { key: string; initialMaskUrl?: string } | null;
+  occlusionBrushPx: number;
+  occlusionPaintTool: OcclusionPaintTool;
+  onOcclusionMaskCommitted: (blobUrl: string) => void;
+  onExitOcclusionPaintMode: () => void;
 };
 
 const CanvasViewportInner = ({
@@ -202,6 +211,11 @@ const CanvasViewportInner = ({
   setDrawPoints,
   cursorPoint,
   setCursorPoint,
+  occlusionPaintSession,
+  occlusionBrushPx,
+  occlusionPaintTool,
+  onOcclusionMaskCommitted,
+  onExitOcclusionPaintMode,
 }: Props) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewportRootRef = useRef<HTMLDivElement>(null);
@@ -236,6 +250,8 @@ const CanvasViewportInner = ({
     frameShadowOuterEnabled &&
     frameOuterSides > 0;
 
+  const isOcclusionPaintMode = !!occlusionPaintSession && !previewEndView;
+
   const { snapGuides, onPointerDownElement } = useDragAndDrop({
     editingTemplate,
     updateEditingTemplate,
@@ -246,6 +262,7 @@ const CanvasViewportInner = ({
     isSnapEnabled,
     isGuideSnapEnabled,
     isDrawMode,
+    isOcclusionPaintMode,
     previewEndView,
   });
 
@@ -315,6 +332,10 @@ const CanvasViewportInner = ({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOcclusionPaintMode) {
+        onExitOcclusionPaintMode();
+        return;
+      }
       if (e.key === "Escape" && isDrawMode) {
         setIsDrawMode(false);
         setDrawPoints([]);
@@ -323,7 +344,14 @@ const CanvasViewportInner = ({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isDrawMode, setCursorPoint, setDrawPoints, setIsDrawMode]);
+  }, [
+    isDrawMode,
+    isOcclusionPaintMode,
+    onExitOcclusionPaintMode,
+    setCursorPoint,
+    setDrawPoints,
+    setIsDrawMode,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -359,6 +387,10 @@ const CanvasViewportInner = ({
   };
 
   const handleContainerPointerDown = (e: React.MouseEvent) => {
+    if (isOcclusionPaintMode && e.button === 0) {
+      e.preventDefault();
+      return;
+    }
     if (e.button === 1) {
       e.preventDefault();
       setIsPanning(true);
@@ -489,6 +521,15 @@ const CanvasViewportInner = ({
           Endansicht – wie exportiertes Foto (Ziehen zum Verschieben)
         </div>
       )}
+      {isOcclusionPaintMode && (
+        <div className="absolute top-4 left-1/2 z-[160] flex max-w-[min(100%-2rem,36rem)] -translate-x-1/2 flex-col items-center gap-1 rounded-2xl border border-rose-700/40 bg-rose-950/95 px-5 py-2.5 text-center text-sm font-medium text-white shadow-lg">
+          <span>
+            Vordergrund-Maske: bemalen, wo das Motiv ausgeblendet werden soll (z. B. Haare). Pinsel oder Radierer in
+            den Eigenschaften.
+          </span>
+          <span className="text-xs font-semibold text-rose-200/90">ESC oder „Fertig“ = Malen beenden</span>
+        </div>
+      )}
       {isDrawMode && (
         <div className="absolute top-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full border border-indigo-700/50 bg-indigo-900/95 px-5 py-2.5 text-sm font-medium text-white shadow-lg">
           <span>
@@ -580,7 +621,7 @@ const CanvasViewportInner = ({
         onMouseMove={handleContainerMouseMove}
         className={`checkerboard-bg relative flex-1 ${
           allowFrameOuterShadowBleed ? "overflow-visible" : "overflow-hidden"
-        } ${isDrawMode ? "cursor-crosshair" : isPanning ? "cursor-grabbing" : "cursor-grab"}`}
+        } ${isOcclusionPaintMode || isDrawMode ? "cursor-crosshair" : isPanning ? "cursor-grabbing" : "cursor-grab"}`}
       >
         <div
           className="absolute origin-top-left shadow-2xl"
@@ -596,6 +637,19 @@ const CanvasViewportInner = ({
             className="pointer-events-none block h-full w-full"
             draggable={false}
           />
+
+          {isOcclusionPaintMode && occlusionPaintSession ? (
+            <OcclusionMaskPaintLayer
+              active
+              sessionKey={occlusionPaintSession.key}
+              templateW={editingTemplate.width}
+              templateH={editingTemplate.height}
+              initialMaskUrl={occlusionPaintSession.initialMaskUrl}
+              brushPx={occlusionBrushPx}
+              tool={occlusionPaintTool}
+              onCommitBlobUrl={onOcclusionMaskCommitted}
+            />
+          ) : null}
 
           {!isDrawMode && !previewEndView && snapGuides.length > 0 && (
             <svg
@@ -767,6 +821,7 @@ const CanvasViewportInner = ({
                         analysisDenoise,
                         foldNoiseFloor,
                         sobelRadius,
+                        occlusionStrength: el.occlusionStrength,
                       }}
                     />
                   ) : previewEndView && previewMotifUrl ? (
@@ -775,6 +830,8 @@ const CanvasViewportInner = ({
                         bgImageUrl={editingTemplate.bgImage}
                         motifUrl={previewMotifUrl}
                         region={{ x: el.x, y: el.y, w: el.w, h: el.h }}
+                        occlusionMaskUrl={el.occlusionMaskUrl}
+                        occlusionFeather={el.occlusionFeather}
                         params={{
                           foldStrength,
                           foldShadowDepth,
@@ -784,6 +841,7 @@ const CanvasViewportInner = ({
                           analysisDenoise,
                           foldNoiseFloor,
                           sobelRadius,
+                          occlusionStrength: el.occlusionStrength,
                         }}
                       />
                     ) : (

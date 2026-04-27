@@ -10,6 +10,7 @@
  *      statt aggressiver Gradient-Normalisierung (kein Hochziehen von Pixelrauschen).
  *   3. Lighting/Schatten: u_lumaLighting aus derselben Analyse-Textur (weich, niedrig aufgelöst).
  *   4. Rand: minimales Feather (~1 Texel), damit Motivränder scharf bleiben.
+ *   5. Optional: Occlusion-Maske (Mockup-Koordinaten, uv) — reduziert Motiv-Alpha (z. B. manuell im Editor gemalt).
  */
 
 const VERT_SRC = `
@@ -40,6 +41,10 @@ uniform float u_saturation;
 uniform float u_detailGain;
 uniform float u_bgMeanLuma;
 uniform float u_noiseFloor;
+
+uniform sampler2D u_occlusionMask;
+uniform float u_occlusionStrength;
+uniform float u_hasOcclusionMask;
 
 float lumaAnalysis(vec2 tuv) {
   vec3 rgb = texture2D(u_analysisBackground, clamp(tuv, vec2(0.0), vec2(1.0))).rgb;
@@ -175,6 +180,14 @@ void main() {
 
   vec3 lit = saturated * factor;
 
+  float occ = 0.0;
+  if (u_hasOcclusionMask > 0.5) {
+    /** Mockup-fix: uv, nicht warpedUv — Vordergrund-Occlusion bewegt sich nicht mit dem Falten-Warp. */
+    occ = texture2D(u_occlusionMask, clamp(uv, vec2(0.0), vec2(1.0))).r;
+    occ = clamp(occ * u_occlusionStrength, 0.0, 1.0);
+  }
+  finalAlpha *= 1.0 - occ;
+
   gl_FragColor = vec4(lit, finalAlpha);
 }
 `;
@@ -202,6 +215,8 @@ export interface WarpParams {
    * Für Shirts oft 0.018–0.035.
    */
   foldNoiseFloor: number;
+  /** 0..1, Multiplikator der Occlusion-Maske (hell = Motiv weg). */
+  occlusionStrength: number;
 }
 
 export interface WarpRegion {
@@ -273,6 +288,35 @@ const cropBackgroundToCanvas = (
     c.height,
   );
   return c;
+};
+
+/** Weiche Kanten der Occlusion-Maske (CPU, nach Zuschneiden auf den Warp-Bereich). */
+const featherMaskCanvas = (mask: HTMLCanvasElement, featherPx: number): HTMLCanvasElement => {
+  const r = Math.max(0, featherPx);
+  if (r <= 0.01) return mask;
+  const out = document.createElement("canvas");
+  out.width = mask.width;
+  out.height = mask.height;
+  const ctx = out.getContext("2d");
+  if (!ctx) return mask;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.filter = `blur(${r}px)`;
+  ctx.drawImage(mask, 0, 0);
+  ctx.filter = "none";
+  return out;
+};
+
+const buildOcclusionMaskCanvas = (
+  occlusionSource: Source,
+  bgRegion: { x: number; y: number; w: number; h: number },
+  dstW: number,
+  dstH: number,
+  featherPx: number,
+): HTMLCanvasElement => {
+  const cropped = cropBackgroundToCanvas(occlusionSource, bgRegion, dstW, dstH);
+  const f = Math.max(0, Math.min(16, featherPx));
+  return featherMaskCanvas(cropped, f);
 };
 
 /** Grayscale + Blur — analog zu Gaussian auf Gray (Displacement: smooth). */
@@ -433,7 +477,7 @@ const buildStableAnalysisBackground = (
     return out;
   }
   const minDim = Math.min(w, h);
-  const scale = 1.0 - strength * 0.42;
+  const scale = 1.0 - strength * 0.60;
   const tw = Math.max(64, Math.round(w * scale));
   const th = Math.max(64, Math.round(h * scale));
   const down = document.createElement("canvas");
@@ -446,13 +490,13 @@ const buildStableAnalysisBackground = (
   }
   dctx.imageSmoothingEnabled = true;
   dctx.imageSmoothingQuality = "high";
-  const lowBlur = 0.35 + strength * 1.25;
+  const lowBlur = 0.5 + strength * 1.8;
   dctx.filter = `grayscale(1) blur(${lowBlur}px)`;
   dctx.drawImage(bgRegion, 0, 0, tw, th);
   dctx.filter = "none";
   outCtx.imageSmoothingEnabled = true;
   outCtx.imageSmoothingQuality = "high";
-  const finalBlur = Math.min(minDim * 0.012, 0.25 + strength * 0.9);
+  const finalBlur = Math.min(minDim * 0.016, 0.35 + strength * 1.2);
   outCtx.filter = `blur(${finalBlur}px)`;
   outCtx.drawImage(down, 0, 0, tw, th, 0, 0, w, h);
   outCtx.filter = "none";
@@ -521,6 +565,8 @@ type WarpResources = {
   lumaSmooth: HTMLCanvasElement | null;
   lumaCoarse: HTMLCanvasElement | null;
   lumaLighting: HTMLCanvasElement | null;
+  /** Graustufen-Maske im gleichen UV-Raum wie der Warp (Mockup-Ausschnitt). */
+  occlusionMask: HTMLCanvasElement | null;
   bgMeanLuma: number;
 };
 
@@ -544,6 +590,7 @@ export class WebGLWarpRenderer {
   private texLumaSmooth: WebGLTexture | null = null;
   private texLumaCoarse: WebGLTexture | null = null;
   private texLumaLighting: WebGLTexture | null = null;
+  private texOcclusionMask: WebGLTexture | null = null;
   private resources: WarpResources | null = null;
   private quadBuffer: WebGLBuffer | null = null;
   private uTexel: WebGLUniformLocation | null = null;
@@ -560,6 +607,9 @@ export class WebGLWarpRenderer {
   private uLumaLighting: WebGLUniformLocation | null = null;
   private uBgMeanLuma: WebGLUniformLocation | null = null;
   private uNoiseFloor: WebGLUniformLocation | null = null;
+  private uOcclusionMask: WebGLUniformLocation | null = null;
+  private uOcclusionStrength: WebGLUniformLocation | null = null;
+  private uHasOcclusionMask: WebGLUniformLocation | null = null;
   private aPos: number = 0;
   private lastBlurPx: number = -1;
   private lastAnalysisDenoise: number = -1;
@@ -584,6 +634,8 @@ export class WebGLWarpRenderer {
     params: WarpParams,
     dstW: number,
     dstH: number,
+    occlusionMask?: Source | null,
+    occlusionFeatherPx: number = 0,
   ): HTMLCanvasElement | null {
     try {
       const outW = Math.max(1, Math.round(dstW));
@@ -597,7 +649,7 @@ export class WebGLWarpRenderer {
       const r = new WebGLWarpRenderer();
       r.canvas.width = intW;
       r.canvas.height = intH;
-      r.setSources(bg, art, bgRegion, intW, intH);
+      r.setSources(bg, art, bgRegion, intW, intH, occlusionMask ?? null, occlusionFeatherPx);
       r.render(params);
       if (intW === outW && intH === outH) {
         return r.canvas;
@@ -631,6 +683,8 @@ export class WebGLWarpRenderer {
     bgRegion: { x: number; y: number; w: number; h: number },
     dstW: number,
     dstH: number,
+    occlusionMask?: Source | null,
+    occlusionFeatherPx: number = 0,
   ): void {
     this.canvas.width = Math.max(1, Math.round(dstW));
     this.canvas.height = Math.max(1, Math.round(dstH));
@@ -638,6 +692,10 @@ export class WebGLWarpRenderer {
     const h = this.canvas.height;
     const bgCanvas = cropBackgroundToCanvas(bg, bgRegion, w, h);
     const artCanvas = aspectFillToCanvas(art, w, h);
+    const occCanvas =
+      occlusionMask != null
+        ? buildOcclusionMaskCanvas(occlusionMask, bgRegion, w, h, occlusionFeatherPx)
+        : null;
     this.resources = {
       art: artCanvas,
       bgRaw: bgCanvas,
@@ -645,6 +703,7 @@ export class WebGLWarpRenderer {
       lumaSmooth: null,
       lumaCoarse: null,
       lumaLighting: null,
+      occlusionMask: occCanvas,
       bgMeanLuma: 0.5,
     };
     this.lastBlurPx = -1;
@@ -737,6 +796,12 @@ export class WebGLWarpRenderer {
     if (!this.texLumaLighting && this.resources.lumaLighting) {
       this.texLumaLighting = uploadTexture(gl, 4, this.resources.lumaLighting);
     }
+    if (!this.texOcclusionMask && this.resources.occlusionMask) {
+      this.texOcclusionMask = uploadTexture(gl, 5, this.resources.occlusionMask, {
+        minFilter: gl.LINEAR,
+        magFilter: gl.LINEAR,
+      });
+    }
 
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     gl.clearColor(0, 0, 0, 0);
@@ -768,6 +833,15 @@ export class WebGLWarpRenderer {
     gl.uniform1f(this.uSat, resolved.artworkSaturation ?? 1.0);
     gl.uniform1f(this.uBgMeanLuma, this.resources.bgMeanLuma);
     gl.uniform1f(this.uNoiseFloor, Math.max(0, resolved.foldNoiseFloor));
+
+    const hasOcc = !!this.texOcclusionMask && !!this.resources.occlusionMask;
+    if (hasOcc) {
+      gl.activeTexture(gl.TEXTURE5);
+      gl.bindTexture(gl.TEXTURE_2D, this.texOcclusionMask);
+      gl.uniform1i(this.uOcclusionMask, 5);
+    }
+    gl.uniform1f(this.uHasOcclusionMask, hasOcc ? 1.0 : 0.0);
+    gl.uniform1f(this.uOcclusionStrength, clamp01(resolved.occlusionStrength));
 
     gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
     gl.enableVertexAttribArray(this.aPos);
@@ -807,6 +881,10 @@ export class WebGLWarpRenderer {
       this.gl.deleteTexture(this.texLumaLighting);
       this.texLumaLighting = null;
     }
+    if (this.texOcclusionMask) {
+      this.gl.deleteTexture(this.texOcclusionMask);
+      this.texOcclusionMask = null;
+    }
   }
 
   private ensureGL(): void {
@@ -835,6 +913,9 @@ export class WebGLWarpRenderer {
     this.uLumaLighting = gl.getUniformLocation(this.program, "u_lumaLighting");
     this.uBgMeanLuma = gl.getUniformLocation(this.program, "u_bgMeanLuma");
     this.uNoiseFloor = gl.getUniformLocation(this.program, "u_noiseFloor");
+    this.uOcclusionMask = gl.getUniformLocation(this.program, "u_occlusionMask");
+    this.uOcclusionStrength = gl.getUniformLocation(this.program, "u_occlusionStrength");
+    this.uHasOcclusionMask = gl.getUniformLocation(this.program, "u_hasOcclusionMask");
 
     this.quadBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
@@ -875,14 +956,15 @@ const getMaxTextureSizeForWarp = (): number => {
 
 /** Merged params with safe defaults. */
 export const resolveWarpParams = (raw: Partial<WarpParams>): WarpParams => ({
-  foldStrength: raw.foldStrength ?? 0.35,
-  foldShadowDepth: raw.foldShadowDepth ?? 0.28,
-  foldHighlightStrength: raw.foldHighlightStrength ?? 0.08,
-  foldSmoothing: raw.foldSmoothing ?? 6,
+  foldStrength: raw.foldStrength ?? 0.24,
+  foldShadowDepth: raw.foldShadowDepth ?? 0.05,
+  foldHighlightStrength: raw.foldHighlightStrength ?? 0.05,
+  foldSmoothing: raw.foldSmoothing ?? 8,
   sobelRadius: raw.sobelRadius ?? 1,
   artworkSaturation: raw.artworkSaturation ?? 1,
-  analysisDenoise: raw.analysisDenoise ?? 0.42,
-  foldNoiseFloor: raw.foldNoiseFloor ?? 0.012,
+  analysisDenoise: raw.analysisDenoise ?? 0.90,
+  foldNoiseFloor: raw.foldNoiseFloor ?? 0.017,
+  occlusionStrength: raw.occlusionStrength ?? 1,
 });
 
 /** Detect once whether WebGL is available; cached. */

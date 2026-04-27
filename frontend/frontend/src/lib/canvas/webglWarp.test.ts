@@ -12,5 +12,6 @@ describe("resolveWarpParams", () => {
     expect(p.artworkSaturation).toBe(1);
     expect(p.analysisDenoise).toBe(0.42);
     expect(p.foldNoiseFloor).toBe(0.012);
+    expect(p.occlusionStrength).toBe(1);
   });
 });

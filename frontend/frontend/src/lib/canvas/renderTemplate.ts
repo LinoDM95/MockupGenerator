@@ -32,7 +32,18 @@ export const renderTemplateToCanvas = async (
   // BG-Image als separates Argument (kein Teil von Template/RenderElementOptions),
   // weil Template.bgImage als URL-String typisiert ist.
   for (const el of tpl.elements) {
-    renderElementToCanvas(ctx, el, artworkImg, frameStyle, renderOpts, bgImg);
+    let occlusionMask: HTMLImageElement | undefined;
+    if (el.type === "placeholder" && el.occlusionMaskUrl?.trim()) {
+      try {
+        occlusionMask = await loadImageFn(el.occlusionMaskUrl);
+      } catch {
+        occlusionMask = undefined;
+      }
+    }
+    renderElementToCanvas(ctx, el, artworkImg, frameStyle, {
+      ...renderOpts,
+      occlusionMask: occlusionMask ?? null,
+    }, bgImg);
   }
 
   return canvas;

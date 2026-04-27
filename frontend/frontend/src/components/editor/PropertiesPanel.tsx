@@ -1,18 +1,40 @@
-import { AlignCenter, AlignLeft, AlignRight, Bold, Italic } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, Bold, Eraser, Italic, Paintbrush } from "lucide-react";
 
 import { FONT_FAMILIES } from "../../lib/editor/constants";
 import type { TemplateElement } from "../../types/mockup";
+import { Button } from "../ui/primitives/Button";
 import { Input } from "../ui/primitives/Input";
 import { Select } from "../ui/primitives/Select";
 import { Slider } from "../ui/primitives/Slider";
+import type { OcclusionPaintTool } from "./OcclusionMaskPaintLayer";
 
 type Props = {
   activeEl: TemplateElement | null;
   onUpdate: (key: keyof TemplateElement, value: string | number | boolean) => void;
   onPatch: (patch: Partial<TemplateElement>) => void;
+  occlusionPaintActive?: boolean;
+  onStartOcclusionPaint?: () => void;
+  onEndOcclusionPaint?: () => void;
+  canStartOcclusionPaint?: boolean;
+  occlusionPaintTool?: OcclusionPaintTool;
+  onOcclusionPaintToolChange?: (tool: OcclusionPaintTool) => void;
+  occlusionBrushPx?: number;
+  onOcclusionBrushPxChange?: (px: number) => void;
 };
 
-export const PropertiesPanel = ({ activeEl, onUpdate, onPatch }: Props) => {
+export const PropertiesPanel = ({
+  activeEl,
+  onUpdate,
+  onPatch,
+  occlusionPaintActive = false,
+  onStartOcclusionPaint,
+  onEndOcclusionPaint,
+  canStartOcclusionPaint = false,
+  occlusionPaintTool = "brush",
+  onOcclusionPaintToolChange,
+  occlusionBrushPx = 28,
+  onOcclusionBrushPxChange,
+}: Props) => {
   if (!activeEl) {
     return (
       <div className="rounded-[length:var(--pf-radius)] bg-[color:var(--pf-bg-muted)]/50 px-4 py-8 text-center text-sm font-medium text-[color:var(--pf-fg-muted)] ring-1 ring-inset ring-dashed ring-[color:var(--pf-border)]">
@@ -54,6 +76,103 @@ export const PropertiesPanel = ({ activeEl, onUpdate, onPatch }: Props) => {
               sich die Ecken feiner. Ist der Platzhalter ausgewählt, sehen Sie die Beispiel-Motiv-Vorschau direkt auf
               der Vorlage (in der Endansicht zusätzlich mit Falten aus dem Hintergrund, sofern aktiv).
             </p>
+          </div>
+        )}
+
+        {activeEl.type === "placeholder" && (
+          <div className="rounded-[length:var(--pf-radius)] bg-[color:var(--pf-bg-muted)]/80 p-3 ring-1 ring-inset ring-[color:var(--pf-border-subtle)]">
+            <p className="text-sm font-semibold text-[color:var(--pf-fg)]">Vordergrund-Occlusion</p>
+            <p className="mt-1.5 text-xs font-medium leading-relaxed text-[color:var(--pf-fg-muted)]">
+              Im Canvas über dem Mockup bemalen, wo das Motiv ausgeblendet werden soll (z. B. Haare, Hände, Träger).
+              Weiß in der Maske = Motiv unsichtbar, Schwarz = Motiv sichtbar. Die Maske nutzt dieselbe Auflösung wie
+              Ihr Mockup.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {!occlusionPaintActive ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!canStartOcclusionPaint || !onStartOcclusionPaint}
+                  onClick={() => onStartOcclusionPaint?.()}
+                >
+                  Maske malen
+                </Button>
+              ) : (
+                <Button type="button" variant="outline" size="sm" onClick={() => onEndOcclusionPaint?.()}>
+                  Fertig
+                </Button>
+              )}
+              {activeEl.occlusionMaskUrl ? (
+                <Button type="button" variant="outline" size="sm" onClick={() => onPatch({ occlusionMaskUrl: "" })}>
+                  Maske entfernen
+                </Button>
+              ) : null}
+            </div>
+            {occlusionPaintActive ? (
+              <div className="mt-4 space-y-3">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[color:var(--pf-fg-subtle)]">
+                  Werkzeug
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={occlusionPaintTool === "brush" ? "primary" : "outline"}
+                    size="sm"
+                    className="flex-1 gap-1.5"
+                    onClick={() => onOcclusionPaintToolChange?.("brush")}
+                    aria-pressed={occlusionPaintTool === "brush"}
+                  >
+                    <Paintbrush size={14} strokeWidth={1.75} aria-hidden />
+                    Pinsel
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={occlusionPaintTool === "eraser" ? "primary" : "outline"}
+                    size="sm"
+                    className="flex-1 gap-1.5"
+                    onClick={() => onOcclusionPaintToolChange?.("eraser")}
+                    aria-pressed={occlusionPaintTool === "eraser"}
+                  >
+                    <Eraser size={14} strokeWidth={1.75} aria-hidden />
+                    Radierer
+                  </Button>
+                </div>
+                <Slider
+                  label="Pinselgröße"
+                  hintRight={`${occlusionBrushPx}px`}
+                  min={4}
+                  max={120}
+                  step={2}
+                  value={occlusionBrushPx}
+                  onChange={(e) => onOcclusionBrushPxChange?.(Number(e.target.value))}
+                />
+              </div>
+            ) : null}
+            <div className="mt-4 space-y-3">
+              <Slider
+                label="Occlusion-Stärke"
+                hintRight={`${Math.round((activeEl.occlusionStrength ?? 1) * 100)} %`}
+                min={0}
+                max={100}
+                value={Math.round((activeEl.occlusionStrength ?? 1) * 100)}
+                onChange={(e) =>
+                  onUpdate(
+                    "occlusionStrength",
+                    Math.min(1, Math.max(0, Number(e.target.value) / 100)),
+                  )
+                }
+              />
+              <Slider
+                label="Kanten-Feather"
+                hintRight={`${activeEl.occlusionFeather ?? 2} px`}
+                min={0}
+                max={8}
+                step={1}
+                value={activeEl.occlusionFeather ?? 2}
+                onChange={(e) => onUpdate("occlusionFeather", Number(e.target.value))}
+              />
+            </div>
           </div>
         )}
 

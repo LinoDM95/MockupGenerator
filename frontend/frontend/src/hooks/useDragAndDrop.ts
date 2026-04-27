@@ -31,6 +31,8 @@ type Params = {
   isSnapEnabled: boolean;
   isGuideSnapEnabled: boolean;
   isDrawMode: boolean;
+  /** Occlusion-Maske malen: keine Element-Interaktion. */
+  isOcclusionPaintMode: boolean;
   /** Im Endansicht-Modus keine Element-Interaktion. */
   previewEndView: boolean;
 };
@@ -45,6 +47,7 @@ export const useDragAndDrop = ({
   isSnapEnabled,
   isGuideSnapEnabled,
   isDrawMode,
+  isOcclusionPaintMode,
   previewEndView,
 }: Params) => {
   const [dragAction, setDragAction] = useState<DragAction | null>(null);
@@ -57,7 +60,7 @@ export const useDragAndDrop = ({
       actionType: DragAction["actionType"],
       handle: string | null = null,
     ) => {
-      if (e.button === 1 || isDrawMode || previewEndView || !editingTemplate) return;
+      if (e.button === 1 || isDrawMode || isOcclusionPaintMode || previewEndView || !editingTemplate) return;
       e.preventDefault();
       e.stopPropagation();
       setSelectedElementId(elId);
@@ -85,7 +88,7 @@ export const useDragAndDrop = ({
         origQuadCorners,
       });
     },
-    [editingTemplate, isDrawMode, previewEndView, setSelectedElementId, zoom],
+    [editingTemplate, isDrawMode, isOcclusionPaintMode, previewEndView, setSelectedElementId, zoom],
   );
 
   useEffect(() => {
