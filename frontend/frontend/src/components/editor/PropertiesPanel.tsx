@@ -9,9 +9,10 @@ import { Slider } from "../ui/primitives/Slider";
 type Props = {
   activeEl: TemplateElement | null;
   onUpdate: (key: keyof TemplateElement, value: string | number | boolean) => void;
+  onPatch: (patch: Partial<TemplateElement>) => void;
 };
 
-export const PropertiesPanel = ({ activeEl, onUpdate }: Props) => {
+export const PropertiesPanel = ({ activeEl, onUpdate, onPatch }: Props) => {
   if (!activeEl) {
     return (
       <div className="rounded-[length:var(--pf-radius)] bg-[color:var(--pf-bg-muted)]/50 px-4 py-8 text-center text-sm font-medium text-[color:var(--pf-fg-muted)] ring-1 ring-inset ring-dashed ring-[color:var(--pf-border)]">
@@ -20,6 +21,8 @@ export const PropertiesPanel = ({ activeEl, onUpdate }: Props) => {
     );
   }
 
+  const isQuadPlaceholder = activeEl.type === "placeholder" && activeEl.placeholderShape === "quad";
+
   return (
     <div className="flex-1 space-y-5">
         <Input
@@ -27,6 +30,32 @@ export const PropertiesPanel = ({ activeEl, onUpdate }: Props) => {
           value={activeEl.name ?? ""}
           onChange={(e) => onUpdate("name", e.target.value)}
         />
+
+        {activeEl.type === "placeholder" && (
+          <div className="rounded-[length:var(--pf-radius)] bg-[color:var(--pf-bg-muted)]/80 p-3 ring-1 ring-inset ring-[color:var(--pf-border-subtle)]">
+            <label className="flex cursor-pointer items-center gap-2">
+              <input
+                type="checkbox"
+                checked={activeEl.placeholderShape === "quad"}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    onPatch({ placeholderShape: "quad", rotation: 0 });
+                  } else {
+                    onPatch({ placeholderShape: "rect" });
+                  }
+                }}
+                className="h-4 w-4 rounded border-[color:var(--pf-border)] text-indigo-600 accent-indigo-600 focus:ring-indigo-500/30"
+              />
+              <span className="text-sm font-semibold text-[color:var(--pf-fg)]">Perspektive (4 Ecken)</span>
+            </label>
+            <p className="mt-2 text-xs font-medium leading-relaxed text-[color:var(--pf-fg-muted)]">
+              Motiv wird perspektivisch auf ein Viereck gelegt — Ecken im Canvas ziehen (große Klickfläche). Mit
+              gedrückter <span className="font-semibold text-[color:var(--pf-fg-subtle)]">Umschalttaste</span> bewegen
+              sich die Ecken feiner. Ist der Platzhalter ausgewählt, sehen Sie die Beispiel-Motiv-Vorschau direkt auf
+              der Vorlage (in der Endansicht zusätzlich mit Falten aus dem Hintergrund, sofern aktiv).
+            </p>
+          </div>
+        )}
 
         {activeEl.type === "text" && (
           <>
@@ -138,13 +167,19 @@ export const PropertiesPanel = ({ activeEl, onUpdate }: Props) => {
 
         <div className="border-t border-[color:var(--pf-border-subtle)] pt-3">
           <Slider
-            label="Rotation"
+            label={isQuadPlaceholder ? "Rotation (bei Perspektive deaktiviert)" : "Rotation"}
             hintRight={`${activeEl.rotation ?? 0}°`}
             min={-180}
             max={180}
             value={activeEl.rotation ?? 0}
+            disabled={isQuadPlaceholder}
             onChange={(e) => onUpdate("rotation", Number(e.target.value))}
           />
+          {isQuadPlaceholder ? (
+            <p className="mt-1.5 text-xs font-medium text-[color:var(--pf-fg-muted)]">
+              Nutzen Sie die vier Eckpunkte am Platzhalter für die perspektivische Ausrichtung.
+            </p>
+          ) : null}
         </div>
 
         <div className="border-t border-[color:var(--pf-border-subtle)] pt-3">
@@ -200,12 +235,17 @@ export const PropertiesPanel = ({ activeEl, onUpdate }: Props) => {
         <div className="border-t border-[color:var(--pf-border-subtle)] pt-3">
           <label className="mb-2 block text-sm font-semibold text-[color:var(--pf-fg)]">
             Position &amp; Dimensionen (px)
+            {isQuadPlaceholder ? (
+              <span className="ml-1 font-normal text-[color:var(--pf-fg-muted)]">
+                — Rahmen um die Perspektive; Geometrie über Ecken
+              </span>
+            ) : null}
           </label>
           <div className="grid grid-cols-2 gap-2 text-xs">
             {(["x", "y", "w", "h"] as const).map((axis) => (
               <div
                 key={axis}
-                className="flex items-center justify-between rounded-[length:var(--pf-radius)] bg-[color:var(--pf-bg-elevated)] px-3 py-2 shadow-[var(--pf-shadow-sm)] ring-1 ring-inset ring-[color:var(--pf-border)] focus-within:ring-2 focus-within:ring-indigo-500/25"
+                className={`flex items-center justify-between rounded-[length:var(--pf-radius)] bg-[color:var(--pf-bg-elevated)] px-3 py-2 shadow-[var(--pf-shadow-sm)] ring-1 ring-inset ring-[color:var(--pf-border)] focus-within:ring-2 focus-within:ring-indigo-500/25 ${isQuadPlaceholder ? "opacity-75" : ""}`}
               >
                 <span className="ml-1 text-xs font-bold uppercase tracking-widest text-[color:var(--pf-fg-subtle)]">
                   {axis}
@@ -213,8 +253,10 @@ export const PropertiesPanel = ({ activeEl, onUpdate }: Props) => {
                 <input
                   type="number"
                   value={activeEl[axis]}
+                  readOnly={isQuadPlaceholder}
+                  aria-readonly={isQuadPlaceholder || undefined}
                   onChange={(e) => onUpdate(axis, Number(e.target.value))}
-                  className="w-16 bg-transparent text-right text-sm font-semibold text-[color:var(--pf-fg)] outline-none"
+                  className="w-16 bg-transparent text-right text-sm font-semibold text-[color:var(--pf-fg)] outline-none read-only:cursor-not-allowed"
                 />
               </div>
             ))}

@@ -7,6 +7,13 @@ import {
   drawRealisticFrame,
   getFrameThickness,
 } from "./frame";
+import {
+  isQuadPlaceholder,
+  quadCropRect,
+  type QuadCorners,
+} from "./placeholderGeometry";
+import { blitTextureToTemplateQuad } from "./perspectiveBlit";
+import { WebGLWarpRenderer, isWebGLAvailable, resolveWarpParams } from "./webglWarp";
 
 export type RenderElementOptions = {
   frameShadowOuterEnabled?: boolean;
@@ -16,6 +23,12 @@ export type RenderElementOptions = {
   frameShadowDepth?: number;
   /** 0.15–1.0; nur das Motiv im Platzhalter, 1 = unverändert */
   artworkSaturation?: number;
+  /** WebGL-Stoffverformung für Platzhalter aktivieren. */
+  foldsEnabled?: boolean;
+  foldStrength?: number;
+  foldShadowDepth?: number;
+  foldHighlightStrength?: number;
+  foldSmoothing?: number;
 };
 
 export const renderElementToCanvas = (
@@ -24,6 +37,8 @@ export const renderElementToCanvas = (
   artImg: HTMLImageElement,
   artworkFrameStyle: FrameStyle,
   opts?: RenderElementOptions,
+  /** Hintergrundbild des Templates (für WebGL-Stoffverformung). */
+  bgImage?: HTMLImageElement | HTMLCanvasElement,
 ): void => {
   const outerOn = opts?.frameShadowOuterEnabled === true;
   const innerOn = opts?.frameShadowInnerEnabled === true;
@@ -36,13 +51,16 @@ export const renderElementToCanvas = (
   );
   const satRaw = opts?.artworkSaturation ?? 1;
   const artworkSaturation = Math.min(1, Math.max(0.15, Number.isFinite(satRaw) ? satRaw : 1));
+  const quadMode = isQuadPlaceholder(el) && el.quadCorners;
   ctx.save();
 
-  ctx.translate(el.x + el.w / 2, el.y + el.h / 2);
-  ctx.rotate(((el.rotation ?? 0) * Math.PI) / 180);
-  ctx.translate(-(el.x + el.w / 2), -(el.y + el.h / 2));
+  if (!quadMode) {
+    ctx.translate(el.x + el.w / 2, el.y + el.h / 2);
+    ctx.rotate(((el.rotation ?? 0) * Math.PI) / 180);
+    ctx.translate(-(el.x + el.w / 2), -(el.y + el.h / 2));
+  }
 
-  if (el.shadowEnabled) {
+  if (el.shadowEnabled && !quadMode) {
     ctx.shadowColor = el.shadowColor ?? "rgba(0,0,0,0.5)";
     ctx.shadowBlur = el.shadowBlur ?? 20;
     ctx.shadowOffsetX = el.shadowOffsetX ?? 10;
@@ -50,27 +68,86 @@ export const renderElementToCanvas = (
   }
 
   if (el.type === "placeholder") {
-    const canvasAspect = el.w / el.h;
-    const imgAspect = artImg.width / artImg.height;
-    let sx = 0;
-    let sy = 0;
-    let sWidth = artImg.width;
-    let sHeight = artImg.height;
+    const useWebGL =
+      opts?.foldsEnabled === true && bgImage != null && isWebGLAvailable();
+    const warpParams = resolveWarpParams({
+      foldStrength: opts?.foldStrength,
+      foldShadowDepth: opts?.foldShadowDepth,
+      foldHighlightStrength: opts?.foldHighlightStrength,
+      foldSmoothing: opts?.foldSmoothing,
+      artworkSaturation,
+    });
 
-    if (imgAspect > canvasAspect) {
-      sWidth = artImg.height * canvasAspect;
-      sx = (artImg.width - sWidth) / 2;
+    const drawRectangularMotifPass = (
+      crop: { x: number; y: number; w: number; h: number },
+      outW: number,
+      outH: number,
+    ): HTMLCanvasElement | null => {
+      if (useWebGL) {
+        const warped = WebGLWarpRenderer.renderOnce(
+          bgImage!,
+          artImg,
+          crop,
+          warpParams,
+          outW,
+          outH,
+        );
+        if (warped) return warped;
+      }
+      const c = document.createElement("canvas");
+      c.width = Math.max(1, Math.round(outW));
+      c.height = Math.max(1, Math.round(outH));
+      const cctx = c.getContext("2d");
+      if (!cctx) return null;
+      const fake: TemplateElement = {
+        ...el,
+        x: 0,
+        y: 0,
+        w: c.width,
+        h: c.height,
+      };
+      drawArtworkAspectFill(cctx, artImg, fake, artworkSaturation);
+      return c;
+    };
+
+    if (quadMode && el.quadCorners) {
+      ctx.shadowColor = "transparent";
+      const crop = quadCropRect(el.quadCorners as QuadCorners);
+      const pass = drawRectangularMotifPass(crop, crop.w, crop.h);
+      if (pass) {
+        const projected = blitTextureToTemplateQuad(
+          pass,
+          el.quadCorners as QuadCorners,
+          crop.x,
+          crop.y,
+          crop.w,
+          crop.h,
+        );
+        if (projected) {
+          ctx.drawImage(projected, crop.x, crop.y);
+        } else {
+          ctx.drawImage(pass, crop.x, crop.y);
+        }
+      }
+    } else if (useWebGL) {
+      const warped = WebGLWarpRenderer.renderOnce(
+        bgImage!,
+        artImg,
+        { x: el.x, y: el.y, w: el.w, h: el.h },
+        warpParams,
+        el.w,
+        el.h,
+      );
+      ctx.shadowColor = "transparent";
+      if (warped) {
+        ctx.drawImage(warped, el.x, el.y, el.w, el.h);
+      } else {
+        drawArtworkAspectFill(ctx, artImg, el, artworkSaturation);
+      }
     } else {
-      sHeight = artImg.width / canvasAspect;
-      sy = (artImg.height - sHeight) / 2;
+      drawArtworkAspectFill(ctx, artImg, el, artworkSaturation);
+      ctx.shadowColor = "transparent";
     }
-
-    if (artworkSaturation < 0.999) {
-      ctx.filter = `saturate(${Math.round(artworkSaturation * 100)}%)`;
-    }
-    ctx.drawImage(artImg, sx, sy, sWidth, sHeight, el.x, el.y, el.w, el.h);
-    ctx.filter = "none";
-    ctx.shadowColor = "transparent";
     const tthick = getFrameThickness(el.w, el.h);
     if (innerOn && innerMask) {
       drawInnerFrameShadowOnMotif(
@@ -196,4 +273,30 @@ export const renderElementToCanvas = (
     }
   }
   ctx.restore();
+};
+
+const drawArtworkAspectFill = (
+  ctx: CanvasRenderingContext2D,
+  artImg: HTMLImageElement,
+  el: TemplateElement,
+  artworkSaturation: number,
+): void => {
+  const canvasAspect = el.w / el.h;
+  const imgAspect = artImg.width / artImg.height;
+  let sx = 0;
+  let sy = 0;
+  let sWidth = artImg.width;
+  let sHeight = artImg.height;
+  if (imgAspect > canvasAspect) {
+    sWidth = artImg.height * canvasAspect;
+    sx = (artImg.width - sWidth) / 2;
+  } else {
+    sHeight = artImg.width / canvasAspect;
+    sy = (artImg.height - sHeight) / 2;
+  }
+  if (artworkSaturation < 0.999) {
+    ctx.filter = `saturate(${Math.round(artworkSaturation * 100)}%)`;
+  }
+  ctx.drawImage(artImg, sx, sy, sWidth, sHeight, el.x, el.y, el.w, el.h);
+  ctx.filter = "none";
 };

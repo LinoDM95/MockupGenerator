@@ -29,8 +29,10 @@ export const renderTemplateToCanvas = async (
   ctx.drawImage(bgImg, 0, 0, tpl.width, tpl.height);
 
   const { frameStyle, ...renderOpts } = getTemplateRenderOpts(tpl);
+  // BG-Image als separates Argument (kein Teil von Template/RenderElementOptions),
+  // weil Template.bgImage als URL-String typisiert ist.
   for (const el of tpl.elements) {
-    renderElementToCanvas(ctx, el, artworkImg, frameStyle, renderOpts);
+    renderElementToCanvas(ctx, el, artworkImg, frameStyle, renderOpts, bgImg);
   }
 
   return canvas;

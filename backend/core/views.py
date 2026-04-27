@@ -428,7 +428,11 @@ class TemplateViewSet(viewsets.ModelViewSet):
         tpl = self.get_object()
         if not tpl.background_image:
             raise Http404()
-        fh = tpl.background_image.open("rb")
+        try:
+            fh = tpl.background_image.open("rb")
+        except FileNotFoundError:
+            # z. B. S3-Key 404, lokale Datei fehlt, DB von anderer Umgebung
+            raise Http404()
         name = getattr(tpl.background_image, "name", "") or ""
         content_type, _ = mimetypes.guess_type(name)
         if not content_type:

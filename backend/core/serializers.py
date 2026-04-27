@@ -73,6 +73,11 @@ class TemplateSerializer(serializers.ModelSerializer):
             "frame_inner_sides",
             "frame_shadow_depth",
             "artwork_saturation",
+            "folds_enabled",
+            "fold_strength",
+            "fold_shadow_depth",
+            "fold_highlight_strength",
+            "fold_smoothing",
             "created_at",
             "updated_at",
         )

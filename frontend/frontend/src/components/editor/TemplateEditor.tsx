@@ -8,6 +8,7 @@ import {
   PREVIEW_MOTIF_VARIANT_COUNT,
   previewVariantSwatchStyle,
 } from "../../lib/editor/previewSampleMotif";
+import { defaultQuadCornersFromRect } from "../../lib/canvas/placeholderGeometry";
 import { newClientElementId } from "../../lib/editor/elementId";
 import {
   FRAME_SHADOW_ALL,
@@ -78,6 +79,12 @@ const scaleElementsForCanvas = (
     }
     if (el.shadowOffsetY != null) {
       scaled.shadowOffsetY = Math.round(el.shadowOffsetY * sy);
+    }
+    if (el.type === "placeholder" && el.placeholderShape === "quad" && el.quadCorners?.length === 4) {
+      scaled.quadCorners = el.quadCorners.map((p) => ({
+        x: Math.round(p.x * sx),
+        y: Math.round(p.y * sy),
+      })) as TemplateElement["quadCorners"];
     }
     return scaled;
   });
@@ -201,6 +208,33 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
     });
   };
 
+  const patchActiveElement = (patch: Partial<TemplateElement>) => {
+    if (!selectedElementId) return;
+    updateEditingTemplate((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        elements: prev.elements.map((el) => {
+          if (el.id !== selectedElementId) return el;
+          let next: TemplateElement = { ...el, ...patch };
+          if (next.type !== "placeholder") return next;
+          if (next.placeholderShape === "quad") {
+            if (!next.quadCorners || next.quadCorners.length !== 4) {
+              next.quadCorners = defaultQuadCornersFromRect(next);
+            }
+            if (patch.placeholderShape === "quad") {
+              next.rotation = patch.rotation ?? 0;
+            }
+          } else {
+            const { quadCorners: _removed, ...rest } = next;
+            next = rest as TemplateElement;
+          }
+          return next;
+        }),
+      };
+    });
+  };
+
   const addElement = (type: ElementType) => {
     let newEl: TemplateElement = {
       id: newClientElementId(),
@@ -250,7 +284,19 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
   const duplicateElement = (elId: string) => {
     const el = editingTemplate.elements.find((e) => e.id === elId);
     if (!el) return;
-    const newEl = { ...el, id: newClientElementId(), x: el.x + 50, y: el.y + 50 };
+    const newEl: TemplateElement = {
+      ...el,
+      id: newClientElementId(),
+      x: el.x + 50,
+      y: el.y + 50,
+      quadCorners:
+        el.type === "placeholder" && el.placeholderShape === "quad" && el.quadCorners
+          ? (el.quadCorners.map((p) => ({
+              x: p.x + 50,
+              y: p.y + 50,
+            })) as TemplateElement["quadCorners"])
+          : el.quadCorners,
+    };
     updateEditingTemplate((prev) =>
       prev ? { ...prev, elements: [...prev.elements, newEl] } : prev,
     );
@@ -303,6 +349,11 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
         frame_inner_sides: editingTemplate.frameInnerSides ?? FRAME_SHADOW_ALL,
         frame_shadow_depth: editingTemplate.frameShadowDepth ?? 0.82,
         artwork_saturation: editingTemplate.artworkSaturation ?? 1,
+        folds_enabled: editingTemplate.foldsEnabled === true,
+        fold_strength: editingTemplate.foldStrength ?? 0.4,
+        fold_shadow_depth: editingTemplate.foldShadowDepth ?? 0.6,
+        fold_highlight_strength: editingTemplate.foldHighlightStrength ?? 0.25,
+        fold_smoothing: editingTemplate.foldSmoothing ?? 4,
       });
       await replaceTemplateElements(editingTemplate.id, editingTemplate.elements);
       await onSaved();
@@ -696,6 +747,115 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
                 </p>
               </div>
             </div>
+            <div className="mt-4 space-y-3 border-t border-[color:var(--pf-border)] pt-4">
+              <label className="flex cursor-pointer items-start gap-2.5 text-sm font-medium text-[color:var(--pf-fg)]">
+                <input
+                  type="checkbox"
+                  checked={editingTemplate.foldsEnabled === true}
+                  onChange={(e) =>
+                    updateEditingTemplate((prev) =>
+                      prev ? { ...prev, foldsEnabled: e.target.checked } : prev,
+                    )
+                  }
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-[color:var(--pf-border)] text-indigo-600 accent-indigo-600 focus:ring-indigo-500/30"
+                />
+                <span>
+                  <span className="font-semibold">Stoff-Falten (3D-Verformung)</span>
+                  <span className={cn("mt-0.5 block text-xs font-medium", WORKSPACE_ZINC_MUTED)}>
+                    GPU-Warp via Sobel-Normalen aus der Hintergrund-Luminanz. Ideal für T-Shirts, Kissen, Stoffe.
+                  </span>
+                </span>
+              </label>
+              <div
+                className={`space-y-3 transition-opacity ${editingTemplate.foldsEnabled === true ? "opacity-100" : "pointer-events-none opacity-40"}`}
+              >
+                <div>
+                  <label className="text-sm font-semibold text-[color:var(--pf-fg)]" htmlFor="fold-strength">
+                    Faltenstärke ({Math.round((editingTemplate.foldStrength ?? 0.4) * 100)}&nbsp;%)
+                  </label>
+                  <input
+                    id="fold-strength"
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={Math.round((editingTemplate.foldStrength ?? 0.4) * 100)}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      updateEditingTemplate((prev) =>
+                        prev ? { ...prev, foldStrength: Math.min(1, Math.max(0, v / 100)) } : prev,
+                      );
+                    }}
+                    className="mt-2 w-full accent-indigo-600"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-[color:var(--pf-fg)]" htmlFor="fold-shadow">
+                    Schattentiefe ({Math.round((editingTemplate.foldShadowDepth ?? 0.6) * 100)}&nbsp;%)
+                  </label>
+                  <input
+                    id="fold-shadow"
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={Math.round((editingTemplate.foldShadowDepth ?? 0.6) * 100)}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      updateEditingTemplate((prev) =>
+                        prev ? { ...prev, foldShadowDepth: Math.min(1, Math.max(0, v / 100)) } : prev,
+                      );
+                    }}
+                    className="mt-2 w-full accent-indigo-600"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-[color:var(--pf-fg)]" htmlFor="fold-highlight">
+                    Glanzlichter ({Math.round((editingTemplate.foldHighlightStrength ?? 0.25) * 100)}&nbsp;%)
+                  </label>
+                  <input
+                    id="fold-highlight"
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={Math.round((editingTemplate.foldHighlightStrength ?? 0.25) * 100)}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      updateEditingTemplate((prev) =>
+                        prev
+                          ? { ...prev, foldHighlightStrength: Math.min(1, Math.max(0, v / 100)) }
+                          : prev,
+                      );
+                    }}
+                    className="mt-2 w-full accent-indigo-600"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-[color:var(--pf-fg)]" htmlFor="fold-smoothing">
+                    Glättung ({editingTemplate.foldSmoothing ?? 4}&nbsp;px)
+                  </label>
+                  <input
+                    id="fold-smoothing"
+                    type="range"
+                    min={1}
+                    max={32}
+                    step={1}
+                    value={editingTemplate.foldSmoothing ?? 4}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      updateEditingTemplate((prev) =>
+                        prev ? { ...prev, foldSmoothing: Math.min(32, Math.max(1, v)) } : prev,
+                      );
+                    }}
+                    className="mt-2 w-full accent-indigo-600"
+                  />
+                  <p className={cn("mt-1 text-xs font-medium", WORKSPACE_ZINC_MUTED)}>
+                    Höher = Stoffporen werden ignoriert, nur echte Falten zählen.
+                  </p>
+                </div>
+              </div>
+            </div>
             <div className="mt-4 border-t border-[color:var(--pf-border)] pt-4">
               <label className="flex cursor-pointer items-start gap-2.5 text-sm font-medium text-[color:var(--pf-fg)]">
                 <input
@@ -755,7 +915,11 @@ export const TemplateEditor = ({ onClose, onSaved }: Props) => {
             ) : null}
             {rightTab === 2 ? (
               <div className={cn(previewEndView && "pointer-events-none opacity-40")}>
-                <PropertiesPanel activeEl={activeEl} onUpdate={updateActiveElement} />
+                <PropertiesPanel
+                  activeEl={activeEl}
+                  onUpdate={updateActiveElement}
+                  onPatch={patchActiveElement}
+                />
               </div>
             ) : null}
           </div>

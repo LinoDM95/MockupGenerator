@@ -50,6 +50,18 @@ const parseArtworkSaturation = (raw: unknown): number => {
   return Math.min(1, Math.max(0.15, n));
 };
 
+const parseUnit01 = (raw: unknown, fallback: number): number => {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(1, Math.max(0, n));
+};
+
+const parseFoldSmoothing = (raw: unknown): number => {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return 4;
+  return Math.min(32, Math.max(1, Math.round(n)));
+};
+
 export const normalizeTemplate = (raw: Record<string, unknown>): Template => {
   const outerSides = parseSidesMask(raw.frame_outer_sides ?? raw.frameOuterSides, FRAME_SHADOW_ALL);
   const innerSides = parseSidesMask(raw.frame_inner_sides ?? raw.frameInnerSides, FRAME_SHADOW_ALL);
@@ -84,6 +96,14 @@ export const normalizeTemplate = (raw: Record<string, unknown>): Template => {
     frameInnerSides: innerSides,
     frameShadowDepth: parseFrameShadowDepth(raw.frame_shadow_depth ?? raw.frameShadowDepth),
     artworkSaturation: parseArtworkSaturation(raw.artwork_saturation ?? raw.artworkSaturation),
+    foldsEnabled: parseOptionalBool(raw.folds_enabled ?? raw.foldsEnabled) === true,
+    foldStrength: parseUnit01(raw.fold_strength ?? raw.foldStrength, 0.4),
+    foldShadowDepth: parseUnit01(raw.fold_shadow_depth ?? raw.foldShadowDepth, 0.6),
+    foldHighlightStrength: parseUnit01(
+      raw.fold_highlight_strength ?? raw.foldHighlightStrength,
+      0.25,
+    ),
+    foldSmoothing: parseFoldSmoothing(raw.fold_smoothing ?? raw.foldSmoothing),
     elements: Array.isArray(raw.elements)
       ? (raw.elements as Record<string, unknown>[]).map(normalizeElement)
       : [],

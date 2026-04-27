@@ -131,3 +131,38 @@ def apply_frame_fields(
         template.artwork_saturation = _clamp_float(raw_sat, 0.15, 1.0, 1.0)
     elif set_defaults:
         template.artwork_saturation = 1.0
+
+    folds_b = _parse_boolish(data.get("folds_enabled", data.get("foldsEnabled")))
+    if folds_b is not None:
+        template.folds_enabled = folds_b
+    elif set_defaults:
+        template.folds_enabled = False
+
+    raw_fs = data.get("fold_strength", data.get("foldStrength"))
+    if raw_fs is not None:
+        template.fold_strength = _clamp_float(raw_fs, 0.0, 1.0, 0.4)
+    elif set_defaults:
+        template.fold_strength = 0.4
+
+    raw_fsd = data.get("fold_shadow_depth", data.get("foldShadowDepth"))
+    if raw_fsd is not None:
+        template.fold_shadow_depth = _clamp_float(raw_fsd, 0.0, 1.0, 0.6)
+    elif set_defaults:
+        template.fold_shadow_depth = 0.6
+
+    raw_fhs = data.get("fold_highlight_strength", data.get("foldHighlightStrength"))
+    if raw_fhs is not None:
+        template.fold_highlight_strength = _clamp_float(raw_fhs, 0.0, 1.0, 0.25)
+    elif set_defaults:
+        template.fold_highlight_strength = 0.25
+
+    raw_fsm = data.get("fold_smoothing", data.get("foldSmoothing"))
+    if raw_fsm is not None:
+        try:
+            n = int(float(raw_fsm))
+            template.fold_smoothing = max(1, min(32, n))
+        except (TypeError, ValueError):
+            if set_defaults:
+                template.fold_smoothing = 4
+    elif set_defaults:
+        template.fold_smoothing = 4

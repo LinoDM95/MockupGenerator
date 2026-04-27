@@ -211,6 +211,13 @@ class TemplateBackgroundDownloadTests(TestCase):
         body = b"".join(r.streaming_content)
         self.assertGreaterEqual(len(body), len(minimal_png_bytes()) - 20)
 
+    def test_background_missing_storage_file_404(self) -> None:
+        Template.objects.filter(pk=self.tpl.pk).update(
+            background_image="template_backgrounds/missing/this_file_does_not_exist.png",
+        )
+        r = self.client.get(f"/api/templates/{self.tpl.pk}/background/")
+        self.assertEqual(r.status_code, status.HTTP_404_NOT_FOUND)
+
     def test_background_other_user_404(self) -> None:
         c2 = api_client_bearer(create_user(username="bgother", password="pw"))
         r = c2.get(f"/api/templates/{self.tpl.pk}/background/")

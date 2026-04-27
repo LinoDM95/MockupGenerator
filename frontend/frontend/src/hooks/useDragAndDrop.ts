@@ -2,6 +2,7 @@ import type { RefObject } from "react";
 import { useCallback, useEffect, useState } from "react";
 
 import { collectSnapTargets, snapVal, type Guide } from "../lib/guides/snap";
+import { syncElementBoxFromQuad, type QuadCorners } from "../lib/canvas/placeholderGeometry";
 import type { Template, TemplateElement } from "../types/mockup";
 
 export type DragAction = {
@@ -16,6 +17,8 @@ export type DragAction = {
   origH: number;
   origRot: number;
   scaleFactor: number;
+  /** Snapshot bei Pointer-Down für Perspektiv-Platzhalter (TL…BL). */
+  origQuadCorners: QuadCorners | null;
 };
 
 type Params = {
@@ -60,6 +63,13 @@ export const useDragAndDrop = ({
       setSelectedElementId(elId);
       const el = editingTemplate.elements.find((x) => x.id === elId);
       if (!el) return;
+      const origQuadCorners: QuadCorners | null =
+        el.type === "placeholder" &&
+        el.placeholderShape === "quad" &&
+        el.quadCorners &&
+        el.quadCorners.length === 4
+          ? el.quadCorners.map((p) => ({ x: p.x, y: p.y })) as QuadCorners
+          : null;
       setDragAction({
         actionType,
         id: elId,
@@ -72,6 +82,7 @@ export const useDragAndDrop = ({
         origH: el.h,
         origRot: el.rotation ?? 0,
         scaleFactor: 1 / zoom,
+        origQuadCorners,
       });
     },
     [editingTemplate, isDrawMode, previewEndView, setSelectedElementId, zoom],
@@ -93,11 +104,53 @@ export const useDragAndDrop = ({
 
         const newElements = prev.elements.map((el) => {
           if (el.id !== dragAction.id) return el;
-          const dx = (e.clientX - dragAction.startX) * dragAction.scaleFactor;
-          const dy = (e.clientY - dragAction.startY) * dragAction.scaleFactor;
+          let dx = (e.clientX - dragAction.startX) * dragAction.scaleFactor;
+          let dy = (e.clientY - dragAction.startY) * dragAction.scaleFactor;
+          const quadPerspectiveDrag =
+            el.type === "placeholder" &&
+            el.placeholderShape === "quad" &&
+            (dragAction.actionType === "move" ||
+              (dragAction.actionType === "resize" &&
+                !!dragAction.handle &&
+                /^q[0-3]$/.test(dragAction.handle)));
+          if (quadPerspectiveDrag && e.shiftKey) {
+            dx *= 0.22;
+            dy *= 0.22;
+          }
           const newEl: TemplateElement = { ...el };
 
           const snap = (val: number) => (isSnapEnabled ? Math.round(val) : val);
+
+          if (
+            el.type === "placeholder" &&
+            el.placeholderShape === "quad" &&
+            dragAction.origQuadCorners &&
+            el.quadCorners
+          ) {
+            const qc = dragAction.origQuadCorners;
+            if (dragAction.actionType === "move") {
+              newEl.quadCorners = qc.map((p) => ({
+                x: snap(p.x + dx),
+                y: snap(p.y + dy),
+              })) as TemplateElement["quadCorners"];
+              syncElementBoxFromQuad(newEl as TemplateElement & { quadCorners: QuadCorners });
+              newEl.rotation = 0;
+              return newEl;
+            }
+            if (
+              dragAction.actionType === "resize" &&
+              dragAction.handle &&
+              /^q[0-3]$/.test(dragAction.handle)
+            ) {
+              const idx = Number(dragAction.handle[1]);
+              const next = qc.map((p) => ({ ...p })) as QuadCorners;
+              next[idx] = { x: snap(qc[idx].x + dx), y: snap(qc[idx].y + dy) };
+              newEl.quadCorners = next;
+              syncElementBoxFromQuad(newEl as TemplateElement & { quadCorners: QuadCorners });
+              newEl.rotation = 0;
+              return newEl;
+            }
+          }
 
           if (isGuideSnapEnabled && !dragAction.actionType.includes("rotate")) {
             if (dragAction.actionType === "move") {
@@ -211,7 +264,11 @@ export const useDragAndDrop = ({
             }
           }
 
-          if (dragAction.actionType === "rotate" && containerRef.current) {
+          if (
+            dragAction.actionType === "rotate" &&
+            containerRef.current &&
+            !(el.type === "placeholder" && el.placeholderShape === "quad")
+          ) {
             const rect = containerRef.current.getBoundingClientRect();
             const elCx = dragAction.origX + dragAction.origW / 2;
             const elCy = dragAction.origY + dragAction.origH / 2;

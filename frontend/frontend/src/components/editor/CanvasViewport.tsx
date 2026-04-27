@@ -19,9 +19,12 @@ import {
   drawRealisticFrame,
   getFrameThickness,
 } from "../../lib/canvas/frame";
+import { isQuadPlaceholder } from "../../lib/canvas/placeholderGeometry";
 import { newClientElementId } from "../../lib/editor/elementId";
 import type { FrameStyle, Template, TemplateElement } from "../../types/mockup";
 import { useAppStore } from "../../store/appStore";
+import { PerspectiveWarpPreviewLayer } from "./PerspectiveWarpPreviewLayer";
+import { WebGLWarpLayer } from "./WebGLWarpLayer";
 
 type Viewport = { zoom: number; pan: { x: number; y: number } };
 
@@ -220,6 +223,11 @@ const CanvasViewportInner = ({
   const frameInnerSides = editingTemplate.frameInnerSides ?? 15;
   const frameShadowDepth = editingTemplate.frameShadowDepth ?? 0.82;
   const artworkSaturation = editingTemplate.artworkSaturation ?? 1;
+  const foldsEnabled = editingTemplate.foldsEnabled === true;
+  const foldStrength = editingTemplate.foldStrength ?? 0.4;
+  const foldShadowDepth = editingTemplate.foldShadowDepth ?? 0.6;
+  const foldHighlightStrength = editingTemplate.foldHighlightStrength ?? 0.25;
+  const foldSmoothing = editingTemplate.foldSmoothing ?? 4;
   const allowFrameOuterShadowBleed =
     editingTemplate.elements.some((e) => e.type === "placeholder") &&
     frameShadowOuterEnabled &&
@@ -720,12 +728,13 @@ const CanvasViewportInner = ({
 
           {editingTemplate.elements.map((el) => {
             const isSelected = el.id === selectedElementId;
+            const isQuadPh = isQuadPlaceholder(el);
             const elStyle: CSSProperties = {
               left: `${(el.x / editingTemplate.width) * 100}%`,
               top: `${(el.y / editingTemplate.height) * 100}%`,
               width: `${(el.w / editingTemplate.width) * 100}%`,
               height: `${(el.h / editingTemplate.height) * 100}%`,
-              transform: `rotate(${el.rotation ?? 0}deg)`,
+              transform: isQuadPh ? "none" : `rotate(${el.rotation ?? 0}deg)`,
               transformOrigin: "center center",
               filter: el.shadowEnabled
                 ? `drop-shadow(${el.shadowOffsetX}px ${el.shadowOffsetY}px ${el.shadowBlur}px ${el.shadowColor})`
@@ -736,16 +745,47 @@ const CanvasViewportInner = ({
             if (el.type === "placeholder") {
               const satPct = Math.round(artworkSaturation * 100);
               const outerBleed = Math.max(12, getFrameThickness(el.w, el.h) * 2.8);
+              const showMotifOnQuadWhileEditing =
+                previewMotifUrl && isQuadPh && el.quadCorners?.length === 4 && (previewEndView || isSelected);
+              const usePerspectivePreview = showMotifOnQuadWhileEditing;
               content = (
                 <>
-                  {previewEndView && previewMotifUrl ? (
-                    <img
-                      src={previewMotifUrl}
-                      alt=""
-                      className="absolute inset-0 z-[1] h-full w-full object-cover"
-                      style={{ filter: `saturate(${satPct}%)` }}
-                      draggable={false}
+                  {usePerspectivePreview ? (
+                    <PerspectiveWarpPreviewLayer
+                      bgImageUrl={previewEndView ? (editingTemplate.bgImage ?? "") : ""}
+                      motifUrl={previewMotifUrl}
+                      el={el}
+                      params={{
+                        foldStrength,
+                        foldShadowDepth,
+                        foldHighlightStrength,
+                        foldSmoothing,
+                        artworkSaturation,
+                      }}
                     />
+                  ) : previewEndView && previewMotifUrl ? (
+                    foldsEnabled && editingTemplate.bgImage ? (
+                      <WebGLWarpLayer
+                        bgImageUrl={editingTemplate.bgImage}
+                        motifUrl={previewMotifUrl}
+                        region={{ x: el.x, y: el.y, w: el.w, h: el.h }}
+                        params={{
+                          foldStrength,
+                          foldShadowDepth,
+                          foldHighlightStrength,
+                          foldSmoothing,
+                          artworkSaturation,
+                        }}
+                      />
+                    ) : (
+                      <img
+                        src={previewMotifUrl}
+                        alt=""
+                        className="absolute inset-0 z-[1] h-full w-full object-cover"
+                        style={{ filter: `saturate(${satPct}%)` }}
+                        draggable={false}
+                      />
+                    )
                   ) : null}
                   {frameShadowInnerEnabled && frameInnerSides ? (
                     <InnerMotifShadowLayer
@@ -779,7 +819,7 @@ const CanvasViewportInner = ({
                       />
                     </div>
                   ) : null}
-                  {!previewEndView ? (
+                  {!previewEndView && !(isQuadPh && previewMotifUrl && isSelected) ? (
                     <span
                       className={`relative z-10 text-lg font-bold drop-shadow-md ${isSelected ? "text-white" : "text-slate-800"}`}
                     >
@@ -885,7 +925,7 @@ const CanvasViewportInner = ({
                     top: `${((el.y - frameThicknessPx) / editingTemplate.height) * 100}%`,
                     width: `${((el.w + 2 * frameThicknessPx) / editingTemplate.width) * 100}%`,
                     height: `${((el.h + 2 * frameThicknessPx) / editingTemplate.height) * 100}%`,
-                    transform: `rotate(${el.rotation ?? 0}deg)`,
+                    transform: isQuadPh ? "none" : `rotate(${el.rotation ?? 0}deg)`,
                     transformOrigin: "center center",
                   }
                 : undefined;
@@ -915,7 +955,7 @@ const CanvasViewportInner = ({
                 style={elStyle}
               >
                 {content}
-                {isSelected && showEditChrome && (
+                {isSelected && showEditChrome && !(el.type === "placeholder" && isQuadPh) && (
                   <div
                     onMouseDown={(e) => onPointerDownElement(e, el.id, "rotate")}
                     className="absolute -top-10 left-1/2 z-30 flex h-5 w-5 -translate-x-1/2 cursor-grab items-center justify-center rounded-full border-2 border-indigo-600 bg-white shadow-md"
@@ -923,7 +963,7 @@ const CanvasViewportInner = ({
                     <div className="h-1.5 w-1.5 rounded-full bg-indigo-600" />
                   </div>
                 )}
-                {isSelected && showEditChrome && (
+                {isSelected && showEditChrome && !(el.type === "placeholder" && isQuadPh) && (
                   <>
                     {(["nw", "ne", "sw", "se", "n", "s", "e", "w"] as const).map((h) => (
                       <div
@@ -950,6 +990,46 @@ const CanvasViewportInner = ({
                     ))}
                   </>
                 )}
+                {isSelected && showEditChrome && el.type === "placeholder" && isQuadPh && el.quadCorners ? (
+                  <>
+                    {(["q0", "q1", "q2", "q3"] as const).map((qh, i) => {
+                      const cursors = [
+                        "cursor-nwse-resize",
+                        "cursor-nesw-resize",
+                        "cursor-nwse-resize",
+                        "cursor-nesw-resize",
+                      ] as const;
+                      const corners = el.quadCorners;
+                      const p = corners[i];
+                      return (
+                        <div
+                          key={qh}
+                          onMouseDown={(e) => onPointerDownElement(e, el.id, "resize", qh)}
+                          className={`absolute z-30 flex h-11 w-11 min-h-[44px] min-w-[44px] -translate-x-1/2 -translate-y-1/2 touch-none items-center justify-center ${cursors[i]}`}
+                          style={{
+                            left: `${((p.x - el.x) / el.w) * 100}%`,
+                            top: `${((p.y - el.y) / el.h) * 100}%`,
+                          }}
+                          aria-label={
+                            i === 0
+                              ? "Ecke oben links, Perspektive (Umschalt = feiner)"
+                              : i === 1
+                                ? "Ecke oben rechts, Perspektive (Umschalt = feiner)"
+                                : i === 2
+                                  ? "Ecke unten rechts, Perspektive (Umschalt = feiner)"
+                                  : "Ecke unten links, Perspektive (Umschalt = feiner)"
+                          }
+                          title="Umschalttaste gedrückt halten für feinere Bewegung"
+                        >
+                          <span
+                            className="pointer-events-none h-4 w-4 shrink-0 rounded-sm border-2 border-indigo-600 bg-white shadow-md ring-2 ring-white/90"
+                            aria-hidden
+                          />
+                        </div>
+                      );
+                    })}
+                  </>
+                ) : null}
               </div>
             );
 

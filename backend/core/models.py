@@ -99,6 +99,30 @@ class Template(models.Model):
         validators=[MinValueValidator(0.15), MaxValueValidator(1.0)],
         help_text="Sättigung des Motivs im Export (1.0 = unverändert, niedriger = dezenter zum Hintergrund).",
     )
+    folds_enabled = models.BooleanField(
+        default=False,
+        help_text="WebGL-Stoffverformung (Sobel-Normalen aus BG-Luminanz) aktivieren.",
+    )
+    fold_strength = models.FloatField(
+        default=0.4,
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+        help_text="Verschiebungsstärke entlang der Sobel-Normalen (0–1).",
+    )
+    fold_shadow_depth = models.FloatField(
+        default=0.6,
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+        help_text="Multiply-Blend-Stärke gegen Hintergrund-Luminanz (0–1).",
+    )
+    fold_highlight_strength = models.FloatField(
+        default=0.25,
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+        help_text="Additive Glanzlichter an Faltenkämmen (0–1).",
+    )
+    fold_smoothing = models.PositiveSmallIntegerField(
+        default=4,
+        validators=[MinValueValidator(1), MaxValueValidator(32)],
+        help_text="Pre-Smoothing-Radius (Pixel) der Heightmap vor Sobel.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

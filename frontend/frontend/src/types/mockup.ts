@@ -9,6 +9,11 @@ export type ElementType =
 
 export type FrameStyle = "none" | "black" | "white" | "wood";
 
+/** Rechteck (Standard) oder Viereck mit Perspektive — Ecken TL, TR, BR, BL in Template-Pixeln. */
+export type PlaceholderShape = "rect" | "quad";
+
+export type QuadCornerPoint = { x: number; y: number };
+
 export interface TemplateElement {
   id: string;
   type: ElementType;
@@ -31,6 +36,10 @@ export interface TemplateElement {
   fontWeight?: string;
   fontStyle?: string;
   textAlign?: string;
+  /** Nur Platzhalter: `quad` = vier freie Ecken für Perspektive; `rect` oder fehlend = klassisch x,y,w,h (+ Rotation). */
+  placeholderShape?: PlaceholderShape;
+  /** TL, TR, BR, BL in Template-Koordinaten (bei `placeholderShape === "quad"`). */
+  quadCorners?: [QuadCornerPoint, QuadCornerPoint, QuadCornerPoint, QuadCornerPoint];
 }
 
 export interface Template {
@@ -55,6 +64,16 @@ export interface Template {
   frameShadowDepth?: number;
   /** Motiv-Sättigung im Export (1 = Original, niedriger = dezenter zum Hintergrund). */
   artworkSaturation?: number;
+  /** Realistische Stoff-/Faltenverformung des Motivs via WebGL aktiv. */
+  foldsEnabled?: boolean;
+  /** Verschiebungsstärke entlang der Sobel-Normalen (0–1, default 0.4). */
+  foldStrength?: number;
+  /** Schattentiefe aus Hintergrund-Luminanz (0–1, default 0.6). */
+  foldShadowDepth?: number;
+  /** Additive Glanzlichter an Faltenkämmen (0–1, default 0.25). */
+  foldHighlightStrength?: number;
+  /** Pre-Smoothing-Radius in Pixeln vor Sobel (1–32, default 4). */
+  foldSmoothing?: number;
 }
 
 export interface TemplateSet {
