@@ -348,8 +348,8 @@ const Hero = () => {
           transition={{ duration: reduceMotion ? 0.2 : 0.6, delay: reduceMotion ? 0 : 0.25 }}
           className="mx-auto mt-6 max-w-2xl text-base font-medium leading-relaxed text-[color:var(--pf-fg-muted)] sm:mt-8 sm:text-lg md:text-xl"
         >
-          Vorlagen anlegen, Mockups rendern, KI-Texte generieren und direkt als Etsy-Entwurf
-          veröffentlichen. Ein nahtloser Ablauf mit PrintFlow.
+          Vorlagen anlegen, Mockups rendern, Titel, Beschreibung und Tags generieren und direkt als
+          Etsy-Entwurf veröffentlichen. Ein nahtloser Ablauf mit PrintFlow.
         </motion.p>
 
         <motion.div
@@ -504,7 +504,7 @@ const steps = [
   },
   {
     num: "02",
-    title: "Vorlage wählen — Mockups automatisch",
+    title: "Vorlage wählen — Mockups automatisch erstellen",
     description:
       "Deine Mockup-Vorlagen kommen aus dem Vorlagen-Studio (einmalig anlegen). Du wählst nur die Vorlage; alle Mockups werden daraus automatisch generiert — kein manuelles Zusammenklicken pro Bild.",
     icon: Layers,
@@ -514,7 +514,7 @@ const steps = [
     num: "03",
     title: "Titel, Tags & Beschreibung",
     description:
-      "Pflege Listing-Texte selbst oder mit KI: Die KI kann sich an aktuelle Markt-Trends und Statistiken orientieren — mit eigenem API-Key (BYOK), ohne Abo der App für diese KI-Funktionen. Beim Multi-Agent-Listing arbeiten mehrere „Agenten“ wie in einer Diskussion zusammen — für stärkere, differenziertere Ergebnisse als ein Einzeiler.",
+      "Pflege Listing-Texte selbst oder mit KI: Die KI kann sich an aktuelle Markt-Trends und Statistiken orientieren — mit eigenem API-Key (BYOK), ohne Abo der App nutzbar. Beim Multi-Agent-Listing arbeiten mehrere „Agenten“ wie in einer Diskussion zusammen — für stärkere, differenziertere Ergebnisse als ein Einzeiler.",
     icon: Sparkles,
     visual: "listing",
   },
@@ -522,7 +522,7 @@ const steps = [
     num: "04",
     title: "Gelato & Etsy-Entwurf",
     description:
-      "Das Motiv wird mit allen Metadaten nach Gelato übernommen. Bei Etsy entsteht ein Listing-Entwurf mit Texten — du fügst nur noch die generierten Mockup-Bilder ins Listing ein, dann ist der Gang live.",
+      "Das Motiv wird mit allen Metadaten nach Gelato übernommen. Bei Etsy entsteht ein Listing-Entwurf mit Texten — du fügst nur noch die generierten Mockup-Bilder ins Listing ein, dann sind deine Listings live.",
     icon: Send,
     visual: "publish",
   },
@@ -802,8 +802,7 @@ const HowItWorks = () => {
             Vier Schritte — vom Motiv zum Etsy-Entwurf
           </h2>
           <p className="mx-auto mt-5 max-w-2xl text-lg leading-relaxed text-slate-500">
-            Der gesamte Kernablauf der Plattform an einem Ort: Kurztexte links, Beispiele
-            rechts — von Rohmotiv bis Gelato und Etsy-Entwurf.
+            Der gesamte Kernablauf der Plattform an einem Ort.
           </p>
         </FadeIn>
 
